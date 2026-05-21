@@ -1,0 +1,66 @@
+docs/MARKDOWN_SPEC.md
+  s_fb1d976430d710::t_6d291167ecb41a 63
+tests/test_ids.py
+  s_fb1d976430d710::t_e4d9e9d8ac875a 86-95
+src/loom/state.py
+  s_fb1d976430d710::t_8a8ea2c8c41651 1-88,94-203,209-214,216,218,220-225
+  s_fb1d976430d710::t_32089a372477a9 90-93
+  s_fb1d976430d710::t_d1360b663f9915 204-208,215,217,219
+tests/conftest.py
+  s_fb1d976430d710::t_6dbf4321b1ca00 16-24
+src/loom/gitprobe.py
+  s_fb1d976430d710::t_3aa7a0f4852674 3-59
+tests/test_state.py
+  s_fb1d976430d710::t_da8c1bb6a53268 51,59,199
+  s_fb1d976430d710::t_62f8c0739acac9 218-221
+  s_fb1d976430d710::t_471b426f9e1810 1-48,52-58,60-198,200-217,222-225
+tests/test_cli_interactive.py
+  s_fb1d976430d710::t_400550bd77752f 215-225
+README.md
+  s_fb1d976430d710::t_1aa90c3ff33adb 114-130
+PLAN.md
+  s_fb1d976430d710::t_edb42274be737c 53
+  s_fb1d976430d710::t_de0bcf670c05c0 558-576
+src/loom/ids.py
+  s_fb1d976430d710::t_2cbce79faa8ef2 26
+  s_fb1d976430d710::t_78313a34793890 116
+  s_fb1d976430d710::t_a452a32f661ae7 7
+src/loom/cli.py
+  s_fb1d976430d710::t_d6154584dc72e6 353,686,1255
+  s_fb1d976430d710::t_b271c89822fe62 359,692,733,782,883,947,993,1027,1166,1211,1261
+  s_fb1d976430d710::t_0e4b02652533be 546,586,626,740,822-835,861,891,950,1001,1035,1185,1234,1356
+  s_fb1d976430d710::t_4820705a208710 433-436
+  s_fb1d976430d710::t_455129a30490e9 459-477,490-499
+  s_fb1d976430d710::t_465099ba33c823 514-519,523-524
+  s_fb1d976430d710::t_8fe473abe1be9b 152-178
+  s_fb1d976430d710::t_29dc93410e96eb 522,564,604,727,776,877,941,987,1021,1160,1205,1342
+tests/test_gitprobe.py
+  s_fb1d976430d710::t_da8c1bb6a53268 88
+  s_fb1d976430d710::t_773e6c02af25ce 96-99
+  s_fb1d976430d710::t_5af9902a2d5a97 79-87,89-95,100
+tests/test_cli_update_rename.py
+  s_fb1d976430d710::t_295d271e643c84 24-35
+tests/test_e2e.py
+  s_fb1d976430d710::t_c55a5bfc1befca 413-414
+tests/test_cli_state_roundtrip.py
+  s_fb1d976430d710::t_349b9f88c9ae67 1-68,78-123,125-142,144-158,160-204,206-210
+  s_fb1d976430d710::t_da8c1bb6a53268 71-72,124,143,159,205
+tests/test_phase5.py
+  s_fb1d976430d710::t_9a30ac91f97be3 106-133,141-151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.0",
+  "base_commit_sha": "c3c286aec879465a5e4f5ddec8a867998784f6ca",
+  "prompts": {},
+  "sessions": {
+    "s_fb1d976430d710": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e6880603-4d39-4149-b897-c4177142793e",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
