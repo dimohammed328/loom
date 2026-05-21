@@ -6,7 +6,8 @@ Constraints (all enforced by :func:`parse_qid`):
 
 * Project name matches ``^[a-z][a-z0-9_-]{0,63}$`` and is not in the
   reserved set.
-* Epic local id is exactly seven characters from
+* Epic local id is either the literal ``backlog`` (the auto-created
+  default epic on every project) or exactly seven characters from
   :data:`EPIC_ALPHABET`.
 * Story / task indices are positive decimal integers with no leading
   zeros (``01`` → reject) and no whitespace.
@@ -34,6 +35,7 @@ BACKLOG_EPIC_ID = "backlog"
 def _is_valid_epic_id(s: str) -> bool:
     """True iff *s* is either the literal `backlog` or a 7-char alphabet id."""
     return s == BACKLOG_EPIC_ID or bool(EPIC_ID_RE.match(s))
+
 
 RESERVED_NAMES = frozenset({"projects", "loom", "_archive"})
 
