@@ -28,6 +28,12 @@ PROJECT_NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 EPIC_ALPHABET = "abcdefghjkmnpqrstvwxyz23456789"
 EPIC_ID_LEN = 7
 EPIC_ID_RE = re.compile(rf"^[{EPIC_ALPHABET}]{{{EPIC_ID_LEN}}}$")
+BACKLOG_EPIC_ID = "backlog"
+
+
+def _is_valid_epic_id(s: str) -> bool:
+    """True iff *s* is either the literal `backlog` or a 7-char alphabet id."""
+    return s == BACKLOG_EPIC_ID or bool(EPIC_ID_RE.match(s))
 
 RESERVED_NAMES = frozenset({"projects", "loom", "_archive"})
 
@@ -151,10 +157,11 @@ def parse_qid(s: str) -> QualifiedId:
         return QualifiedId(project=project)
 
     epic = parts[1]
-    if not EPIC_ID_RE.match(epic):
+    if not _is_valid_epic_id(epic):
         raise InvalidQualifiedId(
             s,
-            f"epic segment {epic!r} must be {EPIC_ID_LEN} chars from the epic alphabet",
+            f"epic segment {epic!r} must be {EPIC_ID_LEN} chars from the epic alphabet "
+            f"or the literal {BACKLOG_EPIC_ID!r}",
         )
 
     if len(parts) == 2:
@@ -224,7 +231,7 @@ def qid_from_path(path: Path, root: Path) -> tuple[QualifiedId, bool]:
         raise InvalidQualifiedId(str(path), f"expected '{EPICS_DIRNAME}/<id>' after project")
 
     epic = rest[1]
-    if not EPIC_ID_RE.match(epic):
+    if not _is_valid_epic_id(epic):
         raise InvalidQualifiedId(str(path), f"invalid epic id segment {epic!r}")
     rest = rest[2:]
 

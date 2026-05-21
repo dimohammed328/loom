@@ -220,3 +220,51 @@ def test_qid_from_path_rejects_unknown_subdir() -> None:
     bogus = ROOT / "projects" / "foo" / "garbage" / "thing.md"
     with pytest.raises(InvalidQualifiedId, match="epics"):
         qid_from_path(bogus, ROOT)
+
+
+# ---------------------------------------------------------------------------
+# backlog epic id
+# ---------------------------------------------------------------------------
+
+
+def test_parse_qid_accepts_backlog_literal() -> None:
+    qid = parse_qid("acme:backlog")
+    assert qid == QualifiedId(project="acme", epic="backlog")
+    assert str(qid) == "acme:backlog"
+    assert qid.type is ItemType.EPIC
+
+
+def test_parse_qid_backlog_under_story_and_task() -> None:
+    assert parse_qid("acme:backlog:1").epic == "backlog"
+    assert parse_qid("acme:backlog:1:2").epic == "backlog"
+
+
+def test_parse_qid_backlog_is_case_sensitive() -> None:
+    with pytest.raises(InvalidQualifiedId, match="epic segment"):
+        parse_qid("acme:Backlog")
+    with pytest.raises(InvalidQualifiedId, match="epic segment"):
+        parse_qid("acme:BACKLOG")
+
+
+def test_parse_qid_backlog_prefix_still_rejects() -> None:
+    # 'backlogx' is neither the literal 'backlog' nor 7 chars from the alphabet.
+    with pytest.raises(InvalidQualifiedId, match="epic segment"):
+        parse_qid("acme:backlogx")
+
+
+def test_path_qid_round_trip_backlog() -> None:
+    qid = QualifiedId("acme", "backlog", 1, 2)
+    for archived in (False, True):
+        path = path_from_qid(qid, ROOT, archived=archived)
+        recovered, recovered_archived = qid_from_path(path, ROOT)
+        assert recovered == qid
+        assert recovered_archived is archived
+
+
+def test_project_named_backlog_round_trip() -> None:
+    # Edge case: project literally named `backlog`, containing the `backlog` epic.
+    qid = QualifiedId("backlog", "backlog")
+    path = path_from_qid(qid, ROOT)
+    recovered, _ = qid_from_path(path, ROOT)
+    assert recovered == qid
+    assert str(parse_qid("backlog:backlog")) == "backlog:backlog"
