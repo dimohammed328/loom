@@ -1,0 +1,28 @@
+CLAUDE.md
+  s_fb1d976430d710::t_5542ee76ca0dd6 3-5,9,28-33,54-138,154-158,162-205,207,211-213,215-218,220,222-225,227,231-236,238,242-243,245,247-250,252,262,264-265,267,269,277-279,283-288,290-291,293-298,301-302,307-311
+src/loom/items.py
+  s_fb1d976430d710::t_6ab76b5da8473e 3-6,8-9,17-18
+docs/MARKDOWN_SPEC.md
+  s_fb1d976430d710::t_ede98cf62a7ffc 5
+src/loom/deps.py
+  s_fb1d976430d710::t_683dee4c85ab0f 8-9,13-14
+  s_fb1d976430d710::t_018e0c83a04b47 38-39
+README.md
+  s_fb1d976430d710::t_214d769617e70c 203
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.0",
+  "base_commit_sha": "1bca9d194803d33419ec468127a3d684cc54403b",
+  "prompts": {},
+  "sessions": {
+    "s_fb1d976430d710": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e6880603-4d39-4149-b897-c4177142793e",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
