@@ -45,7 +45,7 @@ def load(path: Path) -> tuple[dict[str, Any], str]:
 
 def dump(path: Path, frontmatter: dict[str, Any], body: str) -> None:
     """Atomically write ``frontmatter`` + ``body`` to *path*."""
-    _atomic_write(path, render(frontmatter, body))
+    atomic_write_text(path, render(frontmatter, body))
 
 
 def parse(text: str, source: str | None = None) -> tuple[dict[str, Any], str]:
@@ -115,7 +115,8 @@ def render(frontmatter: dict[str, Any], body: str) -> str:
     return out
 
 
-def _atomic_write(path: Path, content: str) -> None:
+def atomic_write_text(path: Path, content: str) -> None:
+    """Atomically write *content* to *path* (tempfile + os.replace)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_str = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
     tmp = Path(tmp_str)

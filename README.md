@@ -74,8 +74,8 @@ loom list  --type task --status ready
 loom ready --type task --json
 
 # Mutate
-loom set      acme:apt2467:1:1 assignee alice
-loom set      acme:apt2467:1:1 branch   feat/oauth-google
+loom update   acme:apt2467:1:1 assignee alice
+loom update   acme:apt2467:1:1 branch   feat/oauth-google
 loom tag add  acme:apt2467:1:1 auth security
 loom complete acme:apt2467:1:1
 
@@ -94,6 +94,40 @@ loom sync acme:apt2467:1:1
 
 `--json` is supported on every read-side command (`list`, `ready`,
 `statuses`, `validate`, `dep list`, `show`, `project list`, `rebuild`).
+
+### Interactive ergonomics
+
+When you omit a required positional (a parent qid, the qid to mutate, a
+field name, …), loom prompts:
+
+- **Lookup-style inputs** (parent qid, item qid, target qid) launch
+  [`fzf`](https://github.com/junegunn/fzf) over the candidates, with the
+  last-touched value preselected. If `fzf` isn't on `$PATH`, a numbered
+  list picker is used instead.
+- **Free-form inputs** (title and body for `create`; title for `update`)
+  open `$EDITOR` — on a temp file with a frontmatter template for new
+  items, or on the existing item file when updating.
+
+`loom project create <name>` discovers the repo URL from `cwd`'s
+`origin` remote automatically; pass `--repo URL` explicitly to bypass.
+The cwd must be inside a git repo with an `origin` remote (or pass
+`--repo`). On success, a `.loom/` workspace directory is anchored at
+the git toplevel (or cwd when `--repo` is given outside git).
+
+The workspace stores a reference to the bound loom project plus the
+last-touched epic / story / task. Subsequent `loom` invocations from
+anywhere inside the workspace (walking up to find `.loom/`) auto-fill
+defaults:
+
+- `loom epic create` uses the workspace's bound project — no picker.
+- `loom story create` preselects the last-touched epic.
+- `loom task create` preselects the last-touched story.
+- Other commands (`update`, `show`, `dep add`, …) preselect the most
+  specific last-touched id.
+
+`.loom/` ships with its own `.gitignore` (`*`) so it stays out of your
+git index. Pass `--non-interactive` (or `-y`) to disable all prompts
+and require explicit arguments — useful for scripts.
 
 ## Library quick tour
 

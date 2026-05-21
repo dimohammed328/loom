@@ -60,7 +60,7 @@ $LOOM_DIR/_archive/projects/<project>/epics/<epic>/...
 
 | Level   | Format                                              | Example         |
 |---------|-----------------------------------------------------|-----------------|
-| Project | `^[a-z][a-z0-9_]{0,63}$`, not in `{projects, loom, _archive}`, no leading `_` | `acme_v2` |
+| Project | `^[a-z][a-z0-9_-]{0,63}$`, not in `{projects, loom, _archive}`, no leading `_` | `acme-v2` |
 | Epic    | exactly 7 chars from `abcdefghjkmnpqrstvwxyz23456789` (Crockford-ish, no `0/1/i/l/o/u`) | `apt2467` |
 | Story   | positive decimal int (no leading zeros)             | `1`, `2`, `42`  |
 | Task    | positive decimal int (no leading zeros)             | `1`, `2`, `42`  |

@@ -410,6 +410,8 @@ def test_cli_e2e_dep_ready_close(tmp_path: Path) -> None:
             "acme",
             "--title",
             "Acme",
+            "--repo",
+            "https://example/acme",
             "--root",
             str(root),
         ],

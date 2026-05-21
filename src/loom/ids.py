@@ -4,7 +4,7 @@ A qualified id has the form ``project[:epic[:story[:task]]]``.
 
 Constraints (all enforced by :func:`parse_qid`):
 
-* Project name matches ``^[a-z][a-z0-9_]{0,63}$`` and is not in the
+* Project name matches ``^[a-z][a-z0-9_-]{0,63}$`` and is not in the
   reserved set.
 * Epic local id is exactly seven characters from
   :data:`EPIC_ALPHABET`.
@@ -23,7 +23,7 @@ from pathlib import Path
 
 from .errors import InvalidQualifiedId, ReservedName
 
-PROJECT_NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+PROJECT_NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 
 EPIC_ALPHABET = "abcdefghjkmnpqrstvwxyz23456789"
 EPIC_ID_LEN = 7
@@ -113,7 +113,7 @@ def validate_project_name(name: str) -> None:
     if not PROJECT_NAME_RE.match(name):
         raise InvalidQualifiedId(
             name,
-            "project name must match ^[a-z][a-z0-9_]{0,63}$",
+            "project name must match ^[a-z][a-z0-9_-]{0,63}$",
         )
 
 

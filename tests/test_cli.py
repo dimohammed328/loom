@@ -256,32 +256,32 @@ def test_show_prints_file_contents(loom_dir: Path) -> None:
     assert "type: project" in r.output
 
 
-def test_set_field_updates(loom_dir: Path) -> None:
+def test_update_field_updates(loom_dir: Path) -> None:
     _proj, _epic, _story, task = _create_project_chain_via_cli(loom_dir)
 
-    r = runner.invoke(app, ["set", task, "title", "Renamed", "--root", str(loom_dir)])
+    r = runner.invoke(app, ["update", task, "title", "Renamed", "--root", str(loom_dir)])
     assert r.exit_code == 0
     r = runner.invoke(app, ["show", task, "--root", str(loom_dir)])
     assert "title: Renamed" in r.output
 
-    r = runner.invoke(app, ["set", task, "branch", "feat/x", "--root", str(loom_dir)])
+    r = runner.invoke(app, ["update", task, "branch", "feat/x", "--root", str(loom_dir)])
     assert r.exit_code == 0
-    r = runner.invoke(app, ["set", task, "branch", "", "--root", str(loom_dir)])
+    r = runner.invoke(app, ["update", task, "branch", "", "--root", str(loom_dir)])
     assert r.exit_code == 0  # empty value clears optional field
     r = runner.invoke(app, ["show", task, "--root", str(loom_dir)])
     assert "branch:" not in r.output
 
 
-def test_set_repo_on_non_project_rejected(loom_dir: Path) -> None:
+def test_update_repo_on_non_project_rejected(loom_dir: Path) -> None:
     _proj, epic, _story, _task = _create_project_chain_via_cli(loom_dir)
-    r = runner.invoke(app, ["set", epic, "repo", "https://x", "--root", str(loom_dir)])
+    r = runner.invoke(app, ["update", epic, "repo", "https://x", "--root", str(loom_dir)])
     assert r.exit_code != 0
     assert "not settable" in r.output
 
 
-def test_set_status_on_project_rejected(loom_dir: Path) -> None:
+def test_update_status_on_project_rejected(loom_dir: Path) -> None:
     _proj, _epic, _story, _task = _create_project_chain_via_cli(loom_dir)
-    r = runner.invoke(app, ["set", "acme", "status", "ready", "--root", str(loom_dir)])
+    r = runner.invoke(app, ["update", "acme", "status", "ready", "--root", str(loom_dir)])
     assert r.exit_code != 0
 
 

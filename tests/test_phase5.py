@@ -103,8 +103,34 @@ def test_exit_code_not_found(loom_dir: Path) -> None:
 
 
 def test_exit_code_duplicate(loom_dir: Path) -> None:
-    runner.invoke(app, ["project", "create", "acme", "--title", "A", "--root", str(loom_dir)])
-    r = runner.invoke(app, ["project", "create", "acme", "--title", "A", "--root", str(loom_dir)])
+    runner.invoke(
+        app,
+        [
+            "project",
+            "create",
+            "acme",
+            "--title",
+            "A",
+            "--repo",
+            "https://example/acme",
+            "--root",
+            str(loom_dir),
+        ],
+    )
+    r = runner.invoke(
+        app,
+        [
+            "project",
+            "create",
+            "acme",
+            "--title",
+            "A",
+            "--repo",
+            "https://example/acme",
+            "--root",
+            str(loom_dir),
+        ],
+    )
     assert r.exit_code == EXIT_DUPLICATE
 
 
@@ -112,7 +138,17 @@ def test_exit_code_invalid_id(loom_dir: Path) -> None:
     """Reserved/malformed project names route through EXIT_INVALID_ID."""
     r = runner.invoke(
         app,
-        ["project", "create", "Bad-Name", "--title", "X", "--root", str(loom_dir)],
+        [
+            "project",
+            "create",
+            "Bad_Name",  # uppercase rejected
+            "--title",
+            "X",
+            "--repo",
+            "https://example/x",
+            "--root",
+            str(loom_dir),
+        ],
     )
     assert r.exit_code == EXIT_INVALID_ID
 

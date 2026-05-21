@@ -50,7 +50,7 @@ These were called out as ambiguous in earlier drafts and are now fixed.
    `loom close <id> --if-children-done` is a convenience helper.
 4. Statuses: three canonical values baked in (`ready`, `blocked`, `done`);
    users may add any custom statuses in `config.toml`. See §3.3.
-5. Project-name regex `^[a-z][a-z0-9_]{0,63}$`. Reserved: `projects`,
+5. Project-name regex `^[a-z][a-z0-9_-]{0,63}$`. Reserved: `projects`,
    `loom`, anything starting with `_`.
 6. Cycle detection on dependency add: reject with the offending cycle.
 7. v1 supports archive (move to `_archive/`); no hard delete from the
@@ -472,12 +472,12 @@ loom task    create <story-qid>   [--title …] [--body … | --editor]
 
 loom show   <qid>                                  # frontmatter + body to stdout
 loom edit   <qid>                                  # opens $EDITOR
-loom set    <qid> <field> <value>                  # title, status, assignee,
+loom update <qid> <field> <value>                  # title, status, assignee,
                                                    # branch, pr_url, repo, default_branch
 loom tag    add|rm <qid> <tag>...
 loom archive <qid>
 
-# Status shortcuts (canonical statuses only — for customs use `set`)
+# Status shortcuts (canonical statuses only — for customs use `update`)
 loom complete    <qid>                             # status -> done
 loom block       <qid>                             # status -> blocked
 loom mark-ready  <qid>                             # status -> ready
@@ -550,6 +550,31 @@ depends on a later one.
 - `--json` everywhere; consistent error codes.
 - README + `docs/MARKDOWN_SPEC.md` (the public file-format contract).
 - API usage examples.
+
+### Phase 5.5 — CLI ergonomics
+- Interactive fallback when a required positional is missing AND
+  `sys.stdin.isatty() and not --non-interactive`:
+  - lookup-style inputs (parent / target qids) → `fzf`, falling back to a
+    stdlib numbered picker; preselected from the workspace's last-touched
+    state.
+  - free-form inputs (title, body) → `$EDITOR` with a frontmatter
+    template; for `update QID title`, opens the existing item file.
+- Hard rename `loom set` → `loom update` (no alias; dev-mode).
+- `loom project create` discovers `repo` from cwd's `origin` remote when
+  `--repo` is omitted; fails if cwd is not a git repo with an origin.
+- **Project-local workspace at `<git-toplevel>/.loom/state.json`** (or
+  at cwd when the user is outside git). Created on `loom project create`;
+  contains the bound project qid + most-recently-touched epic / story /
+  task. Walk-up discovery from cwd (like `.git/`). Self-gitignored.
+  Updated by any CLI mutation (create / update / archive / complete /
+  block / mark-ready / close / dep add|rm / tag add|rm / edit); not by
+  reads or by direct library API calls. Replaces the earlier draft that
+  used `$XDG_STATE_HOME/loom/`.
+- With a bound workspace, `loom epic create` skips the project picker
+  entirely; story / task pickers preselect the last-touched parent.
+- `loom project create` from inside an existing workspace silently
+  re-binds and writes a one-line warning to stderr.
+- Global `--non-interactive` / `-y` disables every prompt.
 
 ### Phase 6 (optional, post-v1)
 - FTS5 search.

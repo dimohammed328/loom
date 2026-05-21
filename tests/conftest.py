@@ -12,6 +12,18 @@ from loom.ids import QualifiedId, path_from_qid
 from loom.storage import dump
 
 
+@pytest.fixture(autouse=True)
+def _isolate_loom_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Chdir into ``tmp_path`` so workspace walk-up sees a clean tree.
+
+    Workspace state lives at ``<cwd-ancestor>/.loom/`` (see ``loom.state``).
+    Tests must not see a real ``.loom/`` from the user's filesystem, and
+    must not bleed workspace state across tests — both are guaranteed by
+    starting each test in a fresh empty ``tmp_path``.
+    """
+    monkeypatch.chdir(tmp_path)
+
+
 @pytest.fixture
 def loom_dir(tmp_path: Path) -> Path:
     """A freshly initialized $LOOM_DIR rooted at tmp_path."""

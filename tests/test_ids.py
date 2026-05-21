@@ -83,6 +83,16 @@ def test_invalid_project_format() -> None:
         parse_qid("Foo")  # uppercase
     with pytest.raises(InvalidQualifiedId):
         parse_qid("1foo")  # leading digit
+    with pytest.raises(InvalidQualifiedId):
+        parse_qid("-foo")  # leading hyphen
+    with pytest.raises(InvalidQualifiedId):
+        parse_qid("foo.bar")  # disallowed punctuation
+
+
+def test_project_name_accepts_hyphen_and_underscore() -> None:
+    assert parse_qid("acme-v2").project == "acme-v2"
+    assert parse_qid("acme_v2").project == "acme_v2"
+    assert parse_qid("a-b-c").project == "a-b-c"
 
 
 def test_reserved_project_names() -> None:
