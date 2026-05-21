@@ -1,11 +1,12 @@
 """Item classes: Project, Epic, Story, Task.
 
-The hierarchy mirrors PLAN.md §8.1: ``Project`` exposes only operations
-valid for a project (``create_epic``, ``set_repo``, ...), and so on down
-the tree. Status setters live on a ``_Statused`` mixin so projects don't
-get them by accident.
+``Project`` exposes only operations valid for a project
+(``create_epic``, ``set_repo``, ...), and so on down the tree. Status
+setters live on a ``_Statused`` mixin so projects don't get them by
+accident.
 
-Every mutator follows the same shape:
+Every mutator follows the same shape (the "mutator contract" in
+CLAUDE.md):
 
 1. Read the file from disk (preserving unknown frontmatter keys).
 2. Apply the change in-memory.
@@ -13,8 +14,8 @@ Every mutator follows the same shape:
 4. Re-derive the :class:`IndexRecord` and apply it to the index.
 5. Update ``self._record`` so the *same* instance reflects the change.
 
-This last step matters: PLAN.md's "detached snapshot" rule applies to
-*other* in-memory copies of the same item, not the one you just mutated.
+Step 5 matters: the "detached snapshot" rule applies to *other*
+in-memory copies of the same item, not the one you just mutated.
 """
 
 from __future__ import annotations

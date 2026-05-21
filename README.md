@@ -200,8 +200,7 @@ need stronger guarantees, layer them above loom.
 ## Documentation
 
 - [`docs/MARKDOWN_SPEC.md`](docs/MARKDOWN_SPEC.md) — the public file format contract
-- [`PLAN.md`](PLAN.md) — internal design rationale and phase plan
-- [`CLAUDE.md`](CLAUDE.md) — guidance for contributors using Claude Code
+- [`CLAUDE.md`](CLAUDE.md) — repo conventions, architecture invariants, gotchas
 
 ## License
 

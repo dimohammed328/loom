@@ -5,12 +5,13 @@ frontmatter list. Mutations here go through the same write-then-sync
 pattern as the rest of :mod:`loom.items` — frontmatter is the source of
 truth, the index is rebuilt from it.
 
-Per PLAN.md §3.2:
+Rules (see CLAUDE.md "Non-negotiables"):
+
 * Any non-project item may depend on any other non-project item.
 * A dependency is satisfied iff the target's status is the literal
   string ``'done'``. Custom statuses do not satisfy.
-* Depending on a project is forbidden (§2.8); a project has no status
-  to satisfy.
+* Depending on a project is forbidden; projects have no status to
+  satisfy.
 """
 
 from __future__ import annotations
@@ -34,8 +35,8 @@ MISSING_TYPE = "missing"
 class ItemRef:
     """Lightweight summary of an item for list returns.
 
-    Per PLAN.md §8.1 — exists so callers can list ``dependencies()`` /
-    ``dependents()`` without forcing a full file read for each.
+    Exists so callers can list ``dependencies()`` / ``dependents()``
+    without forcing a full file read for each item.
     """
 
     qualified_id: str

@@ -2,7 +2,7 @@
 
 This is the **public, stable contract** for loom's on-disk format.
 External tools may read and write loom files directly. Loom's internal
-design (`PLAN.md`) may evolve, but this format will not change in
+implementation may evolve, but this format will not change in
 backwards-incompatible ways without bumping `schema_version`.
 
 ## At a glance
