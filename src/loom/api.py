@@ -22,6 +22,7 @@ from pathlib import Path
 
 from .errors import Duplicate, LoomError, NotFound
 from .ids import (
+    BACKLOG_EPIC_ID,
     QualifiedId,
     parse_qid,
     path_from_qid,
@@ -94,7 +95,12 @@ class Loom:
         repo: str | None = None,
         default_branch: str | None = None,
     ) -> Project:
-        """Create a new project. Raises :class:`Duplicate` if it exists."""
+        """Create a new project. Raises :class:`Duplicate` if it exists.
+
+        Every project is created with a default ``backlog`` epic, the
+        canonical home for one-off work that doesn't warrant a dedicated
+        epic. See ``docs/MARKDOWN_SPEC.md`` for details.
+        """
         validate_project_name(name)
         qid = QualifiedId(project=name)
         if (
@@ -110,7 +116,9 @@ class Loom:
             extras={"repo": repo, "default_branch": default_branch},
         )
         record = _create_item_file(self._root, qid, fm, body)
-        return Project(self._root, record)
+        project = Project(self._root, record)
+        project.create_epic(title="Backlog", epic_id=BACKLOG_EPIC_ID)
+        return project
 
     # ----- read ---------------------------------------------------------
 

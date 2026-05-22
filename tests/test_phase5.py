@@ -191,7 +191,8 @@ def test_rebuild_json_clean(loom_dir: Path) -> None:
     r = runner.invoke(app, ["rebuild", "--json", "--root", str(loom_dir)])
     assert r.exit_code == 0
     payload = json.loads(r.output)
-    assert payload["indexed_count"] == 1
+    # create_project writes the project + its auto-generated backlog epic.
+    assert payload["indexed_count"] == 2
     assert payload["rewrites"] == []
     assert payload["issues"] == []
 

@@ -121,7 +121,7 @@ def _build_frontmatter(
     """Return a fresh frontmatter dict for a newly created item."""
     now = _now_iso()
     fm: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "id": qid.local_id,
         "qualified_id": str(qid),
         "type": qid.type.value,

@@ -8,6 +8,7 @@ import pytest
 
 from loom import Duplicate, Loom
 from loom.errors import InvalidQualifiedId
+from loom.ids import BACKLOG_EPIC_ID
 
 
 def test_create_epic_with_explicit_id(loom_dir: Path) -> None:
@@ -34,3 +35,47 @@ def test_create_epic_invalid_explicit_id_raises(loom_dir: Path) -> None:
     # 'BAD' has uppercase chars; not in the alphabet and not the literal 'backlog'.
     with pytest.raises(InvalidQualifiedId):
         project.create_epic(title="X", epic_id="BAD")
+
+
+def test_create_project_writes_backlog_epic(loom_dir: Path) -> None:
+    loom = Loom(root=loom_dir)
+    loom.create_project("acme", title="A")
+
+    # Backlog epic exists on disk and in the index.
+    backlog_qid = f"acme:{BACKLOG_EPIC_ID}"
+    backlog_path = loom_dir / "projects" / "acme" / "epics" / "backlog" / "epic.md"
+    assert backlog_path.is_file()
+
+    epic = loom.get(backlog_qid)
+    assert epic.title == "Backlog"
+    assert epic.qualified_id == backlog_qid
+    assert epic.type == "epic"
+    # _Statused exposes status; cast through the index record to avoid mypy noise.
+    assert epic.record.status == "ready"
+
+
+def test_create_project_backlog_appears_in_find(loom_dir: Path) -> None:
+    loom = Loom(root=loom_dir)
+    loom.create_project("acme", title="A")
+    epics = loom.find(type="epic")
+    assert {e.qualified_id for e in epics} == {f"acme:{BACKLOG_EPIC_ID}"}
+
+
+def test_create_project_backlog_uses_schema_v2(loom_dir: Path) -> None:
+    from loom.storage import load
+
+    loom = Loom(root=loom_dir)
+    loom.create_project("acme", title="A")
+    backlog_path = loom_dir / "projects" / "acme" / "epics" / "backlog" / "epic.md"
+    fm, _body = load(backlog_path)
+    assert fm["schema_version"] == 2
+
+
+def test_project_named_backlog_creates_backlog_backlog(loom_dir: Path) -> None:
+    """Edge case: project literally named `backlog` still gets its backlog epic."""
+    loom = Loom(root=loom_dir)
+    loom.create_project("backlog", title="Backlog Project")
+    backlog_path = loom_dir / "projects" / "backlog" / "epics" / "backlog" / "epic.md"
+    assert backlog_path.is_file()
+    epic = loom.get("backlog:backlog")
+    assert epic.title == "Backlog"

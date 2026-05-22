@@ -366,7 +366,8 @@ def test_compute_dependencies_dependents_blockers(loom_dir: Path) -> None:
 def test_descendants_of_project_returns_full_subtree(loom_dir: Path) -> None:
     _loom, proj, epic, story, t1, t2 = _build_chain(loom_dir)
     qids = {r.qualified_id for r in descendants(Index(loom_dir), proj)}
-    assert qids == {epic, story, t1, t2}
+    # + backlog auto-creation: create_project also writes acme:backlog.
+    assert qids == {epic, story, t1, t2, f"{proj}:backlog"}
 
 
 def test_descendants_prefix_match_safe_for_underscore_project_names(
