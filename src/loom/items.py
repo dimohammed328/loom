@@ -522,9 +522,7 @@ class Project(Item):
         self._mutate_frontmatter(default_branch=branch)
         return self
 
-    def create_epic(
-        self, *, title: str, body: str = "", epic_id: str | None = None
-    ) -> Epic:
+    def create_epic(self, *, title: str, body: str = "", epic_id: str | None = None) -> Epic:
         """Create an epic under this project.
 
         If *epic_id* is given, it is used directly (after a duplicate check);

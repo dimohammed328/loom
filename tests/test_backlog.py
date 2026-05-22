@@ -7,13 +7,14 @@ from pathlib import Path
 import pytest
 
 from loom import Duplicate, Loom
+from loom.errors import InvalidQualifiedId
 
 
 def test_create_epic_with_explicit_id(loom_dir: Path) -> None:
     loom = Loom(root=loom_dir)
-    project = loom.create_project("acme", title="A")
-    # The auto-created backlog already occupies "backlog"; create a
-    # fresh project to exercise the explicit-id path without colliding.
+    # 'acme' eats the literal 'backlog' epic id via auto-creation; pick a
+    # separate project to exercise the explicit-id path without colliding.
+    loom.create_project("acme", title="A")
     other = loom.create_project("other", title="O")
     epic = other.create_epic(title="X", epic_id="abcdefg")
     assert epic.qualified_id == "other:abcdefg"
@@ -31,5 +32,5 @@ def test_create_epic_invalid_explicit_id_raises(loom_dir: Path) -> None:
     loom = Loom(root=loom_dir)
     project = loom.create_project("acme", title="A")
     # 'BAD' has uppercase chars; not in the alphabet and not the literal 'backlog'.
-    with pytest.raises(Exception):  # InvalidQualifiedId — path build will catch it
+    with pytest.raises(InvalidQualifiedId):
         project.create_epic(title="X", epic_id="BAD")
