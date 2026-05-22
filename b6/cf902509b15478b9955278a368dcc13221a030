@@ -1,0 +1,21 @@
+AGENTS.md
+  s_36726acb102d49::t_e02735fde71773 4
+CLAUDE.md
+  s_36726acb102d49::t_e02735fde71773 318
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.0",
+  "base_commit_sha": "b6cf902509b15478b9955278a368dcc13221a030",
+  "prompts": {},
+  "sessions": {
+    "s_36726acb102d49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b2711532-352a-420b-b209-e8f1703bf5b1",
+        "model": "unknown"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
