@@ -522,11 +522,22 @@ class Project(Item):
         self._mutate_frontmatter(default_branch=branch)
         return self
 
-    def create_epic(self, *, title: str, body: str = "") -> Epic:
-        """Create an epic under this project with a fresh random id."""
-        for _attempt in range(EPIC_ID_MAX_ATTEMPTS):
-            epic_id = random_epic_id()
+    def create_epic(
+        self, *, title: str, body: str = "", epic_id: str | None = None
+    ) -> Epic:
+        """Create an epic under this project.
+
+        If *epic_id* is given, it is used directly (after a duplicate check);
+        otherwise a fresh random id is allocated.
+        """
+        if epic_id is not None:
             qid = QualifiedId(self._record.project, epic_id)
+            fm = _build_frontmatter(qid, title=title, status="ready")
+            record = _create_item_file(self._root, qid, fm, body)
+            return Epic(self._root, record)
+        for _attempt in range(EPIC_ID_MAX_ATTEMPTS):
+            random_id = random_epic_id()
+            qid = QualifiedId(self._record.project, random_id)
             if not _qid_path_exists_anywhere(self._root, qid):
                 fm = _build_frontmatter(qid, title=title, status="ready")
                 record = _create_item_file(self._root, qid, fm, body)
