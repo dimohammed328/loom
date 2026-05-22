@@ -1,0 +1,23 @@
+src/loom/ids.py
+  s_36726acb102d49::t_54bf0973f2b420 31-36
+  s_36726acb102d49::t_53f2349c083001 160,163-164
+  s_36726acb102d49::t_5d8d195231c57d 234
+tests/test_ids.py
+  s_36726acb102d49::t_d5e1b8de09034d 223-270
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.0",
+  "base_commit_sha": "2dfc7546d27788e8c63c78f98f7a78eae0492a6e",
+  "prompts": {},
+  "sessions": {
+    "s_36726acb102d49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b2711532-352a-420b-b209-e8f1703bf5b1",
+        "model": "unknown"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
