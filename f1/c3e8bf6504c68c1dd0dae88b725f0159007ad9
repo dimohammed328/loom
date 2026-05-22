@@ -1,0 +1,21 @@
+tests/test_backlog.py
+  s_36726acb102d49::t_6055ead4962f8f 1-35
+src/loom/items.py
+  s_36726acb102d49::t_011cf19253149d 525-533,535-540
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.0",
+  "base_commit_sha": "f1c3e8bf6504c68c1dd0dae88b725f0159007ad9",
+  "prompts": {},
+  "sessions": {
+    "s_36726acb102d49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b2711532-352a-420b-b209-e8f1703bf5b1",
+        "model": "unknown"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
