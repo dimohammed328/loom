@@ -59,7 +59,9 @@ These decisions are settled; changing one requires explicit user approval.
    increment from 1 independently.
 2. **Epic ids are unique within a project**, not globally; the qualified
    ID disambiguates across projects. They are 7 chars from
-   `abcdefghjkmnpqrstvwxyz23456789` (Crockford-ish, no `0/1/i/l/o/u`).
+   `abcdefghjkmnpqrstvwxyz23456789` (Crockford-ish, no `0/1/i/l/o/u`),
+   **or** the literal `backlog` (the auto-created default epic on
+   every project — see `docs/MARKDOWN_SPEC.md`).
 3. **Project-name regex** `^[a-z][a-z0-9_-]{0,63}$`. Reserved names:
    `projects`, `loom`, anything starting with `_`.
 4. **No automatic done-propagation.** Status changes are always
@@ -313,7 +315,7 @@ and ship a migration.
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **loom** (1536 symbols, 3396 relationships, 136 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **loom** (1613 symbols, 3524 relationships, 142 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

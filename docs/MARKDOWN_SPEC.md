@@ -11,7 +11,7 @@ Every loom item is one Markdown file with YAML frontmatter:
 
 ```markdown
 ---
-schema_version: 1
+schema_version: 2
 id: apt2467
 qualified_id: example_project:apt2467
 type: epic
@@ -61,7 +61,7 @@ $LOOM_DIR/_archive/projects/<project>/epics/<epic>/...
 | Level   | Format                                              | Example         |
 |---------|-----------------------------------------------------|-----------------|
 | Project | `^[a-z][a-z0-9_-]{0,63}$`, not in `{projects, loom, _archive}`, no leading `_` | `acme-v2` |
-| Epic    | exactly 7 chars from `abcdefghjkmnpqrstvwxyz23456789` (Crockford-ish, no `0/1/i/l/o/u`) | `apt2467` |
+| Epic    | exactly 7 chars from `abcdefghjkmnpqrstvwxyz23456789` (Crockford-ish, no `0/1/i/l/o/u`), **or** the literal `backlog` | `apt2467`, `backlog` |
 | Story   | positive decimal int (no leading zeros)             | `1`, `2`, `42`  |
 | Task    | positive decimal int (no leading zeros)             | `1`, `2`, `42`  |
 
@@ -76,13 +76,30 @@ Story and task ids are sequential per parent, starting at 1. They are
 allocated by scanning both live and archived siblings, so an archived
 sibling's id is never reused.
 
+### The `backlog` epic
+
+Every project is created with a default `backlog` epic at
+`projects/<project>/epics/backlog/epic.md`. It is loom's canonical
+home for one-off work that doesn't warrant a dedicated epic — bug
+fixes, small patches, ad-hoc tasks. Tools may treat `backlog` as a
+known, addressable target; loom itself only special-cases it in two
+places:
+
+1. `Loom.create_project` writes the backlog epic alongside the
+   project file.
+2. The CLI's `loom story create <project>` (a bare project qid)
+   defaults to creating the story under `<project>:backlog`.
+
+The backlog epic is otherwise a normal epic — same frontmatter,
+same status semantics, same dependency rules.
+
 ## Frontmatter — required fields
 
 These keys are required on **every** item:
 
 | Key | Type | Notes |
 |-----|------|-------|
-| `schema_version` | int | Currently `1`. |
+| `schema_version` | int | Currently `2`. |
 | `id` | string | The local id segment (not the qualified id). |
 | `qualified_id` | string | The full colon-joined path. Must match the file path. |
 | `type` | string | One of `project`, `epic`, `story`, `task`. |
@@ -176,7 +193,8 @@ DB that isn't also in markdown.
 
 ## Versioning
 
-`schema_version: 1` is the current and only version. A future
+`schema_version: 2` is the current version (v1 differed only by
+disallowing the literal `backlog` epic id). A future
 incompatible change will bump this and ship a migration. Tools that
 write loom files MUST set `schema_version` to the version they
 understand; loom rejects unknown versions explicitly rather than
