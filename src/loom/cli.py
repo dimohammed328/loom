@@ -23,7 +23,7 @@ from . import state as state_mod
 from .api import Loom
 from .bootstrap import init as bootstrap_init
 from .errors import LoomError
-from .ids import parse_qid
+from .ids import BACKLOG_EPIC_ID, ItemType, parse_qid
 from .index import Index
 from .items import Epic, Item, Project, Story, Task
 from .paths import loom_root
@@ -558,7 +558,12 @@ def story_create(
     body: Annotated[str, typer.Option("--body", help="Markdown body.")] = "",
     root: RootOption = None,
 ) -> None:
-    """Create a new story under <epic-qid>."""
+    """Create a new story under <epic-qid>.
+
+    Passing a bare project qid (e.g. `loom story create acme`) defaults
+    the story to that project's `backlog` epic, creating the backlog
+    on the fly if the project pre-dates this feature.
+    """
     cli_state = _cli_state(ctx)
     loom = _loom(root)
     defaults = _defaults()
@@ -569,6 +574,28 @@ def story_create(
         non_interactive=cli_state.non_interactive,
         preselect=defaults.epic,
     )
+
+    # Bare project qid → default to <project>:backlog, lazy-creating
+    # the backlog epic for legacy projects that pre-date this feature.
+    try:
+        parsed = parse_qid(epic_qid)
+    except LoomError as e:
+        _die_from(e)
+        return
+    if parsed.type is ItemType.PROJECT:
+        backlog_qid = f"{parsed.project}:{BACKLOG_EPIC_ID}"
+        if loom.get_or_none(backlog_qid) is None:
+            project = _get_or_die(loom, parsed.project)
+            if not isinstance(project, Project):
+                _die(f"{parsed.project} is not a project")
+                return
+            try:
+                project.create_epic(title="Backlog", epic_id=BACKLOG_EPIC_ID)
+            except LoomError as e:
+                _die_from(e)
+                return
+        epic_qid = backlog_qid
+
     try:
         parent = loom.get(epic_qid)
     except LoomError as e:

@@ -5,10 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
 from loom import Duplicate, Loom
+from loom.cli import app
 from loom.errors import InvalidQualifiedId
 from loom.ids import BACKLOG_EPIC_ID
+
+runner = CliRunner()
 
 
 def test_create_epic_with_explicit_id(loom_dir: Path) -> None:
@@ -79,3 +83,66 @@ def test_project_named_backlog_creates_backlog_backlog(loom_dir: Path) -> None:
     assert backlog_path.is_file()
     epic = loom.get("backlog:backlog")
     assert epic.title == "Backlog"
+
+
+def test_cli_story_create_defaults_to_backlog(loom_dir: Path) -> None:
+    runner.invoke(
+        app,
+        [
+            "project",
+            "create",
+            "acme",
+            "--title",
+            "A",
+            "--repo",
+            "https://e/a",
+            "--root",
+            str(loom_dir),
+        ],
+    )
+    r = runner.invoke(
+        app,
+        ["story", "create", "acme", "--title", "Fix login bug", "--root", str(loom_dir)],
+    )
+    assert r.exit_code == 0, r.output
+    assert "created acme:backlog:1" in r.output
+
+
+def test_cli_story_create_legacy_project_lazy_creates_backlog(
+    loom_dir: Path,
+) -> None:
+    """A project written without a backlog (legacy layout) gets backlog
+    materialized the first time `story create <project>` defaults into it.
+    """
+    from conftest import write_item
+    from loom.ids import QualifiedId
+
+    # Write a project with NO backlog epic — simulates pre-feature layout.
+    write_item(loom_dir, QualifiedId("legacy"), title="Legacy Project")
+
+    # Rebuild so the index sees the project.
+    runner.invoke(app, ["rebuild", "--root", str(loom_dir), "-q"])
+
+    backlog_path = loom_dir / "projects" / "legacy" / "epics" / "backlog" / "epic.md"
+    assert not backlog_path.exists()
+
+    r = runner.invoke(
+        app,
+        ["story", "create", "legacy", "--title", "S", "--root", str(loom_dir)],
+    )
+    assert r.exit_code == 0, r.output
+    assert backlog_path.is_file()
+    assert "created legacy:backlog:1" in r.output
+
+
+def test_cli_story_create_explicit_epic_unchanged(loom_dir: Path) -> None:
+    """Passing a real epic qid still creates the story under that epic."""
+    loom = Loom(root=loom_dir)
+    p = loom.create_project("acme", title="A")
+    e = p.create_epic(title="Auth")
+    r = runner.invoke(
+        app,
+        ["story", "create", e.qualified_id, "--title", "S", "--root", str(loom_dir)],
+    )
+    assert r.exit_code == 0, r.output
+    assert f"created {e.qualified_id}:1" in r.output
