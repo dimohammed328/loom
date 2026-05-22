@@ -1,0 +1,25 @@
+docs/MARKDOWN_SPEC.md
+  s_36726acb102d49::t_bc53d34fa82195 102
+  s_36726acb102d49::t_5163edfec12c27 79-95
+  s_36726acb102d49::t_b8e5b1d7453854 14
+  s_36726acb102d49::t_fe2bb41d507534 196-197
+  s_36726acb102d49::t_d8f515644ccf43 64
+CLAUDE.md
+  s_36726acb102d49::t_b26c9ef8425c48 62-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.0",
+  "base_commit_sha": "b99b129dfd6cb0374467f4266d9a450e84a8fcf1",
+  "prompts": {},
+  "sessions": {
+    "s_36726acb102d49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b2711532-352a-420b-b209-e8f1703bf5b1",
+        "model": "unknown"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
