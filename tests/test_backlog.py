@@ -146,3 +146,41 @@ def test_cli_story_create_explicit_epic_unchanged(loom_dir: Path) -> None:
     )
     assert r.exit_code == 0, r.output
     assert f"created {e.qualified_id}:1" in r.output
+
+
+def test_cli_story_create_preselects_backlog_when_no_last_touched(
+    loom_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Interactive picker preselects <workspace.project>:backlog when
+    no real epic has been touched yet."""
+    from loom import prompts
+
+    runner.invoke(
+        app,
+        [
+            "project",
+            "create",
+            "acme",
+            "--title",
+            "A",
+            "--repo",
+            "https://e/a",
+            "--root",
+            str(loom_dir),
+        ],
+    )
+
+    calls: list[dict] = []
+
+    def fake_pick(candidates, *, prompt, preselect, non_interactive):  # type: ignore[no-untyped-def]
+        calls.append({"prompt": prompt, "preselect": preselect})
+        return candidates[0].qid
+
+    monkeypatch.setattr(prompts, "pick_one", fake_pick)
+    # Force the picker code path even though CliRunner is non-TTY.
+    monkeypatch.setattr(prompts, "is_interactive", lambda _ni: True)
+
+    r = runner.invoke(app, ["story", "create", "--title", "S", "--root", str(loom_dir)])
+    assert r.exit_code == 0, r.output
+    epic_pick = [c for c in calls if c["prompt"] == "epic"]
+    assert epic_pick and epic_pick[0]["preselect"] == "acme:backlog"

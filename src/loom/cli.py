@@ -178,6 +178,16 @@ def _record_touch(qid: str) -> None:
     state_mod.update_workspace(ws.dir, qid)
 
 
+def _story_create_epic_preselect(defaults: state_mod.Defaults) -> str | None:
+    """Preselect for story_create's epic picker: last-touched, else
+    <workspace.project>:backlog when a workspace is bound."""
+    if defaults.epic:
+        return defaults.epic
+    if defaults.project:
+        return f"{defaults.project}:{BACKLOG_EPIC_ID}"
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Interactive resolution helpers
 # ---------------------------------------------------------------------------
@@ -572,7 +582,7 @@ def story_create(
         loom.find(type="epic"),
         prompt_label="epic",
         non_interactive=cli_state.non_interactive,
-        preselect=defaults.epic,
+        preselect=_story_create_epic_preselect(defaults),
     )
 
     # Bare project qid → default to <project>:backlog, lazy-creating
