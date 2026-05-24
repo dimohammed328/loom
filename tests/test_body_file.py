@@ -173,3 +173,58 @@ def test_task_create_body_file(loom_dir: Path, tmp_path: Path) -> None:
     tqid = result.output.strip().split()[-1]
     loom = Loom(root=loom_dir)
     assert loom.get(tqid).body.strip() == "the task."
+
+
+def test_project_create_body_file(loom_dir: Path, tmp_path: Path) -> None:
+    body_path = tmp_path / "p.md"
+    body_path.write_text("## Goals\nbig project.\n", encoding="utf-8")
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "-y",
+            "project",
+            "create",
+            "myproj",
+            "--root",
+            str(loom_dir),
+            "--repo",
+            "x",
+            "--body-file",
+            str(body_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    loom = Loom(root=loom_dir)
+    assert loom.get("myproj").body.strip().startswith("## Goals")
+
+
+def test_update_body_file(loom_dir: Path, tmp_path: Path) -> None:
+    runner = CliRunner()
+    runner.invoke(
+        app,
+        ["-y", "project", "create", "p", "--root", str(loom_dir), "--repo", "x"],
+    )
+    epic_result = runner.invoke(
+        app,
+        ["-y", "epic", "create", "p", "--root", str(loom_dir), "--title", "e"],
+    )
+    qid = epic_result.output.strip().split()[-1]
+    new_body = tmp_path / "new.md"
+    new_body.write_text("## Updated\nnew text.\n", encoding="utf-8")
+    result = runner.invoke(
+        app,
+        [
+            "-y",
+            "update",
+            qid,
+            "body",
+            "--root",
+            str(loom_dir),
+            "--body-file",
+            str(new_body),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    loom = Loom(root=loom_dir)
+    assert loom.get(qid).body.strip().startswith("## Updated")

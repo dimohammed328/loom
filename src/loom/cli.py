@@ -465,6 +465,13 @@ def project_create(
     ],
     title: Annotated[str, typer.Option("--title", help="Human-readable title.")] = "",
     body: Annotated[str, typer.Option("--body", help="Markdown body for the project file.")] = "",
+    body_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--body-file",
+            help="Path to a markdown file used as the body. Mutually exclusive with --body.",
+        ),
+    ] = None,
     repo: Annotated[
         str | None,
         typer.Option(
@@ -504,6 +511,7 @@ def project_create(
         repo = discovered
 
     title, body = _resolve_title_body(title, body, non_interactive=cli_state.non_interactive)
+    body = _resolve_body_with_file(body, body_file)
     loom = _loom(root)
     try:
         project = loom.create_project(
@@ -821,8 +829,10 @@ def edit_cmd(
     typer.echo(f"synced {qid}")
 
 
-_PROJECT_SETTABLE_FIELDS = frozenset({"title", "repo", "default_branch"})
-_NON_PROJECT_SETTABLE_FIELDS = frozenset({"title", "status", "assignee", "branch", "pr_url"})
+_PROJECT_SETTABLE_FIELDS = frozenset({"title", "body", "repo", "default_branch"})
+_NON_PROJECT_SETTABLE_FIELDS = frozenset(
+    {"title", "body", "status", "assignee", "branch", "pr_url"}
+)
 
 
 @app.command("update")
@@ -835,12 +845,21 @@ def update_cmd(
     field: Annotated[
         str | None,
         typer.Argument(
-            help="Field name (title, status, assignee, branch, pr_url, repo, default_branch).",
+            help=(
+                "Field name (title, body, status, assignee, branch, pr_url, repo, default_branch)."
+            ),
         ),
     ] = None,
     value: Annotated[
         str | None,
         typer.Argument(help="New value. Use an empty string to clear an optional field."),
+    ] = None,
+    body_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--body-file",
+            help="When field=body, read the new body from this file.",
+        ),
     ] = None,
     root: RootOption = None,
 ) -> None:
@@ -848,8 +867,9 @@ def update_cmd(
 
     Interactive: omitting any of QID, FIELD, or VALUE prompts for it. For
     ``title``, the prompt opens the item's file in ``$EDITOR`` rather
-    than asking for a one-line value. Bodies are not updatable here —
-    use ``loom edit`` to modify the markdown body directly.
+    than asking for a one-line value. For ``body``, pass ``--body-file
+    <path>`` to read the new body from disk; ``loom edit`` remains the
+    interactive way to edit a body in ``$EDITOR``.
     """
     cli_state = _cli_state(ctx)
     loom = _loom(root)
@@ -882,6 +902,40 @@ def update_cmd(
             f"field {field!r} is not settable on a {item.type}; "
             f"allowed: {', '.join(sorted(allowed))}"
         )
+        return
+
+    # Body has its own value-resolution path: prefer --body-file when set,
+    # otherwise treat the positional value as the literal new body.
+    if field == "body":
+        if body_file is not None:
+            if value:
+                _die("--body-file and positional value are mutually exclusive")
+                return
+            try:
+                value = body_file.read_text(encoding="utf-8")
+            except FileNotFoundError:
+                _die(f"--body-file: {body_file} does not exist", code=EXIT_NOT_FOUND)
+                return
+        elif value is None:
+            if not prompts.is_interactive(cli_state.non_interactive):
+                _die("value or --body-file required for body (--non-interactive set / not a tty)")
+                return
+            try:
+                value = typer.prompt("body (empty to clear)", default="", show_default=False)
+            except (EOFError, typer.Abort):
+                _die("value entry cancelled")
+                return
+        try:
+            item.set_body(value)
+        except LoomError as e:
+            _die_from(e)
+            return
+        _record_touch(qid)
+        typer.echo(f"set {qid} body")
+        return
+
+    if body_file is not None:
+        _die("--body-file is only valid when field=body")
         return
 
     # Title gets the editor-on-existing-file flow when no value was supplied.
