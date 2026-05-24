@@ -91,3 +91,37 @@ def test_epic_create_body_and_body_file_mutually_exclusive(loom_dir: Path, tmp_p
     assert (
         "mutually exclusive" in result.output.lower() or "cannot use both" in result.output.lower()
     )
+
+
+def test_story_create_body_file(loom_dir: Path, tmp_path: Path) -> None:
+    body_path = tmp_path / "story-body.md"
+    body_path.write_text("## Summary\nthe story.\n", encoding="utf-8")
+    runner = CliRunner()
+    runner.invoke(
+        app,
+        ["-y", "project", "create", "p", "--root", str(loom_dir), "--repo", "x"],
+    )
+    epic_result = runner.invoke(
+        app,
+        ["-y", "epic", "create", "p", "--root", str(loom_dir), "--title", "e"],
+    )
+    epic_qid = epic_result.output.strip().split()[-1]
+    result = runner.invoke(
+        app,
+        [
+            "-y",
+            "story",
+            "create",
+            epic_qid,
+            "--root",
+            str(loom_dir),
+            "--title",
+            "s",
+            "--body-file",
+            str(body_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    sqid = result.output.strip().split()[-1]
+    loom = Loom(root=loom_dir)
+    assert loom.get(sqid).body.strip().startswith("## Summary")

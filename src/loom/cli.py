@@ -593,6 +593,13 @@ def story_create(
     ] = None,
     title: Annotated[str, typer.Option("--title", help="Human-readable title.")] = "",
     body: Annotated[str, typer.Option("--body", help="Markdown body.")] = "",
+    body_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--body-file",
+            help="Path to a markdown file used as the body. Mutually exclusive with --body.",
+        ),
+    ] = None,
     root: RootOption = None,
 ) -> None:
     """Create a new story under <epic-qid>.
@@ -642,6 +649,7 @@ def story_create(
         _die(f"{epic_qid} is not an epic")
         return
     title, body = _resolve_title_body(title, body, non_interactive=cli_state.non_interactive)
+    body = _resolve_body_with_file(body, body_file)
     try:
         story = parent.create_story(title=title or "(untitled story)", body=body)
     except LoomError as e:
