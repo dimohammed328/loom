@@ -125,3 +125,51 @@ def test_story_create_body_file(loom_dir: Path, tmp_path: Path) -> None:
     sqid = result.output.strip().split()[-1]
     loom = Loom(root=loom_dir)
     assert loom.get(sqid).body.strip().startswith("## Summary")
+
+
+def test_task_create_body_file(loom_dir: Path, tmp_path: Path) -> None:
+    body_path = tmp_path / "task-body.md"
+    body_path.write_text("the task.\n", encoding="utf-8")
+    runner = CliRunner()
+    runner.invoke(
+        app,
+        ["-y", "project", "create", "p", "--root", str(loom_dir), "--repo", "x"],
+    )
+    epic_result = runner.invoke(
+        app,
+        ["-y", "epic", "create", "p", "--root", str(loom_dir), "--title", "e"],
+    )
+    epic_qid = epic_result.output.strip().split()[-1]
+    story_result = runner.invoke(
+        app,
+        [
+            "-y",
+            "story",
+            "create",
+            epic_qid,
+            "--root",
+            str(loom_dir),
+            "--title",
+            "s",
+        ],
+    )
+    story_qid = story_result.output.strip().split()[-1]
+    result = runner.invoke(
+        app,
+        [
+            "-y",
+            "task",
+            "create",
+            story_qid,
+            "--root",
+            str(loom_dir),
+            "--title",
+            "t",
+            "--body-file",
+            str(body_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    tqid = result.output.strip().split()[-1]
+    loom = Loom(root=loom_dir)
+    assert loom.get(tqid).body.strip() == "the task."

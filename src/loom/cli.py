@@ -668,6 +668,13 @@ def task_create(
     ] = None,
     title: Annotated[str, typer.Option("--title", help="Human-readable title.")] = "",
     body: Annotated[str, typer.Option("--body", help="Markdown body.")] = "",
+    body_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--body-file",
+            help="Path to a markdown file used as the body. Mutually exclusive with --body.",
+        ),
+    ] = None,
     root: RootOption = None,
 ) -> None:
     """Create a new task under <story-qid>."""
@@ -690,6 +697,7 @@ def task_create(
         _die(f"{story_qid} is not a story")
         return
     title, body = _resolve_title_body(title, body, non_interactive=cli_state.non_interactive)
+    body = _resolve_body_with_file(body, body_file)
     try:
         task = parent.create_task(title=title or "(untitled task)", body=body)
     except LoomError as e:
