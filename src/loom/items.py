@@ -336,6 +336,15 @@ class Item:
         self._record = new_record
         return self
 
+    def set_body_from_file(self, path: Path) -> Item:
+        """Read *path* as utf-8 and use its contents as this item's body.
+
+        Raises ``FileNotFoundError`` if *path* doesn't exist. Otherwise
+        delegates to :meth:`set_body`.
+        """
+        body = Path(path).read_text(encoding="utf-8")
+        return self.set_body(body)
+
     def add_tag(self, tag: str) -> Item:
         if tag in self._record.tags:
             return self
