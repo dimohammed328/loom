@@ -11,7 +11,7 @@ Every loom item is one Markdown file with YAML frontmatter:
 
 ```markdown
 ---
-schema_version: 2
+schema_version: 3
 id: apt2467
 qualified_id: example_project:apt2467
 type: epic
@@ -99,7 +99,7 @@ These keys are required on **every** item:
 
 | Key | Type | Notes |
 |-----|------|-------|
-| `schema_version` | int | Currently `2`. |
+| `schema_version` | int | Currently `3`. |
 | `id` | string | The local id segment (not the qualified id). |
 | `qualified_id` | string | The full colon-joined path. Must match the file path. |
 | `type` | string | One of `project`, `epic`, `story`, `task`. |
@@ -135,6 +135,42 @@ On **projects only**:
 
 **Unknown frontmatter keys are preserved on round-trip.** External
 tools may add their own annotations without loom stripping them.
+
+## Assignment and ownership
+
+Every non-project item may carry an optional `assignee` frontmatter field
+recording who currently owns the item. Loom does not enforce a format;
+external workflows define the convention.
+
+The loom-backed Claude Code workflow (see `docs/WORKFLOW.md`) uses four
+states for this field on stories and epics:
+
+| State      | Value                          | Meaning                                              |
+|------------|--------------------------------|------------------------------------------------------|
+| Unassigned | empty / field absent           | Never started, or just discarded                     |
+| Scheduled  | `<session_id>`                 | Created by a session; no worker dispatched yet       |
+| Active     | `<session_id>:<agent_id>`      | A specific subagent currently owns the item          |
+| Completed  | `<session_id>:<agent_id>` + `status=done` | Audit record of who completed it          |
+
+For epics, only the bare `<session_id>` form is used (the main session
+owns epics directly; no subagent). For stories, all four states are
+reachable. Tasks do not carry `assignee`.
+
+The field is settable via `loom update <qid> assignee <value>`.
+
+## Validation criteria convention
+
+Story and epic bodies in the loom-backed Claude Code workflow contain a
+`## Validation Criteria` markdown section with a checklist. Loom itself
+does not parse or enforce this; the convention lets external validators
+(see `docs/WORKFLOW.md`) check completion deterministically. Example:
+
+    ## Validation Criteria
+    - [ ] CLI `loom tree <qid>` returns a unicode-indented hierarchy
+    - [ ] `loom tree --json` returns a flat array with children-as-qid-refs
+    - [ ] Existing `loom show` is unaffected
+
+Criteria should be observable from "criteria + final code state" alone.
 
 ## Status semantics
 
@@ -193,9 +229,14 @@ DB that isn't also in markdown.
 
 ## Versioning
 
-`schema_version: 2` is the current version (v1 differed only by
-disallowing the literal `backlog` epic id). A future
-incompatible change will bump this and ship a migration. Tools that
-write loom files MUST set `schema_version` to the version they
-understand; loom rejects unknown versions explicitly rather than
+`schema_version: 3` is the current version. History:
+
+- `1` — original.
+- `2` — admitted the literal `backlog` epic id.
+- `3` — documented the `assignee` field convention and the
+  `## Validation Criteria` body section (see below).
+
+A future incompatible change will bump this and ship a migration.
+Tools that write loom files MUST set `schema_version` to the version
+they understand; loom rejects unknown versions explicitly rather than
 guessing.

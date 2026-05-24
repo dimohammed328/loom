@@ -72,7 +72,7 @@ def test_create_project_backlog_uses_schema_v2(loom_dir: Path) -> None:
     loom.create_project("acme", title="A")
     backlog_path = loom_dir / "projects" / "acme" / "epics" / "backlog" / "epic.md"
     fm, _body = load(backlog_path)
-    assert fm["schema_version"] == 2
+    assert fm["schema_version"] == 3
 
 
 def test_project_named_backlog_creates_backlog_backlog(loom_dir: Path) -> None:
