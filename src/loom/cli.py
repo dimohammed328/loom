@@ -437,6 +437,25 @@ def _tag_root() -> None:
     """Tag commands."""
 
 
+def _resolve_body_with_file(
+    body: str,
+    body_file: Path | None,
+) -> str:
+    """Return the body string, given the inline ``body`` and the ``--body-file`` value.
+
+    Exactly one of (body, body_file) may be non-empty. If body_file is set,
+    its contents are read as utf-8. If both are set, exit with EXIT_GENERIC.
+    """
+    if body and body_file is not None:
+        _die("--body and --body-file are mutually exclusive")
+    if body_file is not None:
+        try:
+            return body_file.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            _die(f"--body-file: {body_file} does not exist", code=EXIT_NOT_FOUND)
+    return body
+
+
 @project_app.command("create")
 def project_create(
     ctx: typer.Context,
@@ -519,6 +538,13 @@ def epic_create(
     ] = None,
     title: Annotated[str, typer.Option("--title", help="Human-readable title.")] = "",
     body: Annotated[str, typer.Option("--body", help="Markdown body.")] = "",
+    body_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--body-file",
+            help="Path to a markdown file used as the body. Mutually exclusive with --body.",
+        ),
+    ] = None,
     root: RootOption = None,
 ) -> None:
     """Create a new epic under <project>.
@@ -548,6 +574,7 @@ def epic_create(
         _die(f"{project} is not a project")
         return
     title, body = _resolve_title_body(title, body, non_interactive=cli_state.non_interactive)
+    body = _resolve_body_with_file(body, body_file)
     try:
         epic = parent.create_epic(title=title or "(untitled epic)", body=body)
     except LoomError as e:
