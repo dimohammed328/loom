@@ -1,0 +1,19 @@
+tests/test_e2e.py
+  s_e126036bf0cc53::t_892fd33a67daf4 443-581
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "4b97fad872ebaa4a3bb632302dcb09571f660e04",
+  "prompts": {},
+  "sessions": {
+    "s_e126036bf0cc53": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "69e2e879-4ed0-437d-bc9f-8483318965e8",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
