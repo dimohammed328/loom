@@ -172,6 +172,8 @@ class Loom:
         type: str | None = None,
         tag: str | None = None,
         limit: int | None = None,
+        parent: str | None = None,
+        recursive: bool = False,
     ) -> list[Item]:
         """Return pickable items: status='ready', not archived, all deps done.
 
@@ -180,12 +182,27 @@ class Loom:
         out from under the source — see :mod:`loom.deps`) doesn't sneak
         in. Apply ``limit`` after filtering so it bounds the visible
         result count.
+
+        If ``parent`` is provided, scope to items directly under that qid
+        (or, with ``recursive=True``, all descendants at any depth). With
+        ``parent=None`` (default), returns global ready items (existing
+        behavior).
         """
         from .items import _Statused
 
         candidates = self._index.find_pickable(type=type, tag=tag, limit=None)
         out: list[Item] = []
         for record in candidates:
+            if parent is not None:
+                if recursive:
+                    # All descendants at any depth.
+                    if not record.qualified_id.startswith(parent + ":"):
+                        continue
+                else:
+                    # Direct children only: qid must be parent + ":" + exactly one segment.
+                    rest = record.qualified_id.removeprefix(parent + ":")
+                    if rest == record.qualified_id or ":" in rest:
+                        continue
             item = item_from_record(self._root, record)
             if isinstance(item, _Statused) and item.is_pickable():
                 out.append(item)
