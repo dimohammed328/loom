@@ -1,0 +1,19 @@
+tests/test_cli.py
+  s_d1ffb74b7b4b17::t_9bfcb2f0c0c2b5 58-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ab3aa149a3fdce19153a242f59ace6aa7a12d88b",
+  "prompts": {},
+  "sessions": {
+    "s_d1ffb74b7b4b17": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e0f1ac-a33d-4481-a895-fddc943cffdd",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
