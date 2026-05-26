@@ -1,0 +1,19 @@
+src/loom/cli.py
+  s_d1ffb74b7b4b17::t_c0c5c214139c32 245-249,702
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "fb15a2fea89d5f6f7b969784bc95e5697b05f47f",
+  "prompts": {},
+  "sessions": {
+    "s_d1ffb74b7b4b17": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e0f1ac-a33d-4481-a895-fddc943cffdd",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
