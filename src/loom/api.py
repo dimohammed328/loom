@@ -161,6 +161,74 @@ class Loom:
     def projects(self) -> list[Project]:
         return [item for item in self.find(type="project") if isinstance(item, Project)]
 
+    def tree(
+        self,
+        qualified_id: str,
+        *,
+        depth: int | None = None,
+        status: str | None = None,
+    ) -> dict:
+        """Return a flat-array tree rooted at *qualified_id*.
+
+        The shape is::
+
+            {
+              "root": "<qid>",
+              "items": [
+                {"qid": "...", "type": "...", "status": "...",
+                 "branch": "...", "pr_url": "...", "assignee": "...",
+                 "deps": ["..."], "children": ["<qid>", ...]},
+                ...
+              ]
+            }
+
+        ``depth`` limits descent (``depth=1`` -> root + direct children).
+        ``status`` filters items to a single status string.
+        """
+        from .deps import compute_dependencies, descendants
+
+        root_record = self._index.get(qualified_id)
+        if root_record is None:
+            raise NotFound(qualified_id)
+
+        # Collect all descendant records; filter by depth if requested.
+        all_records = [root_record, *descendants(self._index, qualified_id)]
+
+        def _depth_below_root(qid: str) -> int:
+            return qid.count(":") - qualified_id.count(":")
+
+        if depth is not None:
+            all_records = [r for r in all_records if _depth_below_root(r.qualified_id) <= depth]
+
+        if status is not None:
+            all_records = [r for r in all_records if r.status == status]
+
+        # Build children index: for each record, list direct-child qids
+        # within our (possibly depth-trimmed) record set.
+        present_qids = {r.qualified_id for r in all_records}
+        items_out = []
+        for record in sorted(all_records, key=lambda r: r.qualified_id):
+            prefix = record.qualified_id + ":"
+            children = sorted(
+                q for q in present_qids if q.startswith(prefix) and ":" not in q[len(prefix) :]
+            )
+            deps = [
+                ref.qualified_id for ref in compute_dependencies(self._index, record.qualified_id)
+            ]
+            items_out.append(
+                {
+                    "qid": record.qualified_id,
+                    "type": record.type,
+                    "status": record.status,
+                    "branch": record.branch,
+                    "pr_url": record.pr_url,
+                    "assignee": record.assignee,
+                    "deps": deps,
+                    "children": children,
+                }
+            )
+        return {"root": qualified_id, "items": items_out}
+
     def statuses(self) -> list[str]:
         return self._index.statuses()
 
