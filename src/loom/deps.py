@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from collections import deque
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -261,6 +262,55 @@ def _rewrite_depends_on(
 # ---------------------------------------------------------------------------
 # Subtree close
 # ---------------------------------------------------------------------------
+
+
+def topological_sort(
+    records: Sequence[IndexRecord],
+    idx: Index,
+) -> list[IndexRecord]:
+    """Return *records* in topological order.
+
+    Two records X and Y where X depends on Y: Y precedes X. Records at the
+    same dep-rank are sorted by qualified_id (stable, deterministic).
+
+    Records not present in the input set are ignored as deps (a record may
+    have dependencies on items outside the input slice).
+    """
+    qid_set = {r.qualified_id for r in records}
+    by_qid = {r.qualified_id: r for r in records}
+
+    # Build in-degree (incoming-edge count for each record), restricted
+    # to deps within the input slice.
+    in_degree: dict[str, int] = {qid: 0 for qid in qid_set}
+    deps_map: dict[str, list[str]] = {qid: [] for qid in qid_set}
+    for qid in qid_set:
+        for ref in compute_dependencies(idx, qid):
+            if ref.qualified_id in qid_set:
+                in_degree[qid] += 1
+                deps_map[ref.qualified_id].append(qid)
+
+    # Kahn's algorithm with deterministic ordering at each rank.
+    ready = sorted(qid for qid, deg in in_degree.items() if deg == 0)
+    out: list[IndexRecord] = []
+    while ready:
+        next_ready: list[str] = []
+        for qid in ready:
+            out.append(by_qid[qid])
+            for dependent in deps_map[qid]:
+                in_degree[dependent] -= 1
+                if in_degree[dependent] == 0:
+                    next_ready.append(dependent)
+        ready = sorted(next_ready)
+    # Any remaining items had a cycle; deterministic fallback by qid.
+    if len(out) != len(records):
+        emitted = {o.qualified_id for o in out}
+        out.extend(
+            sorted(
+                (r for r in records if r.qualified_id not in emitted),
+                key=lambda r: r.qualified_id,
+            )
+        )
+    return out
 
 
 def descendants(idx: Index, parent_qid: str) -> list[IndexRecord]:

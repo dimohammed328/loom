@@ -229,6 +229,43 @@ class Loom:
             )
         return {"root": qualified_id, "items": items_out}
 
+    def order(
+        self,
+        qualified_id: str,
+        *,
+        recursive: bool = False,
+        include_done: bool = False,
+    ) -> list[Item]:
+        """Return descendants of *qualified_id* in topological dep-order.
+
+        Default scope is direct children (e.g. tasks for a story, stories
+        for an epic). With ``recursive=True``, all descendants at any depth.
+        Done items are excluded by default; pass ``include_done=True`` to
+        include them.
+        """
+        from .deps import descendants, topological_sort
+
+        root_record = self._index.get(qualified_id)
+        if root_record is None:
+            raise NotFound(qualified_id)
+        all_records = descendants(self._index, qualified_id)
+
+        # Filter by depth scope
+        if not recursive:
+            prefix = qualified_id + ":"
+
+            def _is_direct_child(qid: str) -> bool:
+                rest = qid.removeprefix(prefix)
+                return rest != qid and ":" not in rest
+
+            all_records = [r for r in all_records if _is_direct_child(r.qualified_id)]
+
+        if not include_done:
+            all_records = [r for r in all_records if r.status != "done"]
+
+        ordered = topological_sort(all_records, self._index)
+        return [item_from_record(self._root, r) for r in ordered]
+
     def statuses(self) -> list[str]:
         return self._index.statuses()
 
