@@ -440,3 +440,142 @@ def test_cli_e2e_dep_ready_close(tmp_path: Path) -> None:
     # Validate is clean.
     r = runner.invoke(app, ["validate", "--root", str(root)])
     assert r.exit_code == 0
+
+
+def test_loom_workflow_chain_via_cli(loom_dir: Path, tmp_path: Path) -> None:
+    """Drive a /epic-shaped flow end-to-end through the CLI:
+
+    1. Create project, epic with --body-file
+    2. Create two stories with --body-file
+    3. Create tasks on story 1, deps between them
+    4. Verify loom tree, loom order, loom ready
+    5. Complete tasks, mark story done, run loom reopen
+    6. Verify reopen reset state correctly
+    """
+    from loom.api import Loom
+
+    body_path = tmp_path / "body.md"
+    body_path.write_text("## Validation Criteria\n- [ ] criterion\n", encoding="utf-8")
+
+    # 1. project + epic
+    r = runner.invoke(
+        app,
+        ["-y", "project", "create", "myproj", "--root", str(loom_dir), "--repo", "x"],
+    )
+    assert r.exit_code == 0, r.output
+    r = runner.invoke(
+        app,
+        [
+            "-y",
+            "epic",
+            "create",
+            "myproj",
+            "--root",
+            str(loom_dir),
+            "--title",
+            "Big",
+            "--body-file",
+            str(body_path),
+        ],
+    )
+    assert r.exit_code == 0, r.output
+    epic_qid = r.output.strip().split()[-1]
+
+    # 2. two stories
+    r = runner.invoke(
+        app,
+        [
+            "-y",
+            "story",
+            "create",
+            epic_qid,
+            "--root",
+            str(loom_dir),
+            "--title",
+            "s1",
+            "--body-file",
+            str(body_path),
+        ],
+    )
+    assert r.exit_code == 0, r.output
+    s1_qid = r.output.strip().split()[-1]
+    r = runner.invoke(
+        app,
+        [
+            "-y",
+            "story",
+            "create",
+            epic_qid,
+            "--root",
+            str(loom_dir),
+            "--title",
+            "s2",
+            "--body-file",
+            str(body_path),
+        ],
+    )
+    assert r.exit_code == 0, r.output
+    s2_qid = r.output.strip().split()[-1]
+    # s2 depends on s1
+    r = runner.invoke(
+        app,
+        ["-y", "dep", "add", s2_qid, "--on", s1_qid, "--root", str(loom_dir)],
+    )
+    assert r.exit_code == 0, r.output
+
+    # 3. two tasks on s1
+    r = runner.invoke(
+        app,
+        ["-y", "task", "create", s1_qid, "--root", str(loom_dir), "--title", "t1"],
+    )
+    assert r.exit_code == 0, r.output
+    t1_qid = r.output.strip().split()[-1]
+    r = runner.invoke(
+        app,
+        ["-y", "task", "create", s1_qid, "--root", str(loom_dir), "--title", "t2"],
+    )
+    assert r.exit_code == 0, r.output
+    t2_qid = r.output.strip().split()[-1]
+    r = runner.invoke(
+        app,
+        ["-y", "dep", "add", t2_qid, "--on", t1_qid, "--root", str(loom_dir)],
+    )
+    assert r.exit_code == 0, r.output
+
+    # 4. tree, order, ready
+    r = runner.invoke(app, ["tree", epic_qid, "--root", str(loom_dir), "--json"])
+    assert r.exit_code == 0, r.output
+    data = json.loads(r.output)
+    assert len(data["items"]) == 5  # epic + 2 stories + 2 tasks
+
+    r = runner.invoke(app, ["order", s1_qid, "--root", str(loom_dir), "--json"])
+    assert r.exit_code == 0, r.output
+    data = json.loads(r.output)
+    qids = [e["qualified_id"] for e in data]
+    assert qids == [t1_qid, t2_qid]  # topo order
+
+    # The auto-created backlog epic is a SIBLING (under myproj), not under
+    # our epic, so it does not appear in `loom ready <epic_qid> --type story`.
+    r = runner.invoke(
+        app,
+        ["ready", epic_qid, "--root", str(loom_dir), "--type", "story", "--json"],
+    )
+    assert r.exit_code == 0, r.output
+    data = json.loads(r.output)
+    assert {e["qualified_id"] for e in data} == {s1_qid}  # s2 blocked
+
+    # 5. complete tasks + story, reopen
+    r = runner.invoke(app, ["-y", "complete", t1_qid, "--root", str(loom_dir)])
+    assert r.exit_code == 0, r.output
+    r = runner.invoke(app, ["-y", "complete", t2_qid, "--root", str(loom_dir)])
+    assert r.exit_code == 0, r.output
+    r = runner.invoke(app, ["-y", "complete", s1_qid, "--root", str(loom_dir)])
+    assert r.exit_code == 0, r.output
+    r = runner.invoke(app, ["reopen", s1_qid, "--root", str(loom_dir)])
+    assert r.exit_code == 0, r.output
+
+    # 6. verify reset
+    loom = Loom(root=loom_dir)
+    assert loom.get(s1_qid).status == "ready"
+    assert loom.get(t1_qid).status == "ready"
+    assert loom.get(t2_qid).status == "ready"
