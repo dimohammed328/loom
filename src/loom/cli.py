@@ -882,6 +882,22 @@ def order_cmd(
         typer.echo(f"{item.qualified_id}{status_str}\t{item.type}\t{item.title}")
 
 
+@app.command("reopen")
+def reopen_cmd(
+    qid: Annotated[str, typer.Argument(help="Qualified id to reset (with descendants).")],
+    root: RootOption = None,
+) -> None:
+    """Reset <qid> and all live descendants to status=ready; clear assignee."""
+    loom = _loom(root)
+    try:
+        loom.reopen(qid)
+    except LoomError as e:
+        _die_from(e)
+        return
+    _record_touch(qid)
+    typer.echo(f"reopened {qid}")
+
+
 @app.command("edit")
 def edit_cmd(
     ctx: typer.Context,

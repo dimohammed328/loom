@@ -52,3 +52,23 @@ def test_reopen_skips_archived(loom_dir: Path) -> None:
     # Archived t1 should still be archived; reopen only touches live tree.
     archived = loom.find(type="task", archived=True)
     assert any(item.qualified_id == t1.qualified_id for item in archived)
+
+
+from typer.testing import CliRunner  # noqa: E402
+
+from loom.cli import app  # noqa: E402
+
+
+def test_cli_reopen(loom_dir: Path) -> None:
+    loom = Loom(root=loom_dir)
+    p = loom.create_project(name="p", title="p")
+    e = p.create_epic(title="E")
+    s = e.create_story(title="s")
+    t = s.create_task(title="t")
+    t.complete()
+    s.complete()
+    runner = CliRunner()
+    result = runner.invoke(app, ["reopen", s.qualified_id, "--root", str(loom_dir)])
+    assert result.exit_code == 0, result.output
+    assert loom.get(s.qualified_id).status == "ready"
+    assert loom.get(t.qualified_id).status == "ready"
