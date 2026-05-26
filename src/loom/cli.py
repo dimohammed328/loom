@@ -850,6 +850,38 @@ def tree_cmd(
     _render(root_qid)
 
 
+@app.command("order")
+def order_cmd(
+    qid: Annotated[str, typer.Argument(help="Qualified id to enumerate descendants of.")],
+    recursive: Annotated[
+        bool,
+        typer.Option("--recursive", help="Include all descendants, not just direct children."),
+    ] = False,
+    include_done: Annotated[
+        bool,
+        typer.Option("--include-done", help="Include done items in the result."),
+    ] = False,
+    json_out: Annotated[
+        bool,
+        typer.Option("--json", help="Emit JSON array."),
+    ] = False,
+    root: RootOption = None,
+) -> None:
+    """Return descendants of <qid> in topological dep-order."""
+    loom = _loom(root)
+    try:
+        items = loom.order(qid, recursive=recursive, include_done=include_done)
+    except LoomError as e:
+        _die_from(e)
+        return
+    if json_out:
+        typer.echo(json.dumps([_item_to_dict(i) for i in items], indent=2))
+        return
+    for item in items:
+        status_str = f" [{item.record.status}]" if item.record.status else ""
+        typer.echo(f"{item.qualified_id}{status_str}\t{item.type}\t{item.title}")
+
+
 @app.command("edit")
 def edit_cmd(
     ctx: typer.Context,

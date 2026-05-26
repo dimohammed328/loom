@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
+from typer.testing import CliRunner
+
 from loom.api import Loom
+from loom.cli import app
 
 
 def test_topo_sort_respects_deps(loom_dir: Path) -> None:
@@ -61,3 +65,19 @@ def test_order_include_done(loom_dir: Path) -> None:
     t1.complete()
     ordered = loom.order(s.qualified_id, include_done=True)
     assert len(ordered) == 2
+
+
+def test_cli_order_json(loom_dir: Path) -> None:
+    loom = Loom(root=loom_dir)
+    p = loom.create_project(name="p", title="P")
+    e = p.create_epic(title="E")
+    s = e.create_story(title="s")
+    t1 = s.create_task(title="t1")
+    t2 = s.create_task(title="t2")
+    t2.depends_on(t1.qualified_id)
+    runner = CliRunner()
+    result = runner.invoke(app, ["order", s.qualified_id, "--json", "--root", str(loom_dir)])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    qids = [entry["qualified_id"] for entry in data]
+    assert qids.index(t1.qualified_id) < qids.index(t2.qualified_id)
