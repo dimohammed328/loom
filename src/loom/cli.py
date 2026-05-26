@@ -1423,6 +1423,10 @@ def dep_list(
 
 @app.command("ready")
 def ready_cmd(
+    qid: Annotated[
+        str | None,
+        typer.Argument(help="Optional parent qid; scope to items under it."),
+    ] = None,
     type_: Annotated[
         str | None,
         typer.Option("--type", help="Filter by type (epic|story|task)."),
@@ -1435,12 +1439,25 @@ def ready_cmd(
         int | None,
         typer.Option("--limit", help="Cap the number of results."),
     ] = None,
+    recursive: Annotated[
+        bool,
+        typer.Option(
+            "--recursive",
+            help="Include all descendants of <qid>, not just direct children.",
+        ),
+    ] = False,
     json_out: Annotated[bool, typer.Option("--json", help="Emit as JSON.")] = False,
     root: RootOption = None,
 ) -> None:
-    """List pickable items: status='ready' and every dep is done."""
+    """List pickable items: status='ready' and every dep is done.
+
+    If <qid> is provided, scope to items directly under it (or, with
+    ``--recursive``, all descendants at any depth).
+    """
     loom = _loom(root)
-    items = loom.ready(type=type_, tag=tag, limit=limit)
+    if qid is not None:
+        _get_or_die(loom, qid)
+    items = loom.ready(type=type_, tag=tag, limit=limit, parent=qid, recursive=recursive)
     if json_out:
         typer.echo(json.dumps([_item_to_dict(i) for i in items], indent=2))
         return

@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
+from typer.testing import CliRunner
+
 from loom.api import Loom
+from loom.cli import app
 
 
 def _setup(root: Path) -> Loom:
@@ -62,3 +66,46 @@ def test_ready_no_parent_returns_global(loom_dir: Path) -> None:
     items = loom.ready()
     # At least one ready item across the whole tree.
     assert items
+
+
+def test_cli_ready_scoped_by_qid(loom_dir: Path) -> None:
+    loom = _setup(loom_dir)
+    epic = _non_backlog_epic(loom)
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "ready",
+            epic.qualified_id,
+            "--root",
+            str(loom_dir),
+            "--json",
+            "--type",
+            "story",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    qids = {item["qualified_id"] for item in data}
+    assert any(q.endswith(":1") for q in qids)
+
+
+def test_cli_ready_recursive(loom_dir: Path) -> None:
+    loom = _setup(loom_dir)
+    epic = _non_backlog_epic(loom)
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "ready",
+            epic.qualified_id,
+            "--root",
+            str(loom_dir),
+            "--recursive",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    # Story s1 + task 1 (both ready under the epic).
+    assert len(data) == 2
