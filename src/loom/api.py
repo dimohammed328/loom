@@ -315,6 +315,34 @@ class Loom:
                     break
         return out
 
+    def reopen(self, qualified_id: str) -> None:
+        """Reset *qualified_id* and all live descendants to status=ready.
+
+        Also clears the ``assignee`` field on each. Archived items are
+        untouched (they live under ``_archive/`` and are out of the live
+        tree). Tasks (which lack ``set_assignee`` semantically in the
+        workflow convention) get status reset; ``set_assignee(None)`` on
+        them is a harmless no-op clear of an absent field.
+        """
+        from .deps import descendants
+        from .items import _Statused
+
+        root_record = self._index.get(qualified_id)
+        if root_record is None:
+            raise NotFound(qualified_id)
+
+        all_records = [root_record, *descendants(self._index, qualified_id)]
+        # Filter out archived (descendants may include archived items).
+        all_records = [r for r in all_records if not r.archived]
+
+        for record in all_records:
+            item = item_from_record(self._root, record)
+            if isinstance(item, _Statused):
+                # Reset status then clear assignee. Refresh between to avoid
+                # stale-record writes.
+                item.set_status("ready")
+                item.refresh().set_assignee(None)
+
     def close_if_children_done(self, qualified_id: str) -> bool:
         """Close *qualified_id* (set status='done') iff every descendant is done.
 
