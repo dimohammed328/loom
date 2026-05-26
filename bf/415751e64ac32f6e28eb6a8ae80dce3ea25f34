@@ -1,0 +1,21 @@
+CLAUDE.md
+  s_e126036bf0cc53::t_c189e5b449052f 318
+AGENTS.md
+  s_e126036bf0cc53::t_c189e5b449052f 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bf415751e64ac32f6e28eb6a8ae80dce3ea25f34",
+  "prompts": {},
+  "sessions": {
+    "s_e126036bf0cc53": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "69e2e879-4ed0-437d-bc9f-8483318965e8",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
