@@ -800,6 +800,56 @@ def show_cmd(
         typer.echo(item.file_path.read_text(encoding="utf-8"), nl=False)
 
 
+@app.command("tree")
+def tree_cmd(
+    qid: Annotated[str, typer.Argument(help="Qualified id to render as a tree.")],
+    depth: Annotated[
+        int | None,
+        typer.Option("--depth", help="Limit descent: 1 = direct children only."),
+    ] = None,
+    status: Annotated[
+        str | None,
+        typer.Option("--status", help="Filter items to this status."),
+    ] = None,
+    json_out: Annotated[
+        bool,
+        typer.Option("--json", help="Emit the flat-array JSON shape."),
+    ] = False,
+    root: RootOption = None,
+) -> None:
+    """Render the subtree rooted at <qid>."""
+    loom = _loom(root)
+    try:
+        result = loom.tree(qid, depth=depth, status=status)
+    except LoomError as e:
+        _die_from(e)
+        return
+    if json_out:
+        typer.echo(json.dumps(result, indent=2))
+        return
+    # Text output: indented unicode tree
+    by_qid = {item["qid"]: item for item in result["items"]}
+    root_qid = result["root"]
+
+    def _render(current: str, prefix: str = "", is_last: bool = True) -> None:
+        item = by_qid[current]
+        if current == root_qid:
+            connector = ""
+            next_prefix = ""
+        else:
+            connector = "└─ " if is_last else "├─ "
+            next_prefix = prefix + ("   " if is_last else "│  ")
+        line = f"{prefix}{connector}{current}  [{item['status']}]  {item['type']}"
+        if item.get("branch"):
+            line += f"  branch={item['branch']}"
+        typer.echo(line)
+        children = item["children"]
+        for i, child in enumerate(children):
+            _render(child, next_prefix, i == len(children) - 1)
+
+    _render(root_qid)
+
+
 @app.command("edit")
 def edit_cmd(
     ctx: typer.Context,
