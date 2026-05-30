@@ -47,7 +47,7 @@ Tasks do NOT carry validation criteria; their bodies are short (under ~10 lines)
 
 ## Workflow
 
-> Before running any loom CLI command, invoke `superpowers:using-loom` to ensure the correct global flags and workspace are in scope.
+> Before running any loom CLI command, invoke `loom:using-loom-cli` to ensure the correct global flags and workspace are in scope.
 
 ### Step 1: Compose body files
 
@@ -101,7 +101,7 @@ Show both outputs to the user. Confirm the structure is what they approved. If t
 
 ### Step 5: Hand off
 
-Once the user signs off on the materialized tree, invoke **`superpowers:executing-plans`** with:
+Once the user signs off on the materialized tree, invoke **`loom:executing-plans`** with:
 - `epic_qid=<qid>` (epic mode) or `story_qid=<qid>` (story mode)
 - The orchestrator handles worktree creation and the dispatch loop.
 

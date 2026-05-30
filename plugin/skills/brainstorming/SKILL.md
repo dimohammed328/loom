@@ -75,6 +75,6 @@ For **story** mode, the draft includes:
 
 ## Transition
 
-When the user approves the groomed draft, invoke **`superpowers:writing-plans`** with the draft, scope, project qid, and `${CLAUDE_SESSION_ID}` (the writing-plans skill uses the session id to set `assignee` on the created items).
+When the user approves the groomed draft, invoke **`loom:writing-plans`** with the draft, scope, project qid, and `${CLAUDE_SESSION_ID}` (the writing-plans skill uses the session id to set `assignee` on the created items).
 
 `writing-plans` is the only skill you hand off to.

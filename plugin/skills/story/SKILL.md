@@ -13,7 +13,7 @@ The user has invoked `/story <description>`. The description is in `$ARGUMENTS`.
 
 2. **Identify the target epic**: the project's default `backlog` epic (qid `<project>:backlog`). Loom auto-creates the backlog epic on every project at schema_version=2 and later; if it's missing (older project), the `loom story create` command auto-creates it on first use.
 
-3. **Hand off to `superpowers:brainstorming`** with context:
+3. **Hand off to `loom:brainstorming`** with context:
    - `mode=story`
    - `description=$ARGUMENTS`
    - `epic=<project>:backlog`
@@ -21,9 +21,9 @@ The user has invoked `/story <description>`. The description is in `$ARGUMENTS`.
 
 4. brainstorming returns a groomed story draft (title, body with criteria, task list).
 
-5. **Hand off to `superpowers:writing-plans`** with the groomed draft. That skill creates the story under backlog and its tasks; sets `assignee: ${CLAUDE_SESSION_ID}` on the story.
+5. **Hand off to `loom:writing-plans`** with the groomed draft. That skill creates the story under backlog and its tasks; sets `assignee: ${CLAUDE_SESSION_ID}` on the story.
 
-6. **Hand off to `superpowers:executing-plans`** with `story_qid=<qid>`. The orchestrator creates the story worktree off main, dispatches one story-executor, then one story-integrator (validation only, on the story branch directly). On validation success, `executing-plans` finalizes the branch in-skill — by default pushing the branch and opening a PR via `gh pr create`; if the original `/story` request explicitly asked to merge to main (e.g. "merge to main", "push to main", "no PR"), it merges into `main` and pushes instead.
+6. **Hand off to `loom:executing-plans`** with `story_qid=<qid>`. The orchestrator creates the story worktree off main, dispatches one story-executor, then one story-integrator (validation only, on the story branch directly). On validation success, `executing-plans` finalizes the branch in-skill — by default pushing the branch and opening a PR via `gh pr create`; if the original `/story` request explicitly asked to merge to main (e.g. "merge to main", "push to main", "no PR"), it merges into `main` and pushes instead.
 
 7. On validation pass, you're done. On validation fail after 3 retries, the orchestrator halts and surfaces the diagnostic.
 

@@ -13,7 +13,7 @@ The user has invoked `/epic <description>`. The description is in `$ARGUMENTS`. 
    - Walk up from cwd for `.loom/state.json`. If found, note the bound project qid.
    - If not found, run `loom -y project create <repo-basename>` (loom auto-discovers the `origin` remote). Fail if cwd is not in a git repo.
 
-2. **Hand off to `superpowers:brainstorming`** with context:
+2. **Hand off to `loom:brainstorming`** with context:
    - `mode=epic`
    - `description=$ARGUMENTS`
    - `project=<project-qid>`
@@ -21,9 +21,9 @@ The user has invoked `/epic <description>`. The description is in `$ARGUMENTS`. 
 
 3. brainstorming returns a groomed draft (epic title, body with criteria, list of stories with their drafts, story deps).
 
-4. **Hand off to `superpowers:writing-plans`** with the groomed draft. That skill materializes the epic, stories, tasks, and deps in loom via CLI; sets `assignee: ${CLAUDE_SESSION_ID}` on the epic and stories; writes bodies via `--body-file`.
+4. **Hand off to `loom:writing-plans`** with the groomed draft. That skill materializes the epic, stories, tasks, and deps in loom via CLI; sets `assignee: ${CLAUDE_SESSION_ID}` on the epic and stories; writes bodies via `--body-file`.
 
-5. **Hand off to `superpowers:executing-plans`** with `epic_qid=<qid>`. The orchestrator creates the epic worktree, runs the wave loop, and runs final epic validation.
+5. **Hand off to `loom:executing-plans`** with `epic_qid=<qid>`. The orchestrator creates the epic worktree, runs the wave loop, and runs final epic validation.
 
 6. On final validation pass, the orchestrator finalizes the epic branch (opens a PR via `gh pr create` by default; merges into `main` and pushes only if the original `/epic` request explicitly asked for it). On failure, the orchestrator halts and surfaces the diagnostic — that ends your turn.
 

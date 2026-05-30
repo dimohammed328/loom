@@ -57,7 +57,7 @@ HEAD_SHA=$(git rev-parse HEAD)
 
 [Dispatch code reviewer subagent]
   DESCRIPTION: Added verifyIndex() and repairIndex() with 4 issue types
-  PLAN_OR_REQUIREMENTS: Task 2 from loom story superpowers:abc:1
+  PLAN_OR_REQUIREMENTS: Task 2 from loom story loom:abc:1
   BASE_SHA: a7981ec
   HEAD_SHA: 3df7661
 
