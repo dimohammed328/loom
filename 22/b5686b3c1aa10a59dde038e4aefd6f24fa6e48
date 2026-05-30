@@ -1,0 +1,33 @@
+plugin/skills/epic/SKILL.md
+  s_5c7a5915013a2c::t_6549f990afc4c5 16,24,26
+plugin/skills/story/SKILL.md
+  s_5c7a5915013a2c::t_6549f990afc4c5 16,24,26
+plugin/skills/systematic-debugging/SKILL.md
+  s_5c7a5915013a2c::t_6549f990afc4c5 179,287-288
+plugin/skills/writing-plans/SKILL.md
+  s_5c7a5915013a2c::t_6549f990afc4c5 50,104
+plugin/skills/writing-skills/SKILL.md
+  s_5c7a5915013a2c::t_6549f990afc4c5 18,283-284,393
+plugin/skills/writing-skills/testing-skills-with-subagents.md
+  s_5c7a5915013a2c::t_6549f990afc4c5 13
+plugin/skills/requesting-code-review/SKILL.md
+  s_5c7a5915013a2c::t_6549f990afc4c5 60
+plugin/skills/brainstorming/SKILL.md
+  s_5c7a5915013a2c::t_6549f990afc4c5 78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "22b5686b3c1aa10a59dde038e4aefd6f24fa6e48",
+  "prompts": {},
+  "sessions": {
+    "s_5c7a5915013a2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fae83ff7-3aae-4814-a846-54e2432e0bad",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
