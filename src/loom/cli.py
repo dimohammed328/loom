@@ -815,6 +815,10 @@ def tree_cmd(
         bool,
         typer.Option("--json", help="Emit the flat-array JSON shape."),
     ] = False,
+    all_epics: Annotated[
+        bool,
+        typer.Option("--all", help="Include done epics (default project mode only)."),
+    ] = False,
     root: RootOption = None,
 ) -> None:
     """Render the subtree rooted at <qid>. With no qid, uses the bound project."""
@@ -832,16 +836,17 @@ def tree_cmd(
         except LoomError as e:
             _die_from(e)
             return
-        # Prune: remove done epics (and backlog) and their descendants from items.
+        # Prune: remove excluded epics (done when not --all, always backlog) and their
+        # descendants from items.
         items = result["items"]
-        done_epic_qids: set[str] = set()
+        excluded_epic_qids: set[str] = set()
         for item in items:
             if item["type"] == "epic" and (
-                item["status"] == "done" or item["qid"].endswith(":backlog")
+                item["qid"].endswith(":backlog") or (not all_epics and item["status"] == "done")
             ):
-                done_epic_qids.add(item["qid"])
-        if done_epic_qids:
-            # Build set of qids to exclude: done epics + all their descendants.
+                excluded_epic_qids.add(item["qid"])
+        if excluded_epic_qids:
+            # Build set of qids to exclude: excluded epics + all their descendants.
             by_qid_map = {i["qid"]: i for i in items}
             excluded: set[str] = set()
 
@@ -850,7 +855,7 @@ def tree_cmd(
                 for child in by_qid_map.get(q, {}).get("children", []):
                     _mark_excluded(child)
 
-            for epic_qid in done_epic_qids:
+            for epic_qid in excluded_epic_qids:
                 _mark_excluded(epic_qid)
             items = [i for i in items if i["qid"] not in excluded]
             # Update children refs to remove excluded qids.

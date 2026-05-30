@@ -149,3 +149,53 @@ def test_cli_tree_no_qid_outside_project_exits_nonzero(loom_dir: Path) -> None:
     result = runner.invoke(app, ["tree", "--root", str(loom_dir)])
     assert result.exit_code == 2  # EXIT_NOT_FOUND
     assert "loom project not found" in result.output
+
+
+# ---------------------------------------------------------------------------
+# --all flag: include done epics in default project mode
+# ---------------------------------------------------------------------------
+
+
+def test_cli_tree_all_includes_done_epics(loom_dir: Path, tmp_path: Path) -> None:
+    """loom tree --all includes done epics in the default project mode."""
+    loom = _build_tree(loom_dir)
+    state.init_workspace(tmp_path, "myproj")
+    non_backlog_epics = [
+        e for e in loom.find(type="epic") if not e.qualified_id.endswith(":backlog")
+    ]
+    non_backlog_epics[0].complete()
+    runner = CliRunner()
+    result = runner.invoke(app, ["tree", "--all", "--root", str(loom_dir), "--json"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    epic_qids = [item["qid"] for item in data["items"] if item["type"] == "epic"]
+    # Done epic should now be included
+    assert non_backlog_epics[0].qualified_id in epic_qids
+
+
+def test_cli_tree_all_without_done_epics_shows_all_open(loom_dir: Path, tmp_path: Path) -> None:
+    """loom tree --all with no done epics shows all open epics (same as without --all)."""
+    _build_tree(loom_dir)
+    state.init_workspace(tmp_path, "myproj")
+    runner = CliRunner()
+    result_default = runner.invoke(app, ["tree", "--root", str(loom_dir), "--json"])
+    result_all = runner.invoke(app, ["tree", "--all", "--root", str(loom_dir), "--json"])
+    assert result_default.exit_code == 0, result_default.output
+    assert result_all.exit_code == 0, result_all.output
+    default_qids = {i["qid"] for i in json.loads(result_default.output)["items"]}
+    all_qids = {i["qid"] for i in json.loads(result_all.output)["items"]}
+    # With no done epics, --all and default produce the same non-backlog items
+    assert default_qids == all_qids
+
+
+def test_cli_tree_all_on_explicit_qid_is_ignored(loom_dir: Path) -> None:
+    """loom tree <qid> --all renders the explicit qid subtree (--all is a no-op)."""
+    loom = _build_tree(loom_dir)
+    epic = next(e for e in loom.find(type="epic") if not e.qualified_id.endswith(":backlog"))
+    runner = CliRunner()
+    result = runner.invoke(
+        app, ["tree", epic.qualified_id, "--all", "--root", str(loom_dir), "--json"]
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["root"] == epic.qualified_id
