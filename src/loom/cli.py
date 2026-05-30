@@ -1328,10 +1328,13 @@ def list_cmd(
 ) -> None:
     """List items, with optional filters."""
     loom = _loom(root)
+    # Default the project filter to the workspace-bound project when no explicit
+    # --project was given.  Outside a workspace, project remains None (no filter).
+    effective_project = project if project is not None else _defaults().project
     items = loom.find(
         type=type_,
         status=status,
-        project=project,
+        project=effective_project,
         assignee=assignee,
         tag=tag,
         archived=archived,
