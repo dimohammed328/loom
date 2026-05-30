@@ -1323,14 +1323,29 @@ def list_cmd(
             help="Restrict to archived or non-archived items.",
         ),
     ] = None,
+    all_projects: Annotated[
+        bool,
+        typer.Option(
+            "--all",
+            help="List items from all projects, bypassing the workspace default.",
+        ),
+    ] = False,
     json_out: Annotated[bool, typer.Option("--json", help="Emit as JSON.")] = False,
     root: RootOption = None,
 ) -> None:
     """List items, with optional filters."""
+    if all_projects and project is not None:
+        _die("--all and --project are mutually exclusive", code=EXIT_GENERIC)
+        return
     loom = _loom(root)
-    # Default the project filter to the workspace-bound project when no explicit
-    # --project was given.  Outside a workspace, project remains None (no filter).
-    effective_project = project if project is not None else _defaults().project
+    # Resolution order: explicit --project wins; else --all bypasses the default;
+    # else fall back to the workspace-bound project (may be None → no filter).
+    if project is not None:
+        effective_project = project
+    elif all_projects:
+        effective_project = None
+    else:
+        effective_project = _defaults().project
     items = loom.find(
         type=type_,
         status=status,
