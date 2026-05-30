@@ -1,7 +1,10 @@
 {
   "name": "loom",
   "description": "Loom — markdown-based project management with loom CLI integration. Wires lifecycle hooks for agent orchestration, event logging, and subagent context injection.",
-  "author": "dimohammed328@gmail.com",
+  "author": {
+    "name": "dimohammed328",
+    "email": "dimohammed328@gmail.com"
+  },
   "license": "MIT",
   "hooks": {
     "SubagentStart": [
