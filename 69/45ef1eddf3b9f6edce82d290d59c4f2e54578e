@@ -1,0 +1,20 @@
+plugin/scripts/session-start
+  s_5c7a5915013a2c::t_e029eb1de17577 27
+  s_5c7a5915013a2c::t_4322fd51bff1aa 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6945ef1eddf3b9f6edce82d290d59c4f2e54578e",
+  "prompts": {},
+  "sessions": {
+    "s_5c7a5915013a2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fae83ff7-3aae-4814-a846-54e2432e0bad",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
