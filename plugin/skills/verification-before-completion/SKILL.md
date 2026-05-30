@@ -21,6 +21,8 @@ NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
 
 If you haven't run the verification command in this message, you cannot claim it passes.
 
+**Evidence means actual tool output present in the conversation.** An expected, predicted, or remembered result is NOT evidence and must not be used to claim completion.
+
 ## The Gate Function
 
 ```
