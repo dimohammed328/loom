@@ -159,6 +159,21 @@ loop:
     #    "tasks_done": [...], "notes": "..."}
     # Store per-sqid: executor_branch[sqid], executor_worktree[sqid].
 
+    # <HARD-GATE name="branch-worktree-verification">
+    # BEFORE dispatching any integrator, verify that the branch and worktree
+    # from the executor result actually exist on disk. Run these commands and
+    # check the output — do NOT skip or assume:
+    #
+    #   git rev-parse --verify <executor_branch[sqid]>
+    #   git worktree list | grep <executor_worktree[sqid]>
+    #
+    # If either command fails or returns no match:
+    #   - Do NOT dispatch the integrator with unverified values.
+    #   - Re-derive or reconstruct only if you have a deterministic basis
+    #     (e.g. from git worktree list output). If you cannot re-derive with
+    #     certainty, HALT and surface the mismatch to the user.
+    # </HARD-GATE>
+
     # Log wave completion with a brief outcome summary.
     "${CLAUDE_PLUGIN_ROOT}/scripts/loom-log-event.sh" \
       --kind wave_complete \
@@ -242,6 +257,16 @@ For `story_qid=...` entry:
    The harness creates the executor's worktree automatically (`isolation:
    worktree` frontmatter). The executor returns `branch` and `worktree` in
    its result JSON. Capture both.
+
+   **Branch/worktree verification (HARD-GATE):** Before dispatching the
+   integrator, verify the executor-reported branch and worktree exist:
+   ```bash
+   git rev-parse --verify <executor_branch>
+   git worktree list | grep <executor_worktree>
+   ```
+   If either check fails: do NOT dispatch the integrator. Re-derive from
+   `git worktree list` if possible; otherwise HALT and surface to the user.
+
 3. Wait. Then dispatch a story-integrator with `epic_qid=none` (the integrator will skip the merge step and run validation directly on the story branch):
    ```
    Agent(subagent_type="story-integrator",
