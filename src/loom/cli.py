@@ -394,6 +394,41 @@ def statuses_cmd(
             typer.echo(v)
 
 
+@app.command("status")
+def status_cmd(
+    project_arg: Annotated[
+        str | None,
+        typer.Argument(help="Project name. Defaults to the bound workspace project."),
+    ] = None,
+    root: RootOption = None,
+    json_out: Annotated[
+        bool,
+        typer.Option("--json", help="Emit the result as a JSON object on stdout."),
+    ] = False,
+) -> None:
+    """Show open/closed counts for epics, stories, and tasks in the bound project."""
+    # Resolve project name: explicit arg > workspace default.
+    project_name = project_arg or (_defaults().project or None)
+    if not project_name:
+        typer.echo("loom project not found")
+        raise typer.Exit(code=EXIT_NOT_FOUND)
+
+    loom = _loom(root)
+    try:
+        data = loom.project_status(project_name)
+    except LoomError as e:
+        _die_from(e)
+        raise  # unreachable
+
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+    else:
+        typer.echo(f"project: {data['project']}")
+        for key in ("epics", "stories", "tasks"):
+            counts = data[key]
+            typer.echo(f"  {key}: {counts['open']} open, {counts['closed']} closed")
+
+
 # ---------------------------------------------------------------------------
 # project / epic / story / task — create
 # ---------------------------------------------------------------------------

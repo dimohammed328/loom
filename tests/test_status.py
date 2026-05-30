@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,7 @@ from typer.testing import CliRunner
 
 from conftest import write_item
 from loom.api import Loom
+from loom.cli import app
 from loom.ids import QualifiedId
 from loom.rebuild import rebuild
 
@@ -115,3 +117,49 @@ def test_project_status_raises_not_found_for_unknown_project(loom_dir: Path) -> 
     loom = Loom(root=loom_dir)
     with pytest.raises(NotFound):
         loom.project_status("nonexistent")
+
+
+# ---------------------------------------------------------------------------
+# CLI tests: loom status
+# ---------------------------------------------------------------------------
+
+
+def test_cli_status_in_project_plain_text(loom_dir: Path) -> None:
+    """loom status prints project name and per-type counts as plain text."""
+    _setup_project(loom_dir)
+    result = runner.invoke(app, ["status", "--root", str(loom_dir), "myproj"])
+    assert result.exit_code == 0, result.output
+    output = result.output
+    assert "myproj" in output
+    # Epics: 1 open, 1 closed
+    assert "epic" in output.lower()
+    # Stories: 1 open, 1 closed
+    assert "stor" in output.lower()
+    # Tasks: 1 open, 2 closed
+    assert "task" in output.lower()
+
+
+def test_cli_status_in_project_json(loom_dir: Path) -> None:
+    """loom status --json emits structured object with project name and per-type counts."""
+    _setup_project(loom_dir)
+    result = runner.invoke(app, ["status", "--json", "--root", str(loom_dir), "myproj"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["project"] == "myproj"
+    assert data["epics"] == {"open": 1, "closed": 1}
+    assert data["stories"] == {"open": 1, "closed": 1}
+    assert data["tasks"] == {"open": 1, "closed": 2}
+
+
+def test_cli_status_outside_project_fails(loom_dir: Path) -> None:
+    """loom status without a project arg and no workspace prints 'loom project not found'."""
+    # No workspace bound (conftest chdir'd to tmp_path which has no .loom/)
+    result = runner.invoke(app, ["status", "--root", str(loom_dir)])
+    assert result.exit_code == 2  # EXIT_NOT_FOUND
+    assert "loom project not found" in result.output
+
+
+def test_cli_status_unknown_project_fails(loom_dir: Path) -> None:
+    """loom status <unknown-project> exits non-zero."""
+    result = runner.invoke(app, ["status", "--root", str(loom_dir), "nosuchproj"])
+    assert result.exit_code != 0
