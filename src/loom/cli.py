@@ -837,7 +837,7 @@ def show_cmd(
 
 @app.command("tree")
 def tree_cmd(
-    qid: Annotated[str, typer.Argument(help="Qualified id to render as a tree.")],
+    qid: Annotated[str | None, typer.Argument(help="Qualified id to render as a tree.")] = None,
     depth: Annotated[
         int | None,
         typer.Option("--depth", help="Limit descent: 1 = direct children only."),
@@ -850,15 +850,60 @@ def tree_cmd(
         bool,
         typer.Option("--json", help="Emit the flat-array JSON shape."),
     ] = False,
+    all_epics: Annotated[
+        bool,
+        typer.Option("--all", help="Include done epics (default project mode only)."),
+    ] = False,
     root: RootOption = None,
 ) -> None:
-    """Render the subtree rooted at <qid>."""
+    """Render the subtree rooted at <qid>. With no qid, uses the bound project."""
     loom = _loom(root)
-    try:
-        result = loom.tree(qid, depth=depth, status=status)
-    except LoomError as e:
-        _die_from(e)
-        return
+
+    if qid is None:
+        # Default mode: use bound project and show open (non-done) epics.
+        defaults = _defaults()
+        if not defaults.project:
+            _die("loom project not found", code=EXIT_NOT_FOUND)
+            return
+        project_qid = defaults.project
+        try:
+            result = loom.tree(project_qid, depth=depth, status=status)
+        except LoomError as e:
+            _die_from(e)
+            return
+        # Prune: remove excluded epics (done when not --all, always backlog) and their
+        # descendants from items.
+        items = result["items"]
+        excluded_epic_qids: set[str] = set()
+        for item in items:
+            if item["type"] == "epic" and (
+                item["qid"].endswith(":backlog") or (not all_epics and item["status"] == "done")
+            ):
+                excluded_epic_qids.add(item["qid"])
+        if excluded_epic_qids:
+            # Build set of qids to exclude: excluded epics + all their descendants.
+            by_qid_map = {i["qid"]: i for i in items}
+            excluded: set[str] = set()
+
+            def _mark_excluded(q: str) -> None:
+                excluded.add(q)
+                for child in by_qid_map.get(q, {}).get("children", []):
+                    _mark_excluded(child)
+
+            for epic_qid in excluded_epic_qids:
+                _mark_excluded(epic_qid)
+            items = [i for i in items if i["qid"] not in excluded]
+            # Update children refs to remove excluded qids.
+            for item in items:
+                item["children"] = [c for c in item["children"] if c not in excluded]
+            result = {"root": project_qid, "items": items}
+    else:
+        try:
+            result = loom.tree(qid, depth=depth, status=status)
+        except LoomError as e:
+            _die_from(e)
+            return
+
     if json_out:
         typer.echo(json.dumps(result, indent=2))
         return
@@ -874,7 +919,9 @@ def tree_cmd(
         else:
             connector = "└─ " if is_last else "├─ "
             next_prefix = prefix + ("   " if is_last else "│  ")
-        line = f"{prefix}{connector}{current}  [{item['status']}]  {item['type']}"
+        line = f"{prefix}{connector}{current}  [{item['status']}]"
+        if item["type"] != "project":
+            line += f"  {item['type']}"
         if item.get("branch"):
             line += f"  branch={item['branch']}"
         typer.echo(line)
