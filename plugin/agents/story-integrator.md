@@ -30,7 +30,7 @@ The SubagentStart hook has injected your workflow context.
 
 ## Workflow
 
-> Before running any loom CLI command, invoke `superpowers:using-loom` to ensure the correct global flags and workspace are in scope.
+> Before running any loom CLI command, invoke `loom:using-loom` to ensure the correct global flags and workspace are in scope.
 
 ### Step 1: Merge (skip if `/story` flow)
 

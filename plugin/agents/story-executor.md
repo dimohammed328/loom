@@ -30,7 +30,7 @@ does. You **record** both on startup and **report** both back at the end.
 
 Exactly two fields, nothing more:
 
-- `story_qid` — the loom qid of the story you own (e.g. `superpowers:65wxnvr:1`).
+- `story_qid` — the loom qid of the story you own (e.g. `loom:65wxnvr:1`).
 - `parent_branch` — the branch your worktree's branch was forked from
   (informational; you use it only to verify your base is correct).
 
@@ -39,7 +39,7 @@ The SubagentStart hook injects a `## Loom Workflow Context` block with your
 
 ## Do NOT do this
 
-- **Do NOT invoke the `superpowers:executing-plans` skill.** That skill is
+- **Do NOT invoke the `loom:executing-plans` skill.** That skill is
   the orchestrator's only — it is not yours. If you find yourself reading
   or invoking it, stop; you took a wrong turn.
 - **Do NOT call `EnterWorktree` or `git worktree add`.** Your worktree is
@@ -106,7 +106,7 @@ injected by the SubagentStart hook — not templates for you to fill in.
 
 ## Workflow
 
-> Before running any loom CLI command, invoke `superpowers:using-loom` to ensure the correct global flags and workspace are in scope.
+> Before running any loom CLI command, invoke `loom:using-loom` to ensure the correct global flags and workspace are in scope.
 
 > **MANDATORY: You MUST drive loom task status directly.**
 > Before starting each task run `loom update <task-qid> status in_progress`.
@@ -149,10 +149,10 @@ For each task in order:
 
 - Run `loom update <task-qid> status in_progress` before starting any work
   on this task. This is mandatory — do not skip it.
-- **Apply TDD discipline** (invoke `superpowers:test-driven-development`
+- **Apply TDD discipline** (invoke `loom:test-driven-development`
   skill): failing test → run failing → minimal implementation → run passing
   → refactor.
-- Run **verification** (invoke `superpowers:verification-before-completion`
+- Run **verification** (invoke `loom:verification-before-completion`
   skill) before claiming the task done.
 - Commit on the story branch (you're already on it). Commit message subject
   + body, plus a trailer line:
@@ -198,7 +198,7 @@ and `<WORKTREE>` to clean up.
 
 ## What you must NOT do (recap)
 
-- Do NOT invoke `superpowers:executing-plans`.
+- Do NOT invoke `loom:executing-plans`.
 - Do NOT call `EnterWorktree` or `git worktree add`.
 - Do NOT call `loom complete` on the story itself.
 - Do NOT merge your branch.
