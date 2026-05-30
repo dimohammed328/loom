@@ -1,5 +1,5 @@
 ---
-name: using-loom
+name: using-loom-cli
 description: >
   Consult this skill before invoking any loom CLI command. It documents every
   loom subcommand used in the superpowers planning workflow — real flags
