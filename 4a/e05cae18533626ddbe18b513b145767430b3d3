@@ -1,0 +1,30 @@
+plugin/scripts/loom-log.sh
+  s_5c7a5915013a2c::t_0148d45fe317c6 1-339
+plugin/scripts/session-start
+  s_5c7a5915013a2c::t_c4ea96ba4165c3 46
+  s_5c7a5915013a2c::t_6c462fb8f9dc5f 14,35
+  s_5c7a5915013a2c::t_7ed655a3c49c29 18
+  s_5c7a5915013a2c::t_3cae07dad641e2 1-13,15-17,19-34,36-45,47-56
+plugin/scripts/loom-subagent-context-inject.sh
+  s_5c7a5915013a2c::t_0148d45fe317c6 1-81
+plugin/hooks/hooks.json
+  s_5c7a5915013a2c::t_90c18efb4ffb4e 1-16
+plugin/scripts/loom-log-event.sh
+  s_5c7a5915013a2c::t_0148d45fe317c6 1-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4ae05cae18533626ddbe18b513b145767430b3d3",
+  "prompts": {},
+  "sessions": {
+    "s_5c7a5915013a2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fae83ff7-3aae-4814-a846-54e2432e0bad",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
