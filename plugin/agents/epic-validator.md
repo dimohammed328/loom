@@ -60,6 +60,25 @@ The dispatching prompt contains:
      --field "summary=<short description of which criteria failed>"
    ```
 7. **Return:**
+
+   > **VERIFIED FACTS ONLY.** Every field in the JSON below MUST come from
+   > actual command output or observations made in this session — never
+   > fabricated or guessed. Specifically:
+   > - `result` MUST reflect what you directly observed from the verify skill,
+   >   test suite, and criterion checks — not an assumption.
+   > - Each `pass`/fail verdict in `criteria` MUST be grounded in evidence you
+   >   actually saw (file content, grep output, test/lint output, `verify`
+   >   skill output) during this session.
+   > - `evidence` strings MUST quote or paraphrase real output — do NOT write
+   >   "tests pass" or "file exists" without having run the commands and seen
+   >   the results.
+   > - `behavioral_verification` MUST be `"ran"` only if the `verify` skill
+   >   actually executed and returned output; otherwise `"skipped"` or
+   >   `"failed"` as appropriate.
+   >
+   > If you cannot produce a field from real observed output, set it to `null`
+   > and explain in `notes`.
+
    ```json
    {
      "result": "ok" | "failed",
