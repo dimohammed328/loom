@@ -394,6 +394,41 @@ def statuses_cmd(
             typer.echo(v)
 
 
+@app.command("status")
+def status_cmd(
+    project_arg: Annotated[
+        str | None,
+        typer.Argument(help="Project name. Defaults to the bound workspace project."),
+    ] = None,
+    root: RootOption = None,
+    json_out: Annotated[
+        bool,
+        typer.Option("--json", help="Emit the result as a JSON object on stdout."),
+    ] = False,
+) -> None:
+    """Show open/closed counts for epics, stories, and tasks in the bound project."""
+    # Resolve project name: explicit arg > workspace default.
+    project_name = project_arg or (_defaults().project or None)
+    if not project_name:
+        typer.echo("loom project not found")
+        raise typer.Exit(code=EXIT_NOT_FOUND)
+
+    loom = _loom(root)
+    try:
+        data = loom.project_status(project_name)
+    except LoomError as e:
+        _die_from(e)
+        raise  # unreachable
+
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+    else:
+        typer.echo(f"project: {data['project']}")
+        for key in ("epics", "stories", "tasks"):
+            counts = data[key]
+            typer.echo(f"  {key}: {counts['open']} open, {counts['closed']} closed")
+
+
 # ---------------------------------------------------------------------------
 # project / epic / story / task — create
 # ---------------------------------------------------------------------------
@@ -802,7 +837,7 @@ def show_cmd(
 
 @app.command("tree")
 def tree_cmd(
-    qid: Annotated[str, typer.Argument(help="Qualified id to render as a tree.")],
+    qid: Annotated[str | None, typer.Argument(help="Qualified id to render as a tree.")] = None,
     depth: Annotated[
         int | None,
         typer.Option("--depth", help="Limit descent: 1 = direct children only."),
@@ -815,15 +850,60 @@ def tree_cmd(
         bool,
         typer.Option("--json", help="Emit the flat-array JSON shape."),
     ] = False,
+    all_epics: Annotated[
+        bool,
+        typer.Option("--all", help="Include done epics (default project mode only)."),
+    ] = False,
     root: RootOption = None,
 ) -> None:
-    """Render the subtree rooted at <qid>."""
+    """Render the subtree rooted at <qid>. With no qid, uses the bound project."""
     loom = _loom(root)
-    try:
-        result = loom.tree(qid, depth=depth, status=status)
-    except LoomError as e:
-        _die_from(e)
-        return
+
+    if qid is None:
+        # Default mode: use bound project and show open (non-done) epics.
+        defaults = _defaults()
+        if not defaults.project:
+            _die("loom project not found", code=EXIT_NOT_FOUND)
+            return
+        project_qid = defaults.project
+        try:
+            result = loom.tree(project_qid, depth=depth, status=status)
+        except LoomError as e:
+            _die_from(e)
+            return
+        # Prune: remove excluded epics (done when not --all, always backlog) and their
+        # descendants from items.
+        items = result["items"]
+        excluded_epic_qids: set[str] = set()
+        for item in items:
+            if item["type"] == "epic" and (
+                item["qid"].endswith(":backlog") or (not all_epics and item["status"] == "done")
+            ):
+                excluded_epic_qids.add(item["qid"])
+        if excluded_epic_qids:
+            # Build set of qids to exclude: excluded epics + all their descendants.
+            by_qid_map = {i["qid"]: i for i in items}
+            excluded: set[str] = set()
+
+            def _mark_excluded(q: str) -> None:
+                excluded.add(q)
+                for child in by_qid_map.get(q, {}).get("children", []):
+                    _mark_excluded(child)
+
+            for epic_qid in excluded_epic_qids:
+                _mark_excluded(epic_qid)
+            items = [i for i in items if i["qid"] not in excluded]
+            # Update children refs to remove excluded qids.
+            for item in items:
+                item["children"] = [c for c in item["children"] if c not in excluded]
+            result = {"root": project_qid, "items": items}
+    else:
+        try:
+            result = loom.tree(qid, depth=depth, status=status)
+        except LoomError as e:
+            _die_from(e)
+            return
+
     if json_out:
         typer.echo(json.dumps(result, indent=2))
         return
@@ -839,7 +919,9 @@ def tree_cmd(
         else:
             connector = "└─ " if is_last else "├─ "
             next_prefix = prefix + ("   " if is_last else "│  ")
-        line = f"{prefix}{connector}{current}  [{item['status']}]  {item['type']}"
+        line = f"{prefix}{connector}{current}  [{item['status']}]"
+        if item["type"] != "project":
+            line += f"  {item['type']}"
         if item.get("branch"):
             line += f"  branch={item['branch']}"
         typer.echo(line)
@@ -1323,15 +1405,33 @@ def list_cmd(
             help="Restrict to archived or non-archived items.",
         ),
     ] = None,
+    all_projects: Annotated[
+        bool,
+        typer.Option(
+            "--all",
+            help="List items from all projects, bypassing the workspace default.",
+        ),
+    ] = False,
     json_out: Annotated[bool, typer.Option("--json", help="Emit as JSON.")] = False,
     root: RootOption = None,
 ) -> None:
     """List items, with optional filters."""
+    if all_projects and project is not None:
+        _die("--all and --project are mutually exclusive", code=EXIT_GENERIC)
+        return
     loom = _loom(root)
+    # Resolution order: explicit --project wins; else --all bypasses the default;
+    # else fall back to the workspace-bound project (may be None → no filter).
+    if project is not None:
+        effective_project = project
+    elif all_projects:
+        effective_project = None
+    else:
+        effective_project = _defaults().project
     items = loom.find(
         type=type_,
         status=status,
-        project=project,
+        project=effective_project,
         assignee=assignee,
         tag=tag,
         archived=archived,
