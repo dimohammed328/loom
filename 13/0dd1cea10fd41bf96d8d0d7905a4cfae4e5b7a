@@ -1,0 +1,23 @@
+tests/test_tree.py
+  s_857e05253100a9::t_9a655d756bb856 152-201
+src/loom/cli.py
+  s_857e05253100a9::t_4def357b2e8ca2 818-821,839-840,842,847
+  s_857e05253100a9::t_d0e6b95cae78ec 848-849,858
+  s_857e05253100a9::t_6fbfc114b11556 845
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "130dd1cea10fd41bf96d8d0d7905a4cfae4e5b7a",
+  "prompts": {},
+  "sessions": {
+    "s_857e05253100a9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "18525b12-6df3-46a9-b010-c9f6bfdd9c8d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
