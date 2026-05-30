@@ -1,5 +1,9 @@
 {
-  "marketplace": "loom",
+  "name": "loom",
+  "owner": {
+    "name": "dimohammed328",
+    "email": "dimohammed328@gmail.com"
+  },
   "plugins": [
     {
       "name": "loom",
