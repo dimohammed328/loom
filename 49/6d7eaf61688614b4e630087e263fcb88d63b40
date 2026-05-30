@@ -1,0 +1,19 @@
+.claude-plugin/marketplace.json
+  s_ee3b37383927a0::t_14250d4e28f519 2-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "496d7eaf61688614b4e630087e263fcb88d63b40",
+  "prompts": {},
+  "sessions": {
+    "s_ee3b37383927a0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0869308e-6b7a-4ba1-bb74-300cf8a2d202",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
