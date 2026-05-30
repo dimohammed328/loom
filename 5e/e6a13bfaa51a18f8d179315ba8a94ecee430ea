@@ -1,0 +1,24 @@
+tests/test_list_workspace_scoping.py
+  s_857e05253100a9::t_72a385cb4370a2 6,98,214,254
+  s_857e05253100a9::t_6d401317e6a9e7 1-5,7-9,11-97,99-182,184-187,194-213,215-253,255
+  s_857e05253100a9::t_e8cf2285776169 183,188-193
+  s_857e05253100a9::t_83cf6fe9874e91 10
+src/loom/cli.py
+  s_857e05253100a9::t_9ef7c135be16bc 1331-1333,1337
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5ee6a13bfaa51a18f8d179315ba8a94ecee430ea",
+  "prompts": {},
+  "sessions": {
+    "s_857e05253100a9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "18525b12-6df3-46a9-b010-c9f6bfdd9c8d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
