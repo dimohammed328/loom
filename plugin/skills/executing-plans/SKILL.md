@@ -18,6 +18,29 @@ This skill is the orchestrator. It runs in the main session (not a subagent) and
 
 **Announce at start:** "I'm using the executing-plans skill to orchestrate execution."
 
+<HARD-GATE name="anti-fabrication">
+## Anti-Fabrication Gate — NEVER Invent Tool Output
+
+The orchestrator MUST NEVER narrate or act on a result it has not actually
+received from a real tool call. This includes but is not limited to:
+
+- Branch names (e.g. `worktree-<random>`)
+- Commit SHAs
+- Test counts or pass/fail summaries
+- PR URLs
+- Any executor result JSON field
+
+**When tool output is missing, delayed, empty, or ambiguous: STOP and wait.**
+Do NOT guess, infer, or fabricate any field. Do NOT proceed with downstream
+steps (dispatching integrators, calling `loom complete`, finalizing) based
+on narrated or assumed values.
+
+Every concrete value the orchestrator forwards to another agent or uses in
+a command MUST be a verbatim copy of real text from a real tool result in
+the current session. If you cannot point to the exact tool-result turn that
+produced a value, you do not have it — halt and surface the gap to the user.
+</HARD-GATE>
+
 ## What you receive
 
 From the writing-plans skill's handoff, one of:
