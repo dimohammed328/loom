@@ -2,7 +2,7 @@
 name: using-loom-cli
 description: >
   Consult this skill before invoking any loom CLI command. It documents every
-  loom subcommand used in the superpowers planning workflow — real flags
+  loom subcommand used in the loom planning workflow — real flags
   (verified from live `loom <cmd> --help`), usage syntax, and one canonical
   example per subcommand. Use it to look up correct flag names and argument
   order so you do not guess or invent flags.
