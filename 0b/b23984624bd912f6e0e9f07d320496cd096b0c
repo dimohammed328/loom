@@ -1,0 +1,27 @@
+plugin/agents/epic-validator.md
+  s_5c7a5915013a2c::t_baacd262a18c80 23
+plugin/agents/story-integrator.md
+  s_5c7a5915013a2c::t_48aef8ab51a780 33
+plugin/agents/story-executor.md
+  s_5c7a5915013a2c::t_5883a86c5568a5 201
+  s_5c7a5915013a2c::t_1831060cd9e798 33
+  s_5c7a5915013a2c::t_73f10442555eae 109
+  s_5c7a5915013a2c::t_5e977eb63e4485 42
+  s_5c7a5915013a2c::t_599bd8de22b176 152,155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0bb23984624bd912f6e0e9f07d320496cd096b0c",
+  "prompts": {},
+  "sessions": {
+    "s_5c7a5915013a2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fae83ff7-3aae-4814-a846-54e2432e0bad",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
