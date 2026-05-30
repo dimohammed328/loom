@@ -18,6 +18,29 @@ This skill is the orchestrator. It runs in the main session (not a subagent) and
 
 **Announce at start:** "I'm using the executing-plans skill to orchestrate execution."
 
+<HARD-GATE name="anti-fabrication">
+## Anti-Fabrication Gate — NEVER Invent Tool Output
+
+The orchestrator MUST NEVER narrate or act on a result it has not actually
+received from a real tool call. This includes but is not limited to:
+
+- Branch names (e.g. `worktree-<random>`)
+- Commit SHAs
+- Test counts or pass/fail summaries
+- PR URLs
+- Any executor result JSON field
+
+**When tool output is missing, delayed, empty, or ambiguous: STOP and wait.**
+Do NOT guess, infer, or fabricate any field. Do NOT proceed with downstream
+steps (dispatching integrators, calling `loom complete`, finalizing) based
+on narrated or assumed values.
+
+Every concrete value the orchestrator forwards to another agent or uses in
+a command MUST be a verbatim copy of real text from a real tool result in
+the current session. If you cannot point to the exact tool-result turn that
+produced a value, you do not have it — halt and surface the gap to the user.
+</HARD-GATE>
+
 ## What you receive
 
 From the writing-plans skill's handoff, one of:
@@ -136,6 +159,21 @@ loop:
     #    "tasks_done": [...], "notes": "..."}
     # Store per-sqid: executor_branch[sqid], executor_worktree[sqid].
 
+    # <HARD-GATE name="branch-worktree-verification">
+    # BEFORE dispatching any integrator, verify that the branch and worktree
+    # from the executor result actually exist on disk. Run these commands and
+    # check the output — do NOT skip or assume:
+    #
+    #   git rev-parse --verify <executor_branch[sqid]>
+    #   git worktree list | grep <executor_worktree[sqid]>
+    #
+    # If either command fails or returns no match:
+    #   - Do NOT dispatch the integrator with unverified values.
+    #   - Re-derive or reconstruct only if you have a deterministic basis
+    #     (e.g. from git worktree list output). If you cannot re-derive with
+    #     certainty, HALT and surface the mismatch to the user.
+    # </HARD-GATE>
+
     # Log wave completion with a brief outcome summary.
     "${CLAUDE_PLUGIN_ROOT}/scripts/loom-log-event.sh" \
       --kind wave_complete \
@@ -219,6 +257,16 @@ For `story_qid=...` entry:
    The harness creates the executor's worktree automatically (`isolation:
    worktree` frontmatter). The executor returns `branch` and `worktree` in
    its result JSON. Capture both.
+
+   **Branch/worktree verification (HARD-GATE):** Before dispatching the
+   integrator, verify the executor-reported branch and worktree exist:
+   ```bash
+   git rev-parse --verify <executor_branch>
+   git worktree list | grep <executor_worktree>
+   ```
+   If either check fails: do NOT dispatch the integrator. Re-derive from
+   `git worktree list` if possible; otherwise HALT and surface to the user.
+
 3. Wait. Then dispatch a story-integrator with `epic_qid=none` (the integrator will skip the merge step and run validation directly on the story branch):
    ```
    Agent(subagent_type="story-integrator",
@@ -346,3 +394,33 @@ violates the isolation guarantees of the worktree-per-executor model.
 - **Never call `loom complete` on a story before the integrator returns `ok`.**
 - **Never auto-retry at the epic level.** Halt and surface.
 - **Bounded retries**: 3 per story across waves.
+
+<HARD-GATE name="loom-complete-and-finalize">
+## loom complete + Finalize Gates
+
+### loom complete <sqid>
+
+`loom complete <sqid>` MAY run ONLY when:
+1. The story-integrator subagent has returned a real tool result (visible in
+   this session's tool-use history) with `result: ok`.
+2. That `result: ok` appears in an actual tool-result turn — not narrated,
+   not inferred, not assumed from a delayed or missing response.
+
+Do NOT call `loom complete <sqid>` based on anything other than a verbatim
+`result: ok` in a real tool result from that story's integrator.
+
+### Finalizing (PR or merge)
+
+Before finalizing (pushing the branch and opening a PR, or merging), the
+orchestrator MUST independently re-verify every epic Validation Criterion
+by running real commands and confirming their real output. Steps:
+
+1. Read the story or epic body (`loom show <qid> --json`) and extract every
+   bullet under `## Validation Criteria`.
+2. For each criterion, run the verification command(s) and capture the actual
+   output in this session. Do NOT assume a criterion passes based on what an
+   executor or integrator reported — re-run it.
+3. Proceed to finalize only if ALL criteria are confirmed by real command
+   output. If any criterion fails or cannot be verified, HALT and surface
+   the gap to the user.
+</HARD-GATE>
