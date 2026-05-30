@@ -1,0 +1,21 @@
+tests/test_plugin_hooks.py
+  s_5c7a5915013a2c::t_082b0d493c3de3 1-82
+plugin/hooks/hooks.json
+  s_5c7a5915013a2c::t_84b05ccfcac321 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "51eca10d811eecd360d0dee381e8dc8234c49ce5",
+  "prompts": {},
+  "sessions": {
+    "s_5c7a5915013a2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fae83ff7-3aae-4814-a846-54e2432e0bad",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
