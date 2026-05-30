@@ -1,0 +1,25 @@
+plugin/scripts/loom-subagent-context-inject.sh
+  s_5c7a5915013a2c::t_1eb478896cd3e7 1-81
+plugin/scripts/loom-log-event.sh
+  s_5c7a5915013a2c::t_1eb478896cd3e7 1-174
+plugin/scripts/session-start
+  s_5c7a5915013a2c::t_1eb478896cd3e7 1-57
+plugin/scripts/loom-log.sh
+  s_5c7a5915013a2c::t_1eb478896cd3e7 1-339
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6d751712f6488d3fef8f6dcd7f7452c9d243f3bb",
+  "prompts": {},
+  "sessions": {
+    "s_5c7a5915013a2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fae83ff7-3aae-4814-a846-54e2432e0bad",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
