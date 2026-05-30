@@ -24,13 +24,13 @@ escape_for_json() {
 }
 
 using_loom_skills_escaped=$(escape_for_json "$using_loom_skills_content")
-session_context="<EXTREMELY_IMPORTANT>\nYou have loom superpowers.\n\n**Below is the full content of your 'loom:using-loom-skills' skill - your introduction to using skills. For all other skills, use the 'Skill' tool:**\n\n${using_loom_skills_escaped}\n</EXTREMELY_IMPORTANT>"
+session_context="<EXTREMELY_IMPORTANT>\nYou have loom skills.\n\n**Below is the full content of your 'loom:using-loom-skills' skill - your introduction to using skills. For all other skills, use the 'Skill' tool:**\n\n${using_loom_skills_escaped}\n</EXTREMELY_IMPORTANT>"
 
 # Output context injection as JSON.
 # Claude Code hooks expect hookSpecificOutput.additionalContext (nested).
 #
 # Uses printf instead of heredoc to work around bash 5.3+ heredoc hang.
-# See: https://github.com/obra/superpowers/issues/571
+# See: https://github.com/obra/claude-code/issues/571
 printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$session_context"
 
 exit 0
