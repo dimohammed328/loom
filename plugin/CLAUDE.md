@@ -81,8 +81,8 @@ keep hooks lightweight.
 
 - Do not reference `superpowers:` skill names. This plugin is self-contained;
   the `loom:` namespace is authoritative.
-- Do not add references to other AI coding platforms (Cursor, Copilot, Codex,
-  Gemini, OpenCode, Obra, etc.).
+- Do not add references to third-party AI coding platforms or their upstream
+  repositories. This plugin is self-contained and Claude Code only.
 - Do not add `config.toml`, lock files, or any artefact that duplicates
   information already in `plugin.json` or the repo-root `pyproject.toml`.
 - Do not add pytest files or Python test infrastructure — tests for loom
