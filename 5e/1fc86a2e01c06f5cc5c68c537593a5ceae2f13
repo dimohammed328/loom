@@ -1,0 +1,103 @@
+plugin/skills/brainstorming/scripts/helper.js
+  s_5c7a5915013a2c::t_2e208c3461237d 1-88
+plugin/skills/systematic-debugging/test-pressure-3.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-69
+plugin/skills/systematic-debugging/root-cause-tracing.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-169
+plugin/skills/dispatching-parallel-agents/SKILL.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-182
+plugin/skills/writing-skills/persuasion-principles.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-187
+plugin/skills/systematic-debugging/test-pressure-1.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-58
+plugin/skills/brainstorming/SKILL.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-80
+plugin/skills/executing-plans/SKILL.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-348
+plugin/skills/brainstorming/spec-document-reviewer-prompt.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-49
+plugin/skills/story/SKILL.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-39
+plugin/skills/writing-skills/examples/CLAUDE_MD_TESTING.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-189
+plugin/skills/requesting-code-review/SKILL.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-103
+plugin/skills/writing-plans/plan-document-reviewer-prompt.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-49
+plugin/skills/systematic-debugging/condition-based-waiting.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-115
+plugin/skills/brainstorming/scripts/start-server.sh
+  s_5c7a5915013a2c::t_2e208c3461237d 1-148
+plugin/skills/writing-plans/SKILL.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-129
+plugin/skills/receiving-code-review/SKILL.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-213
+plugin/skills/using-superpowers/references/copilot-tools.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-42
+plugin/skills/writing-skills/graphviz-conventions.dot
+  s_5c7a5915013a2c::t_2e208c3461237d 1-172
+plugin/skills/using-superpowers/SKILL.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-107
+plugin/skills/test-driven-development/testing-anti-patterns.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-299
+plugin/skills/using-superpowers/references/gemini-tools.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-51
+plugin/skills/systematic-debugging/condition-based-waiting-example.ts
+  s_5c7a5915013a2c::t_2e208c3461237d 1-158
+plugin/skills/systematic-debugging/SKILL.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-296
+plugin/skills/test-driven-development/SKILL.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-371
+plugin/skills/writing-skills/SKILL.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-655
+plugin/skills/systematic-debugging/test-pressure-2.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-68
+plugin/skills/systematic-debugging/find-polluter.sh
+  s_5c7a5915013a2c::t_2e208c3461237d 1-63
+plugin/skills/verification-before-completion/SKILL.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-139
+plugin/skills/brainstorming/scripts/frame-template.html
+  s_5c7a5915013a2c::t_2e208c3461237d 1-214
+plugin/skills/systematic-debugging/defense-in-depth.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-122
+plugin/skills/epic/SKILL.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-40
+plugin/skills/systematic-debugging/CREATION-LOG.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-119
+plugin/skills/using-loom/SKILL.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-368
+plugin/skills/writing-skills/render-graphs.js
+  s_5c7a5915013a2c::t_2e208c3461237d 1-168
+plugin/skills/requesting-code-review/code-reviewer.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-168
+plugin/skills/using-superpowers/references/codex-tools.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-64
+plugin/skills/brainstorming/scripts/server.cjs
+  s_5c7a5915013a2c::t_2e208c3461237d 1-354
+plugin/skills/systematic-debugging/test-academic.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-14
+plugin/skills/brainstorming/scripts/stop-server.sh
+  s_5c7a5915013a2c::t_2e208c3461237d 1-56
+plugin/skills/brainstorming/visual-companion.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-261
+plugin/skills/writing-skills/anthropic-best-practices.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-1150
+plugin/skills/writing-skills/testing-skills-with-subagents.md
+  s_5c7a5915013a2c::t_2e208c3461237d 1-384
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5e1fc86a2e01c06f5cc5c68c537593a5ceae2f13",
+  "prompts": {},
+  "sessions": {
+    "s_5c7a5915013a2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fae83ff7-3aae-4814-a846-54e2432e0bad",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
