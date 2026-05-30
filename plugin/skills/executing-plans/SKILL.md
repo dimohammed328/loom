@@ -394,3 +394,33 @@ violates the isolation guarantees of the worktree-per-executor model.
 - **Never call `loom complete` on a story before the integrator returns `ok`.**
 - **Never auto-retry at the epic level.** Halt and surface.
 - **Bounded retries**: 3 per story across waves.
+
+<HARD-GATE name="loom-complete-and-finalize">
+## loom complete + Finalize Gates
+
+### loom complete <sqid>
+
+`loom complete <sqid>` MAY run ONLY when:
+1. The story-integrator subagent has returned a real tool result (visible in
+   this session's tool-use history) with `result: ok`.
+2. That `result: ok` appears in an actual tool-result turn — not narrated,
+   not inferred, not assumed from a delayed or missing response.
+
+Do NOT call `loom complete <sqid>` based on anything other than a verbatim
+`result: ok` in a real tool result from that story's integrator.
+
+### Finalizing (PR or merge)
+
+Before finalizing (pushing the branch and opening a PR, or merging), the
+orchestrator MUST independently re-verify every epic Validation Criterion
+by running real commands and confirming their real output. Steps:
+
+1. Read the story or epic body (`loom show <qid> --json`) and extract every
+   bullet under `## Validation Criteria`.
+2. For each criterion, run the verification command(s) and capture the actual
+   output in this session. Do NOT assume a criterion passes based on what an
+   executor or integrator reported — re-run it.
+3. Proceed to finalize only if ALL criteria are confirmed by real command
+   output. If any criterion fails or cannot be verified, HALT and surface
+   the gap to the user.
+</HARD-GATE>
