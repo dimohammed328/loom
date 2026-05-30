@@ -1,0 +1,10 @@
+{
+  "marketplace": "loom",
+  "plugins": [
+    {
+      "name": "loom",
+      "source": "./plugin",
+      "description": "Loom — markdown-based project management with loom CLI integration. Provides agent orchestration hooks, event logging, and subagent context injection for the loom workflow."
+    }
+  ]
+}
