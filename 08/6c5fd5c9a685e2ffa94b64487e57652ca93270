@@ -1,0 +1,19 @@
+pyproject.toml
+  s_857e05253100a9::t_b9757bc494cbd1 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "086c5fd5c9a685e2ffa94b64487e57652ca93270",
+  "prompts": {},
+  "sessions": {
+    "s_857e05253100a9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "18525b12-6df3-46a9-b010-c9f6bfdd9c8d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
