@@ -73,6 +73,19 @@ Whether you just merged or are running on the story branch directly:
 
 ### Step 3: Decide
 
+> **VERIFIED FACTS ONLY.** Every field in any JSON you return MUST come from
+> actual command output observed in this session — never fabricated or guessed.
+> Specifically:
+> - `merge_sha` MUST be the literal SHA printed by `git rev-parse HEAD` after
+>   the merge commit — never constructed or assumed.
+> - Each `pass`/fail verdict in `criteria` MUST reflect what you directly
+>   observed (file content, grep output, test run output) in this session.
+> - `evidence` strings MUST quote or paraphrase actual output you saw — do NOT
+>   write "tests pass" without having run the tests and seen them pass.
+>
+> If you cannot produce a field from real observed output, set it to `null`
+> and explain in the result.
+
 - **All criteria pass AND tests/lint/format are green:**
   1. Emit `integration_complete` with `result=ok`:
      ```bash

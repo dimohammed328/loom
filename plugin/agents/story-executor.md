@@ -179,6 +179,21 @@ For each task in order:
 
 ### Step 7 — Report back
 
+> **VERIFIED FACTS ONLY.** Every field in the JSON below MUST come from
+> actual command output run in this session — never fabricated or guessed.
+> Specifically:
+> - `branch` MUST be the literal string printed by
+>   `git rev-parse --abbrev-ref HEAD` at the end of your work.
+> - Every SHA in `commits` MUST come from `git log --oneline` or
+>   `git rev-parse HEAD` output you observed in this session.
+> - `tasks_done` MUST list only task qids you personally ran
+>   `loom complete <task-qid>` on and got a success response for.
+> - Test/lint/format results in `notes` MUST reflect actual command
+>   output — do NOT infer or assume they pass without running them.
+>
+> If you cannot produce a field from real observed output, set it to
+> `null` and explain why in `notes`.
+
 When all tasks from `loom order` are done, return a structured report:
 
 ```json
