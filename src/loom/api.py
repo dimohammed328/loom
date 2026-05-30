@@ -269,6 +269,36 @@ class Loom:
     def statuses(self) -> list[str]:
         return self._index.statuses()
 
+    def project_status(self, project: str) -> dict:
+        """Return open/closed counts per item type for *project*.
+
+        Raises :class:`~loom.errors.NotFound` when *project* does not exist.
+
+        The returned dict has the shape::
+
+            {
+              "project": "<project-name>",
+              "epics":   {"open": <int>, "closed": <int>},
+              "stories": {"open": <int>, "closed": <int>},
+              "tasks":   {"open": <int>, "closed": <int>},
+            }
+
+        *closed* means ``status == "done"``; everything else counts as *open*.
+        The project item itself is excluded from counts.
+        """
+        # Verify the project exists.
+        project_record = self._index.get(project)
+        if project_record is None or project_record.type != "project":
+            raise NotFound(project)
+
+        result: dict = {"project": project}
+        for item_type, key in (("epic", "epics"), ("story", "stories"), ("task", "tasks")):
+            all_records = self._index.find(type=item_type, project=project, archived=False)
+            closed = sum(1 for r in all_records if r.status == "done")
+            open_ = len(all_records) - closed
+            result[key] = {"open": open_, "closed": closed}
+        return result
+
     # ----- Phase 4: ready + close ---------------------------------------
 
     def ready(
