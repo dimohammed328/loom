@@ -79,8 +79,8 @@ keep hooks lightweight.
 
 ## What NOT to put here
 
-- Do not reference `superpowers:` skill names. This plugin is self-contained;
-  the `loom:` namespace is authoritative.
+- Reference skills only via the authoritative `loom:` namespace; do not use
+  bare names or other plugins' skill namespaces. This plugin is self-contained.
 - Do not add references to third-party AI coding platforms or their upstream
   repositories. This plugin is self-contained and Claude Code only.
 - Do not add `config.toml`, lock files, or any artefact that duplicates
