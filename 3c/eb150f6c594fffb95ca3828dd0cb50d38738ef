@@ -1,0 +1,20 @@
+src/loom/watch.py
+  s_156f417e1db0ac::t_386f3eb619a044 45,47,92
+  s_156f417e1db0ac::t_3df3296a5f23a5 1-44,46,48-91,93-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3ceb150f6c594fffb95ca3828dd0cb50d38738ef",
+  "prompts": {},
+  "sessions": {
+    "s_156f417e1db0ac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17ae9911-d559-4752-9884-e6a7d7c990fa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
