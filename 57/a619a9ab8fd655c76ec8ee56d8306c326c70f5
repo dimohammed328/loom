@@ -1,0 +1,36 @@
+src/ui/handoff/design_handoff_loom_pm/DagView.jsx
+  s_f2b53ac4fe1fd2::t_167c6b2c24b05d 163
+  s_f2b53ac4fe1fd2::t_e93cd7ceeb198f 168
+  s_f2b53ac4fe1fd2::t_fc2eab5dea45cc 161
+src/ui/handoff/design_handoff_loom_pm/App.jsx
+  s_f2b53ac4fe1fd2::t_c72b0f2c0e09e8 129-131,134,136,139-140,142,148,157,159-160,162-163,165,172-173
+src/ui/handoff/design_handoff_loom_pm/ItemModal.jsx
+  s_f2b53ac4fe1fd2::t_140b01f7660c8e 171
+  s_f2b53ac4fe1fd2::t_3ec99280887c0c 107-111,113-133
+  s_f2b53ac4fe1fd2::t_21931842ff710b 192
+src/ui/handoff/design_handoff_loom_pm/styles.css
+  s_f2b53ac4fe1fd2::t_3ca2f9b712ec65 77
+  s_f2b53ac4fe1fd2::t_97f13d744d91ec 208-223
+  s_f2b53ac4fe1fd2::t_84b2eba420c665 181
+  s_f2b53ac4fe1fd2::t_3698b48f3d09d5 56
+  s_f2b53ac4fe1fd2::t_bb131717c97ffe 299
+  s_f2b53ac4fe1fd2::t_39fe9f1ede2acc 240-242
+  s_f2b53ac4fe1fd2::t_69e723a0bcc831 97
+  s_f2b53ac4fe1fd2::t_82c1c2f49db7cb 35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "57a619a9ab8fd655c76ec8ee56d8306c326c70f5",
+  "prompts": {},
+  "sessions": {
+    "s_f2b53ac4fe1fd2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0ec7ee1d-7892-4dc1-a730-c968bd551557",
+        "model": "unknown"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
