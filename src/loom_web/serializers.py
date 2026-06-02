@@ -88,8 +88,15 @@ def serialize_item_detail(item: Item) -> ItemDetail:
     # or callers use the tree endpoint for full hierarchy.
     # For now we expose the list of children qids from the index via the
     # item's own record — they are not stored on IndexRecord, so we default to [].
-    deps = [serialize_item_ref(ref) for ref in item.dependencies()]
-    dependents = [serialize_item_ref(ref) for ref in item.dependents()]
+    from loom.items import _Statused  # local import to avoid circular risk
+
+    if isinstance(item, _Statused):
+        deps = [serialize_item_ref(ref) for ref in item.dependencies()]
+        dependents = [serialize_item_ref(ref) for ref in item.dependents()]
+    else:
+        # Project items have no status and therefore no dep edges.
+        deps = []
+        dependents = []
 
     return ItemDetail(
         qid=r.qualified_id,
