@@ -1,0 +1,37 @@
+src/loom_web/updates.py
+  s_156f417e1db0ac::t_17c8fcb9b0a58c 2,7,26,51,55-56
+  s_156f417e1db0ac::t_c2ebd6891e4ddc 63
+src/loom_web/broadcaster.py
+  s_156f417e1db0ac::t_857fc5712f93b2 9-13,26,29-39,50-65
+tests/test_web_live.py
+  s_156f417e1db0ac::t_1e9605362f456a 218,225,234,236,239,241-243,247
+  s_156f417e1db0ac::t_abf9a728219a74 209-211,222,224,229,231,235,238,245-246
+  s_156f417e1db0ac::t_74c4b2ce870a1f 213,223,226-228,232,237
+  s_156f417e1db0ac::t_cde7a74adf9cd9 84-85
+  s_156f417e1db0ac::t_1de85e431ca113 130
+  s_156f417e1db0ac::t_32d1b631ba1a8f 110
+  s_156f417e1db0ac::t_dbc7f4926e8414 141
+  s_156f417e1db0ac::t_0d9dba0ba0f288 212,230
+  s_156f417e1db0ac::t_ec22f1241461c2 202-208,214-217,219-221,233,248
+  s_156f417e1db0ac::t_76389632f2722a 240,244
+src/loom_web/app.py
+  s_156f417e1db0ac::t_227b13cd9783a9 32,35-38
+  s_156f417e1db0ac::t_4cdef2bc054fb4 80-104
+  s_156f417e1db0ac::t_3f03b49abf926c 5-7,12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "22cee5c578694ae0c41aaee8652c668878c0e45d",
+  "prompts": {},
+  "sessions": {
+    "s_156f417e1db0ac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17ae9911-d559-4752-9884-e6a7d7c990fa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
