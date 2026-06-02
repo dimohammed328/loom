@@ -246,3 +246,33 @@ def test_ws_endpoint_delivers_message_and_unsubscribes(loom_dir) -> None:
     assert not t.is_alive(), "WS thread did not finish in time"
     assert received == [msg]
     assert len(hub._subscribers) == 0
+
+
+# ---------------------------------------------------------------------------
+# Task 5: Lifespan — observer thread starts on startup, stops on shutdown
+# ---------------------------------------------------------------------------
+
+
+def test_lifespan_starts_observer_thread_on_startup(loom_dir) -> None:
+    """The UpdatesWorker thread is alive after app startup."""
+    from starlette.testclient import TestClient
+
+    from loom_web.app import create_app
+
+    app = create_app(root=str(loom_dir))
+    with TestClient(app) as client:
+        # The lifespan startup has run; worker thread must be running.
+        assert app.state.updates_thread is not None
+        assert app.state.updates_thread.is_alive()
+
+    # After __exit__ the lifespan shutdown has run; thread must have stopped.
+    assert not app.state.updates_thread.is_alive()
+
+
+def test_lifespan_worker_is_none_before_startup(loom_dir) -> None:
+    """Before the lifespan starts, updates_thread is not set on app.state."""
+    from loom_web.app import create_app
+
+    app = create_app(root=str(loom_dir))
+    # Before entering the lifespan context, updates_thread must not exist.
+    assert not hasattr(app.state, "updates_thread")
