@@ -1,0 +1,34 @@
+src/loom_web/frontend/src/styles/tokens.css
+  s_156f417e1db0ac::t_34bb34a9a7f1da 340-497
+src/loom_web/frontend/src/components/ItemModal.test.ts
+  s_156f417e1db0ac::t_09a2c653b45a55 18
+  s_156f417e1db0ac::t_6b87e13901987f 1-17,19-133
+src/loom_web/frontend/src/App.tsx
+  s_156f417e1db0ac::t_3f9e4802622616 3,5-21,26
+src/loom_web/static/main.css
+  s_156f417e1db0ac::t_6d54e3f77471f2 1
+src/loom_web/static/main.js
+  s_156f417e1db0ac::t_6d54e3f77471f2 1,6,9,13-17,19,21,23-29,31-32,36,41,45,50,56,61,67,71-72,77,81,84,86,88,93-98,100,102,104,106,115,119,128,137,139,141,144-149,151,153,155,160
+  s_156f417e1db0ac::t_c87673570418be 4,10-12,34,38-39,43,47-48,52-54,58-59,63,65,68-70,74-76,78-80,83,90,92,107-113,117,121,123-124,126,130,132-133,135,143,156-159
+src/loom_web/frontend/src/components/ItemModalHelpers.ts
+  s_156f417e1db0ac::t_f48051b7b3deec 1-62
+src/loom_web/frontend/src/components/ItemModal.tsx
+  s_156f417e1db0ac::t_b29a79048f2ca8 1-14,16-17,28-440
+  s_156f417e1db0ac::t_9f01aecf8da2b3 15,18-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c8e26cfd3ad17e14ceedd3877a5259b9ec8c1ec9",
+  "prompts": {},
+  "sessions": {
+    "s_156f417e1db0ac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17ae9911-d559-4752-9884-e6a7d7c990fa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
