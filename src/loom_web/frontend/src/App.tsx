@@ -4,6 +4,7 @@ import TopBar from "./components/TopBar";
 import BoardView from "./components/BoardView";
 import TableView from "./components/TableView";
 import DagView from "./components/DagView";
+import { ConnectedItemModal } from "./components/ItemModal";
 
 function ViewRouter(): React.JSX.Element {
   const { view, currentProject, openModal } = useAppStore();
@@ -51,6 +52,7 @@ export default function App(): React.JSX.Element {
       <div className="app">
         <TopBar />
         <ViewRouter />
+        <ConnectedItemModal />
       </div>
     </AppProvider>
   );
