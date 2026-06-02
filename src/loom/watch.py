@@ -23,11 +23,33 @@ import threading
 from pathlib import Path
 
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
+from watchdog.observers import Observer
 
 from .ids import InvalidQualifiedId, qid_from_path
 
 # Sentinel pushed into the queue when the observer stops unexpectedly.
 _STOP = object()
+
+
+def _start_observer(
+    root: Path,
+    q: queue.Queue[object],
+    *,
+    debounce_delay: float = 0.05,
+) -> tuple[Observer, _Debouncer]:
+    """Create, schedule, and start a watchdog observer for *root*.
+
+    Returns ``(observer, debouncer)`` so the caller can stop both cleanly.
+    The observer watches *root* recursively, filtering events through
+    :class:`LoomEventHandler`.  The debouncer is attached to the handler
+    so the caller can call ``debouncer.cancel()`` during teardown.
+    """
+    debouncer = _Debouncer(delay=debounce_delay)
+    handler = LoomEventHandler(root, q, debounce=debouncer)
+    observer: Observer = Observer()
+    observer.schedule(handler, str(root), recursive=True)
+    observer.start()
+    return observer, debouncer
 
 
 class LoomEventHandler(FileSystemEventHandler):
