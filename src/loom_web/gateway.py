@@ -82,3 +82,26 @@ class LoomGateway:
             }
 
         return await asyncio.to_thread(_summary)
+
+    async def get_children(self, qid: str) -> list[str]:
+        """Return the qualified ids of direct children of *qid*.
+
+        Uses ``Loom.tree(depth=1)`` so the call stays off the event loop.
+        Returns an empty list if the item has no children.
+        """
+
+        def _children() -> list[str]:
+            try:
+                tree = self._loom.tree(qid, depth=1)
+            except Exception:
+                return []
+            prefix = qid + ":"
+            return [
+                item["qid"]
+                for item in tree.get("items", [])
+                if item["qid"] != qid
+                and item["qid"].startswith(prefix)
+                and ":" not in item["qid"][len(prefix) :]
+            ]
+
+        return await asyncio.to_thread(_children)

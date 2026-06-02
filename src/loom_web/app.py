@@ -8,8 +8,8 @@ from fastapi.responses import JSONResponse
 from loom.errors import NotFound
 
 from .gateway import LoomGateway
-from .schemas import ProjectSummary, TreeResponse
-from .serializers import serialize_project, serialize_tree
+from .schemas import ItemDetail, ProjectSummary, TreeResponse
+from .serializers import serialize_item_detail, serialize_project, serialize_tree
 
 _GATEWAY_KEY = "loom_gateway"
 
@@ -55,5 +55,19 @@ def create_app(root: str | None = None) -> FastAPI:
         gw: LoomGateway = request.app.state.gateway
         tree_dict = await gw.get_tree(project)
         return serialize_tree(tree_dict)
+
+    @app.get("/api/items/{qid:path}", response_model=ItemDetail)
+    async def get_item(qid: str, request: Request) -> ItemDetail:
+        """Return full item detail including body, dependencies, dependents, children."""
+        gw: LoomGateway = request.app.state.gateway
+        item = await gw.get_item_detail(qid)
+        detail = serialize_item_detail(item)
+        children = await gw.get_children(qid)
+        return detail.model_copy(update={"children": children})
+
+    @app.get("/api/health")
+    async def health() -> dict:
+        """Liveness probe."""
+        return {"status": "ok"}
 
     return app
