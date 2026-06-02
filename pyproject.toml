@@ -12,6 +12,7 @@ dependencies = [
     "ruamel-yaml>=0.19.1",
     "typer>=0.25.1",
     "uvicorn[standard]>=0.48.0",
+    "watchdog>=6.0.0",
 ]
 
 [project.scripts]

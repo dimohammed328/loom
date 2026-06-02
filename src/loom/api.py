@@ -18,6 +18,7 @@ Example:
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
 from .errors import Duplicate, LoomError, NotFound
@@ -403,6 +404,62 @@ class Loom:
         # Only _Statused has set_status, but type checks above guarantee it.
         item.set_status("done")  # type: ignore[union-attr]
         return True
+
+    # ----- watch --------------------------------------------------------
+
+    def get_updates(
+        self,
+        *,
+        timeout: float | None = None,
+        debounce_delay: float = 0.05,
+    ) -> Iterator[str]:
+        """Yield the qualified id of each item whose ``.md`` file changes.
+
+        Starts a ``watchdog`` observer in a background thread that watches
+        ``$LOOM_DIR`` recursively for ``.md`` create / modify / delete /
+        move events.  For each event the index is synced via
+        :func:`~loom.rebuild.sync_one` before the qid is yielded.
+
+        :param timeout: Per-iteration ``queue.get`` timeout in seconds.
+            ``None`` (default) blocks indefinitely until an event arrives.
+            Pass a small positive float to allow the caller to do periodic
+            work between yields (the generator raises ``StopIteration``
+            when the observer stops).
+        :param debounce_delay: Window in seconds during which duplicate
+            events for the same path are collapsed (default 0.05 s).
+
+        The generator is interruptible: closing it (or breaking out of
+        the loop) stops and joins the observer cleanly::
+
+            gen = loom.get_updates()
+            try:
+                for qid in gen:
+                    ...
+            finally:
+                gen.close()  # stops the background thread
+        """
+        import queue as _queue
+
+        from .watch import _STOP, _start_observer
+
+        q: _queue.Queue[object] = _queue.Queue()
+        observer, debouncer = _start_observer(self._root, q, debounce_delay=debounce_delay)
+        try:
+            while observer.is_alive():
+                try:
+                    item = q.get(block=True, timeout=timeout if timeout is not None else 1.0)
+                except _queue.Empty:
+                    if timeout is not None:
+                        # Caller requested a finite timeout — stop iteration.
+                        return
+                    continue
+                if item is _STOP:
+                    return
+                yield str(item)
+        finally:
+            observer.stop()
+            debouncer.cancel()
+            observer.join()
 
     # ----- maintenance --------------------------------------------------
 
