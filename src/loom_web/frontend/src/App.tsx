@@ -3,6 +3,7 @@ import { AppProvider, useAppStore } from "./state/store";
 import TopBar from "./components/TopBar";
 import BoardView from "./components/BoardView";
 import TableView from "./components/TableView";
+import DagView from "./components/DagView";
 
 function ViewRouter(): React.JSX.Element {
   const { view, currentProject, openModal } = useAppStore();
@@ -28,7 +29,10 @@ function ViewRouter(): React.JSX.Element {
     return <TableView project={currentProject} onOpen={openModal} />;
   }
 
-  // Graph view is out-of-scope for this story.
+  if (view === "graph") {
+    return <DagView project={currentProject} onOpen={openModal} />;
+  }
+
   return (
     <div
       className="view-scroll"
