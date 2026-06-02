@@ -97,14 +97,18 @@ class LoomEventHandler(FileSystemEventHandler):
 class _Debouncer:
     """Thread-safe per-path debouncer.
 
-    ``acquire(path)`` returns True the first time a path is seen and
-    schedules its removal from the active set after ``delay`` seconds.
-    Subsequent calls within the window return False.
+    ``acquire(path)`` returns ``True`` the first time a path is seen within a
+    ``delay``-second window and schedules its release.  Subsequent calls within
+    the same window return ``False`` so that rapid bursts of FS events for the
+    same file produce only a single queue entry.
+
+    ``cancel()`` cancels all pending timers (called during observer teardown).
     """
 
     def __init__(self, delay: float = 0.05) -> None:
         self._delay = delay
         self._active: set[Path] = set()
+        self._timers: list[threading.Timer] = []
         self._lock = threading.Lock()
 
     def acquire(self, path: Path) -> bool:
@@ -114,8 +118,19 @@ class _Debouncer:
             self._active.add(path)
         t = threading.Timer(self._delay, self._release, args=(path,))
         t.daemon = True
+        with self._lock:
+            self._timers.append(t)
         t.start()
         return True
+
+    def cancel(self) -> None:
+        """Cancel all pending release timers and clear the active set."""
+        with self._lock:
+            timers = list(self._timers)
+            self._timers.clear()
+            self._active.clear()
+        for t in timers:
+            t.cancel()
 
     def _release(self, path: Path) -> None:
         with self._lock:
