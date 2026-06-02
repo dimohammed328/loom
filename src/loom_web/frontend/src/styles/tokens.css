@@ -460,6 +460,103 @@ body {
 }
 
 /* ============================================================
+   TABLE VIEW — fixed-layout epic▸story▸task tree
+   ============================================================ */
+
+.tablewrap {
+  padding: 0 16px 48px;
+  min-width: 600px;
+}
+
+.ttable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* Header row */
+.ttable thead tr {
+  border-bottom: 2px solid var(--border);
+}
+.ttable th {
+  padding: 10px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-align: left;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+.ttable th.thead-name { padding-left: 8px; }
+
+/* Body rows */
+.trow {
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.trow:hover { background: var(--hover); }
+.trow:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+
+.trow-epic  { background: transparent; }
+.trow-story { background: transparent; }
+.trow-task  { background: transparent; }
+
+/* Name cell */
+.tcell-name { padding: 8px 0; vertical-align: middle; }
+.tcell-name-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.tw-chev {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--text-3);
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+.tw-chev:hover { background: var(--hover); color: var(--text); }
+.tw-chev.leaf { pointer-events: none; color: transparent; }
+.tw-ttext {
+  flex: 1;
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+}
+.trow-epic  .tw-ttext { font-weight: 600; }
+.trow-task  .tw-ttext { font-weight: 400; color: var(--text-2); }
+.tw-id {
+  font-size: 10.5px;
+  color: var(--text-3);
+  flex: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* Progress / status / updated cells */
+.tcell-progress,
+.tcell-status,
+.tcell-upd { padding: 8px 12px; vertical-align: middle; }
+
+.tcell-none { color: var(--text-3); font-size: 13px; }
+.tcell-upd-text { font-size: 12.5px; color: var(--text-3); }
+
+/* ============================================================
    REDUCED MOTION
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
