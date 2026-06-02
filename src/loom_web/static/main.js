@@ -23662,25 +23662,65 @@ var require_jsx_dev_runtime = __commonJS((exports, module) => {
 });
 
 // src/main.tsx
-var import_react = __toESM(require_react(), 1);
+var import_react2 = __toESM(require_react(), 1);
 var import_client = __toESM(require_client(), 1);
 
-// src/App.tsx
+// src/state/store.tsx
+var import_react = __toESM(require_react(), 1);
 var jsx_dev_runtime = __toESM(require_jsx_dev_runtime(), 1);
+var AppContext = import_react.createContext(null);
+function AppProvider({ children }) {
+  const [projects, setProjectsState] = import_react.useState(null);
+  const [currentProject, setCurrentProjectState] = import_react.useState(null);
+  const [view, setViewState] = import_react.useState("board");
+  const [openQid, setOpenQid] = import_react.useState(null);
+  const setProjects = import_react.useCallback((ps) => {
+    setProjectsState(ps);
+    setCurrentProjectState((prev) => prev ?? (ps[0] ?? null));
+  }, []);
+  const setCurrentProject = import_react.useCallback((p) => {
+    setCurrentProjectState(p);
+    setViewState("board");
+  }, []);
+  const setView = import_react.useCallback((v) => setViewState(v), []);
+  const openModal = import_react.useCallback((qid) => setOpenQid(qid), []);
+  const closeModal = import_react.useCallback(() => setOpenQid(null), []);
+  const store = {
+    projects,
+    currentProject,
+    view,
+    openQid,
+    setProjects,
+    setCurrentProject,
+    setView,
+    openModal,
+    closeModal
+  };
+  return /* @__PURE__ */ jsx_dev_runtime.jsxDEV(AppContext.Provider, {
+    value: store,
+    children
+  }, undefined, false, undefined, this);
+}
+
+// src/App.tsx
+var jsx_dev_runtime2 = __toESM(require_jsx_dev_runtime(), 1);
 function App() {
-  return /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-    id: "app",
-    children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-      children: "Loom"
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(AppProvider, {
+    children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+      className: "app",
+      children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("p", {
+        style: { padding: "1rem", color: "var(--text-2)" },
+        children: "Loom — loading…"
+      }, undefined, false, undefined, this)
     }, undefined, false, undefined, this)
   }, undefined, false, undefined, this);
 }
 
 // src/main.tsx
-var jsx_dev_runtime2 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime3 = __toESM(require_jsx_dev_runtime(), 1);
 var container = document.getElementById("root");
 if (!container)
   throw new Error("Root element not found");
-import_client.createRoot(container).render(/* @__PURE__ */ jsx_dev_runtime2.jsxDEV(import_react.default.StrictMode, {
-  children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(App, {}, undefined, false, undefined, this)
+import_client.createRoot(container).render(/* @__PURE__ */ jsx_dev_runtime3.jsxDEV(import_react2.default.StrictMode, {
+  children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(App, {}, undefined, false, undefined, this)
 }, undefined, false, undefined, this));

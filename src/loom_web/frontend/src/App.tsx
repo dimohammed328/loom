@@ -1,9 +1,12 @@
 import React from "react";
+import { AppProvider } from "./state/store";
 
 export default function App(): React.JSX.Element {
   return (
-    <div id="app">
-      <p>Loom</p>
-    </div>
+    <AppProvider>
+      <div className="app">
+        <p style={{ padding: "1rem", color: "var(--text-2)" }}>Loom — loading…</p>
+      </div>
+    </AppProvider>
   );
 }
