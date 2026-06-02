@@ -145,3 +145,56 @@ async def test_updates_worker_tombstone_for_deleted_qid() -> None:
     msg = await asyncio.wait_for(received.get(), timeout=1.0)
     assert msg["qid"] == "proj:abc:deleted"
     assert msg.get("deleted") is True
+
+
+# ---------------------------------------------------------------------------
+# Task 3: WS payload shape — ItemUpdate and ItemTombstone schemas
+# ---------------------------------------------------------------------------
+
+
+def test_item_update_payload_schema_validates_item_fields() -> None:
+    """ItemUpdate accepts a full item summary dict."""
+    from loom_web.schemas import ItemUpdate
+
+    payload = ItemUpdate(
+        qid="proj:abc:1",
+        type="task",
+        title="A task",
+        status="ready",
+        assignee=None,
+        branch=None,
+        pr_url=None,
+        tags=[],
+        archived=False,
+    )
+    assert payload.qid == "proj:abc:1"
+    assert payload.deleted is False
+
+
+def test_item_tombstone_payload_schema_marks_deleted() -> None:
+    """ItemTombstone carries qid and deleted=True."""
+    from loom_web.schemas import ItemTombstone
+
+    payload = ItemTombstone(qid="proj:abc:99")
+    assert payload.qid == "proj:abc:99"
+    assert payload.deleted is True
+
+
+def test_item_update_serialises_to_dict_with_no_body() -> None:
+    """ItemUpdate.model_dump() must NOT include a 'body' field."""
+    from loom_web.schemas import ItemUpdate
+
+    payload = ItemUpdate(
+        qid="proj:abc:1",
+        type="task",
+        title="A task",
+        status="ready",
+        assignee=None,
+        branch=None,
+        pr_url=None,
+        tags=[],
+        archived=False,
+    )
+    d = payload.model_dump()
+    assert "body" not in d
+    assert d["qid"] == "proj:abc:1"
