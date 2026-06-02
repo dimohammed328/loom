@@ -45,6 +45,37 @@ class TreeResponse(BaseModel):
     items: list[ItemNode]
 
 
+class ItemUpdate(BaseModel):
+    """WebSocket payload for a changed item (record minus body).
+
+    Broadcast to all ``/ws`` clients whenever a loom ``.md`` file is
+    created or modified.  ``deleted`` is always ``False`` here; use
+    :class:`ItemTombstone` for deletions.
+    """
+
+    qid: str
+    type: str
+    title: str
+    status: str | None
+    assignee: str | None
+    branch: str | None
+    pr_url: str | None
+    tags: list[str]
+    archived: bool
+    deleted: bool = False
+
+
+class ItemTombstone(BaseModel):
+    """WebSocket payload for a deleted item.
+
+    Broadcast when the item file has been removed and ``loom.get(qid)``
+    raises :class:`loom.errors.NotFound`.
+    """
+
+    qid: str
+    deleted: bool = True
+
+
 class ItemDetail(BaseModel):
     """Full item descriptor returned by GET /api/items/{qid}."""
 
