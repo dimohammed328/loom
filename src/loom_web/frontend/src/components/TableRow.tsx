@@ -19,6 +19,7 @@ import {
   statusPillLabel,
 } from "./tableRowHelpers";
 import { rowClickHandler, rowKeyDownHandler } from "./tableRowClickHelpers";
+import { enterClass } from "./enterClass";
 
 // Re-export so callers can import from a single place.
 export { taskMeterLabel, progressBarSegments } from "./tableRowHelpers";
@@ -156,12 +157,15 @@ export interface TableRowProps {
   row: TableRowData;
   onToggle: (qid: string) => void;
   onOpen: (qid: string) => void;
+  /** When true, adds the .loom-enter animation class (newly added via WS). */
+  isNew?: boolean;
 }
 
 export default function TableRow({
   row,
   onToggle,
   onOpen,
+  isNew,
 }: TableRowProps): React.JSX.Element {
   const indent = row.depth * 20; // 20px per level
 
@@ -190,7 +194,7 @@ export default function TableRow({
 
   return (
     <tr
-      className={`trow trow-${row.type}`}
+      className={enterClass(`trow trow-${row.type}`, isNew)}
       onClick={rowClickHandler(row.qid, onOpen)}
       onKeyDown={handleKeyDown}
       tabIndex={0}
