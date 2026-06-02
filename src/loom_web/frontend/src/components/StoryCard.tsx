@@ -13,6 +13,7 @@
 import React from "react";
 import type { StoryCell } from "../boardModel";
 import { storyProgress } from "../progress";
+import { enterClass } from "./enterClass";
 
 // ---------------------------------------------------------------------------
 // Pure helper (exported for tests)
@@ -151,14 +152,16 @@ export interface StoryCardProps {
   /** Tags from the item detail (not on StoryCell directly — passed separately). */
   tags?: string[];
   onOpen: (qid: string) => void;
+  /** When true, adds the .loom-enter animation class (newly added via WS). */
+  isNew?: boolean;
 }
 
-export default function StoryCard({ story, tags = [], onOpen }: StoryCardProps): React.JSX.Element {
+export default function StoryCard({ story, tags = [], onOpen, isNew }: StoryCardProps): React.JSX.Element {
   const footerKind = storyFooterKind(story);
 
   return (
     <div
-      className="kcard"
+      className={enterClass("kcard", isNew)}
       role="button"
       tabIndex={0}
       onClick={() => onOpen(story.qid)}

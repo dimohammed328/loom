@@ -24,6 +24,8 @@ import {
   childListLabel,
   typePillLabel,
 } from "./itemModalHelpers";
+import { registerModalRefetch } from "../App";
+import { statusChip } from "./statusChip";
 
 // Re-export pure helpers so callers can import from one place.
 export { breadcrumbSegments, childListLabel, typePillLabel };
@@ -90,7 +92,7 @@ function StatusDot({ status }: { status: string | null }): React.JSX.Element {
   const colors = statusColor(status);
   return (
     <span
-      className="dot"
+      className={statusChip("dot")}
       style={{ background: colors.dot, width: 8, height: 8, borderRadius: "50%", display: "inline-block", flexShrink: 0 }}
     />
   );
@@ -144,7 +146,7 @@ function StatusPill({ status }: { status: string | null }): React.JSX.Element {
   const colors = statusColor(status);
   return (
     <span
-      className="status-pill"
+      className={statusChip("status-pill")}
       style={{ background: colors.bg, color: colors.fg }}
     >
       <StatusDot status={status} />
@@ -271,12 +273,19 @@ export interface ItemModalProps {
   qid: string | null;
   onClose: () => void;
   onOpen: (qid: string) => void;
+  /**
+   * Bumped by ConnectedItemModal when the WS client signals that the open
+   * item has been updated. ItemModal re-fetches its detail whenever this
+   * changes, keeping the modal body in sync without a full close/reopen.
+   */
+  refetchSignal?: number;
 }
 
 export default function ItemModal({
   qid,
   onClose,
   onOpen,
+  refetchSignal,
 }: ItemModalProps): React.JSX.Element | null {
   const panelRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<Element | null>(null);
@@ -285,12 +294,14 @@ export default function ItemModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch detail whenever qid changes.
+  // Fetch detail whenever qid changes OR when refetchSignal is bumped.
   useEffect(() => {
     if (!qid) return;
-    setDetail(null);
-    setError(null);
-    setLoading(true);
+    // On a refetch (signal bump) keep existing detail visible while loading.
+    if (!detail) {
+      setError(null);
+      setLoading(true);
+    }
     getItem(qid)
       .then((d) => {
         setDetail(d);
@@ -300,7 +311,7 @@ export default function ItemModal({
         setError(err instanceof Error ? err.message : String(err));
         setLoading(false);
       });
-  }, [qid]);
+  }, [qid, refetchSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Focus management: move focus into dialog on open; restore on close.
   useEffect(() => {
@@ -813,9 +824,21 @@ export default function ItemModal({
 
 export function ConnectedItemModal(): React.JSX.Element | null {
   const { openQid, closeModal, openModal } = useAppStore();
+
+  // refetchCounter is bumped when WsConnector signals that the open item
+  // has been updated. ItemModal's effect re-fetches whenever it changes.
+  const [refetchCounter, setRefetchCounter] = useState(0);
+
+  // Register / unregister the refetch callback with App's WsConnector.
+  useEffect(() => {
+    registerModalRefetch(() => setRefetchCounter((c) => c + 1));
+    return () => registerModalRefetch(null);
+  }, []);
+
   return (
     <ItemModal
       qid={openQid}
+      refetchSignal={refetchCounter}
       onClose={closeModal}
       onOpen={useCallback((qid: string) => {
         closeModal();

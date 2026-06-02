@@ -13,7 +13,9 @@ import React, {
   useCallback,
   type ReactNode,
 } from "react";
-import type { ProjectSummary } from "../api/client";
+import type { ProjectSummary, ItemNode } from "../api/client";
+import { setItems as buildItemsMap, applyWsPayload as applyPayload, type ItemsMap } from "./itemsReducer";
+import type { WsPayload } from "../ws/client";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,6 +49,12 @@ export interface AppState {
    * when this is non-null.
    */
   collapseControl: CollapseControl | null;
+  /**
+   * Flat map of all items for the current project, keyed by qid.
+   * Null until the first tree fetch completes.
+   * Updated in-place by WS payloads so all views reflect live changes.
+   */
+  itemsById: ItemsMap | null;
 }
 
 export interface AppActions {
@@ -57,6 +65,10 @@ export interface AppActions {
   closeModal: () => void;
   /** Called by TableView to register / update the collapse control. */
   setCollapseControl: (ctrl: CollapseControl | null) => void;
+  /** Replace the full items map (called after a tree fetch). */
+  setItemsFromTree: (items: ItemNode[]) => void;
+  /** Apply a single WS payload — replace or remove the item by qid. */
+  applyWsPayload: (payload: WsPayload) => void;
 }
 
 export type AppStore = AppState & AppActions;
@@ -77,6 +89,7 @@ export function AppProvider({ children }: { children: ReactNode }): React.JSX.El
   const [view, setViewState] = useState<View>("board");
   const [openQid, setOpenQid] = useState<string | null>(null);
   const [collapseControl, setCollapseControlState] = useState<CollapseControl | null>(null);
+  const [itemsById, setItemsByIdState] = useState<ItemsMap | null>(null);
 
   const setProjects = useCallback((ps: ProjectSummary[]) => {
     setProjectsState(ps);
@@ -88,6 +101,7 @@ export function AppProvider({ children }: { children: ReactNode }): React.JSX.El
     setCurrentProjectState(p);
     setViewState("board");
     setCollapseControlState(null);
+    setItemsByIdState(null); // clear stale items on project switch
   }, []);
 
   const setView = useCallback((v: View) => {
@@ -102,18 +116,32 @@ export function AppProvider({ children }: { children: ReactNode }): React.JSX.El
     [],
   );
 
+  const setItemsFromTree = useCallback((items: ItemNode[]) => {
+    setItemsByIdState(buildItemsMap(items));
+  }, []);
+
+  const applyWsPayloadAction = useCallback((payload: WsPayload) => {
+    setItemsByIdState((prev) => {
+      if (!prev) return prev; // no tree loaded yet — ignore
+      return applyPayload(prev, payload);
+    });
+  }, []);
+
   const store: AppStore = {
     projects,
     currentProject,
     view,
     openQid,
     collapseControl,
+    itemsById,
     setProjects,
     setCurrentProject,
     setView,
     openModal,
     closeModal,
     setCollapseControl,
+    setItemsFromTree,
+    applyWsPayload: applyWsPayloadAction,
   };
 
   return <AppContext.Provider value={store}>{children}</AppContext.Provider>;
