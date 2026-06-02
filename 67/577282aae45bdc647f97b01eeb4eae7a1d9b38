@@ -1,0 +1,23 @@
+src/loom_web/updates.py
+  s_156f417e1db0ac::t_075fe811a1cc85 1-96
+tests/test_web_live.py
+  s_156f417e1db0ac::t_280f6a52c2a9e9 75,77,86-98,101,105,116,120,132,136
+  s_156f417e1db0ac::t_5432d23e558d7d 10
+  s_156f417e1db0ac::t_16b359a5705ff6 67-74,76,78-85,99-100,102-104,106-115,117-119,121-131,133-135,137-147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "67577282aae45bdc647f97b01eeb4eae7a1d9b38",
+  "prompts": {},
+  "sessions": {
+    "s_156f417e1db0ac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17ae9911-d559-4752-9884-e6a7d7c990fa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
