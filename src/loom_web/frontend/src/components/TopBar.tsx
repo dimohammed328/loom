@@ -154,7 +154,7 @@ const TABS: { id: View; label: string; Icon: () => React.JSX.Element }[] = [
 ];
 
 export default function TopBar(): React.JSX.Element {
-  const { projects, currentProject, view, setProjects, setCurrentProject, setView } = useAppStore();
+  const { projects, currentProject, view, collapseControl, setProjects, setCurrentProject, setView } = useAppStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isDark, setIsDark] = useState(() => getTheme() === "dark");
 
@@ -222,6 +222,18 @@ export default function TopBar(): React.JSX.Element {
       </nav>
 
       <div className="spacer" />
+
+      {/* Expand/Collapse-all — visible only when table view is active */}
+      {collapseControl && (
+        <button
+          className="ctl"
+          onClick={collapseControl.toggle}
+          title={collapseControl.isAllCollapsed ? "Expand all rows" : "Collapse all rows"}
+          aria-label={collapseControl.isAllCollapsed ? "Expand all rows" : "Collapse all rows"}
+        >
+          {collapseControl.isAllCollapsed ? "Expand all" : "Collapse all"}
+        </button>
+      )}
 
       {/* Theme toggle */}
       <button
