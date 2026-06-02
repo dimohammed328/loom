@@ -74,6 +74,18 @@ class LoomEventHandler(FileSystemEventHandler):
         self._handle_path(str(event.src_path))
 
     def _handle_path(self, src_path: str) -> None:
+        """Resolve *src_path* to a qid, sync the index, and enqueue the qid.
+
+        1. Filter to ``.md`` files; silently skip anything else.
+        2. Apply per-path debouncing to suppress burst duplicates.
+        3. Map the path to a qualified id via :func:`qid_from_path`.
+           Paths outside the canonical loom layout are silently ignored.
+        4. Call :func:`rebuild.sync_one` to keep the SQLite index consistent.
+           Errors are suppressed — the file may have vanished between the event
+           firing and the sync read, or it may never have been indexed (e.g. an
+           untracked deletion).  The qid is still enqueued either way.
+        5. Enqueue the qualified id string for the generator to yield.
+        """
         path = Path(src_path)
         if path.suffix != ".md":
             return
@@ -82,9 +94,11 @@ class LoomEventHandler(FileSystemEventHandler):
         try:
             qid, _archived = qid_from_path(path, self._root)
         except (InvalidQualifiedId, ValueError):
+            # Path is outside the canonical loom layout — not our concern.
             return
         qid_str = str(qid)
-        # Sync the index; swallow errors (file may have already vanished).
+        # Sync the index; suppress all errors (race between event and read is
+        # normal: file may have vanished, or may never have been indexed).
         try:
             from .rebuild import sync_one
 
