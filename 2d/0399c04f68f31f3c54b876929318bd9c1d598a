@@ -1,0 +1,21 @@
+src/loom_web/frontend/src/components/EpicRowHeader.test.ts
+  s_156f417e1db0ac::t_496f0d5a67e695 1-97
+src/loom_web/frontend/src/components/EpicRowHeader.tsx
+  s_156f417e1db0ac::t_4f4de7c9ed5570 1-263
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2d0399c04f68f31f3c54b876929318bd9c1d598a",
+  "prompts": {},
+  "sessions": {
+    "s_156f417e1db0ac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17ae9911-d559-4752-9884-e6a7d7c990fa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
