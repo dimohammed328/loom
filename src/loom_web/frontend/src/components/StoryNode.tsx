@@ -11,6 +11,7 @@ import { Handle, Position } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
 import { statusColor } from "../status";
 import { enterClass } from "./enterClass";
+import { statusChip } from "./statusChip";
 
 // ---------------------------------------------------------------------------
 // Data shape (matches DagNode.data from dagLayout.ts)
@@ -42,7 +43,7 @@ export default function StoryNode({ data }: NodeProps<{ data: StoryNodeData }>):
 
       <div className="snode-header">
         <span
-          className="snode-dot"
+          className={statusChip("snode-dot")}
           style={{ background: colors.dot }}
           aria-label={status ?? "unknown status"}
         />
@@ -53,7 +54,7 @@ export default function StoryNode({ data }: NodeProps<{ data: StoryNodeData }>):
 
       {status && (
         <div
-          className="snode-status"
+          className={statusChip("snode-status")}
           style={{ color: colors.fg, background: colors.bg }}
         >
           {status}

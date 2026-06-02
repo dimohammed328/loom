@@ -20,6 +20,7 @@ import {
 } from "./tableRowHelpers";
 import { rowClickHandler, rowKeyDownHandler } from "./tableRowClickHelpers";
 import { enterClass } from "./enterClass";
+import { statusChip } from "./statusChip";
 
 // Re-export so callers can import from a single place.
 export { taskMeterLabel, progressBarSegments } from "./tableRowHelpers";
@@ -137,11 +138,11 @@ function StatusPill({ status }: { status: string | null }): React.JSX.Element {
   const colors = statusColor(status);
   return (
     <span
-      className="status-pill"
+      className={statusChip("status-pill")}
       style={{ background: colors.bg, color: colors.fg }}
     >
       <span
-        className="dot"
+        className={statusChip("dot")}
         style={{ background: colors.dot }}
       />
       {statusPillLabel(status)}

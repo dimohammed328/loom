@@ -24,6 +24,7 @@ import {
   childListLabel,
   typePillLabel,
 } from "./itemModalHelpers";
+import { statusChip } from "./statusChip";
 
 // Re-export pure helpers so callers can import from one place.
 export { breadcrumbSegments, childListLabel, typePillLabel };
@@ -90,7 +91,7 @@ function StatusDot({ status }: { status: string | null }): React.JSX.Element {
   const colors = statusColor(status);
   return (
     <span
-      className="dot"
+      className={statusChip("dot")}
       style={{ background: colors.dot, width: 8, height: 8, borderRadius: "50%", display: "inline-block", flexShrink: 0 }}
     />
   );
@@ -144,7 +145,7 @@ function StatusPill({ status }: { status: string | null }): React.JSX.Element {
   const colors = statusColor(status);
   return (
     <span
-      className="status-pill"
+      className={statusChip("status-pill")}
       style={{ background: colors.bg, color: colors.fg }}
     >
       <StatusDot status={status} />
