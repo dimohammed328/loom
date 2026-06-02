@@ -51,12 +51,17 @@ class UpdatesWorker:
     def run(self) -> None:
         """Blocking entry point — call this from a worker thread.
 
-        Iterates ``loom.get_updates(timeout=0.1)`` so the loop can be
-        interrupted cleanly via :meth:`stop`.  Publishes payloads via
+        Passes ``stop_event`` to ``loom.get_updates()`` so a single watchdog
+        observer runs for the full app lifetime.  The generator polls the stop
+        event every 0.1 s when idle, so shutdown completes within ~0.1 s of
+        :meth:`stop` being called — without ever creating more than one
+        observer.
+
+        Publishes payloads via
         :meth:`~loom_web.broadcaster.Broadcaster.publish_threadsafe`.
         """
         try:
-            for qid in self._loom.get_updates(timeout=0.1):
+            for qid in self._loom.get_updates(stop_event=self._stop_event):
                 if self._stop_event.is_set():
                     break
                 payload = self._build_payload(qid)
