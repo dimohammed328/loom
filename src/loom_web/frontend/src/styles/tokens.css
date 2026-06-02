@@ -557,6 +557,245 @@ body {
 .tcell-upd-text { font-size: 12.5px; color: var(--text-3); }
 
 /* ============================================================
+   GRAPH / DAG VIEW
+   ============================================================ */
+
+.dag-wrap {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.dag-canvas {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  /* React Flow needs an explicit height on its container. */
+}
+
+/* Loading / error / empty states */
+.dag-loading,
+.dag-error,
+.dag-empty {
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+.dag-error { color: var(--st-blocked-fg); }
+
+/* ── Story node ─────────────────────────────────── */
+
+.snode {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--card-shadow);
+  padding: 10px 14px;
+  width: 200px;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: box-shadow .12s, border-color .12s;
+}
+.snode:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--pop-shadow);
+}
+
+.snode-handle {
+  background: var(--border-strong) !important;
+  border: 2px solid var(--surface) !important;
+  width: 10px !important;
+  height: 10px !important;
+}
+
+.snode-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.snode-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.snode-id {
+  font-size: 10.5px;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+}
+
+.snode-title {
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+  color: var(--text);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.snode-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+
+/* ── Epic picker drawer ─────────────────────────── */
+
+.epic-drawer {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex: none;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  transition: width .16s ease;
+  overflow: hidden;
+  width: 32px; /* collapsed: just the toggle button */
+}
+
+.epic-drawer.open {
+  width: 264px;
+}
+
+.epic-drawer-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  flex: none;
+  cursor: pointer;
+  color: var(--text-3);
+  border-right: 1px solid var(--border);
+  transition: background .1s, color .1s;
+}
+.epic-drawer-toggle:hover { background: var(--hover); color: var(--text); }
+.epic-drawer-toggle-icon { font-size: 16px; line-height: 1; }
+
+.epic-drawer-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  opacity: 1;
+  transition: opacity .12s;
+}
+.epic-drawer[aria-label] > .epic-drawer-panel[aria-hidden="true"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.epic-drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 8px;
+  flex: none;
+}
+.epic-drawer-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.epic-drawer-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0 6px;
+  line-height: 16px;
+}
+
+.epic-drawer-search {
+  padding: 0 10px 8px;
+  flex: none;
+}
+.epic-drawer-input {
+  width: 100%;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color .1s;
+}
+.epic-drawer-input:focus { border-color: var(--ring); }
+
+.epic-drawer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 6px 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.epic-drawer-empty {
+  font-size: 12.5px;
+  color: var(--text-3);
+  padding: 8px 8px;
+  font-style: italic;
+}
+
+.epic-drawer-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 9px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background .1s;
+}
+.epic-drawer-item:hover { background: var(--hover); }
+.epic-drawer-item.selected {
+  background: var(--hover);
+  font-weight: 600;
+}
+.epic-drawer-item .edi-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.epic-drawer-item.selected .edi-title { font-weight: 650; }
+.epic-drawer-item .edi-id {
+  font-size: 10.5px;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================================
    REDUCED MOTION
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
