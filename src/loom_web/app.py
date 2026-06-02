@@ -8,8 +8,8 @@ from fastapi.responses import JSONResponse
 from loom.errors import NotFound
 
 from .gateway import LoomGateway
-from .schemas import ProjectSummary
-from .serializers import serialize_project
+from .schemas import ProjectSummary, TreeResponse
+from .serializers import serialize_project, serialize_tree
 
 _GATEWAY_KEY = "loom_gateway"
 
@@ -48,5 +48,12 @@ def create_app(root: str | None = None) -> FastAPI:
         gw: LoomGateway = request.app.state.gateway
         projects = await gw.list_projects()
         return [serialize_project(p) for p in projects]
+
+    @app.get("/api/projects/{project}/tree", response_model=TreeResponse)
+    async def get_project_tree(project: str, request: Request) -> TreeResponse:
+        """Return the full epic→story→task hierarchy for *project*."""
+        gw: LoomGateway = request.app.state.gateway
+        tree_dict = await gw.get_tree(project)
+        return serialize_tree(tree_dict)
 
     return app
