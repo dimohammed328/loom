@@ -41,6 +41,7 @@ def _static_dir() -> Path:
     except Exception:
         return candidate
 
+
 _GATEWAY_KEY = "loom_gateway"
 
 
