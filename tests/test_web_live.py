@@ -81,6 +81,8 @@ async def test_updates_worker_forwards_qid_to_broadcaster() -> None:
 
     hub = Broadcaster()
     received: asyncio.Queue = asyncio.Queue()
+    # Capture the running loop so publish_threadsafe works from the worker thread.
+    hub._loop = asyncio.get_running_loop()
     hub.subscribe(received)
 
     # Build a fake item whose _record has the right attributes.
@@ -105,8 +107,7 @@ async def test_updates_worker_forwards_qid_to_broadcaster() -> None:
     mock_loom.get.return_value = fake_item
 
     worker = UpdatesWorker(loom=mock_loom, broadcaster=hub)
-    loop = asyncio.get_event_loop()
-    t = threading.Thread(target=worker.run, args=(loop,), daemon=True)
+    t = threading.Thread(target=worker.run, daemon=True)
     t.start()
     t.join(timeout=2.0)
     assert not t.is_alive(), "Worker thread should have finished"
@@ -126,6 +127,7 @@ async def test_updates_worker_tombstone_for_deleted_qid() -> None:
 
     hub = Broadcaster()
     received: asyncio.Queue = asyncio.Queue()
+    hub._loop = asyncio.get_running_loop()
     hub.subscribe(received)
 
     def fake_get_updates(**kwargs):
@@ -136,8 +138,7 @@ async def test_updates_worker_tombstone_for_deleted_qid() -> None:
     mock_loom.get.side_effect = Exception("not found")
 
     worker = UpdatesWorker(loom=mock_loom, broadcaster=hub, on_not_found="tombstone")
-    loop = asyncio.get_event_loop()
-    t = threading.Thread(target=worker.run, args=(loop,), daemon=True)
+    t = threading.Thread(target=worker.run, daemon=True)
     t.start()
     t.join(timeout=2.0)
     assert not t.is_alive()
@@ -198,3 +199,50 @@ def test_item_update_serialises_to_dict_with_no_body() -> None:
     d = payload.model_dump()
     assert "body" not in d
     assert d["qid"] == "proj:abc:1"
+
+
+# ---------------------------------------------------------------------------
+# Task 4: /ws endpoint — subscribe, receive, unsubscribe on disconnect
+# ---------------------------------------------------------------------------
+
+
+def test_ws_endpoint_delivers_message_and_unsubscribes(loom_dir) -> None:
+    """WS client receives a published message, and is unsubscribed on disconnect."""
+    import time
+
+    from starlette.testclient import TestClient
+
+    from loom_web.app import create_app
+    from loom_web.broadcaster import Broadcaster
+
+    hub = Broadcaster()
+    app = create_app(root=str(loom_dir))
+    app.state.broadcaster = hub
+
+    received: list[dict] = []
+
+    def _ws_session() -> None:
+        """Run inside a thread: connect, receive a message, then disconnect."""
+        with TestClient(app) as client:
+            with client.websocket_connect("/ws") as ws:
+                data = ws.receive_json()
+                received.append(data)
+
+    t = threading.Thread(target=_ws_session, daemon=True)
+    t.start()
+
+    # Wait until the WS handler has subscribed (and captured the event loop).
+    deadline = time.monotonic() + 2.0
+    while (not hub._subscribers or hub._loop is None) and time.monotonic() < deadline:
+        time.sleep(0.005)
+    assert hub._subscribers, "WS handler never subscribed"
+    assert hub._loop is not None, "Event loop never captured"
+
+    # Publish from this (worker) thread via the captured event loop.
+    msg = {"qid": "proj:abc:1", "type": "task", "deleted": False}
+    hub.publish_threadsafe(msg)
+
+    t.join(timeout=3.0)
+    assert not t.is_alive(), "WS thread did not finish in time"
+    assert received == [msg]
+    assert len(hub._subscribers) == 0

@@ -1,10 +1,10 @@
 """UpdatesWorker: runs Loom.get_updates() in a worker thread and forwards each
-qid to the async Broadcaster via loop.call_soon_threadsafe.
+qid to the async Broadcaster via Broadcaster.publish_threadsafe.
 
 Usage::
 
     worker = UpdatesWorker(loom=loom_instance, broadcaster=hub)
-    t = threading.Thread(target=worker.run, args=(asyncio.get_event_loop(),), daemon=True)
+    t = threading.Thread(target=worker.run, daemon=True)
     t.start()
     # ... on shutdown:
     worker.stop()
@@ -13,19 +13,17 @@ Usage::
 
 from __future__ import annotations
 
-import asyncio
 import threading
 from typing import Literal
 
 from loom.api import Loom
-from loom.errors import NotFound
 
 from .broadcaster import Broadcaster
 
 
 class UpdatesWorker:
     """Runs ``Loom.get_updates()`` in a worker thread and publishes each
-    changed qid to *broadcaster* on *loop*.
+    changed qid to *broadcaster*.
 
     :param loom: A :class:`loom.api.Loom` instance.
     :param broadcaster: The :class:`~loom_web.broadcaster.Broadcaster` hub.
@@ -50,21 +48,19 @@ class UpdatesWorker:
         """Signal the worker to stop after the current get_updates() iteration."""
         self._stop_event.set()
 
-    def run(self, loop: asyncio.AbstractEventLoop) -> None:
+    def run(self) -> None:
         """Blocking entry point — call this from a worker thread.
 
         Iterates ``loom.get_updates(timeout=0.1)`` so the loop can be
-        interrupted cleanly via :meth:`stop`.
+        interrupted cleanly via :meth:`stop`.  Publishes payloads via
+        :meth:`~loom_web.broadcaster.Broadcaster.publish_threadsafe`.
         """
         try:
             for qid in self._loom.get_updates(timeout=0.1):
                 if self._stop_event.is_set():
                     break
                 payload = self._build_payload(qid)
-                loop.call_soon_threadsafe(
-                    asyncio.ensure_future,
-                    self._broadcaster.publish(payload),
-                )
+                self._broadcaster.publish_threadsafe(payload)
         except Exception:
             pass  # observer stopped unexpectedly; exit cleanly
 
