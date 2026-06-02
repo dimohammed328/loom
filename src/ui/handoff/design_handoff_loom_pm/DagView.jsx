@@ -4,7 +4,10 @@
  * Epic selection lives in a collapsible right-side drawer. */
 
 const NODE_W = 218,GAP_X = 92,GAP_Y = 30,PAD = 56;
-const NODE_HEIGHTS = { ports: 110, checklist: 116, spine: 86 };
+// Fixed per-style heights (the layout math + edge endpoints depend on them).
+// Sized to fit a two-line title; titles are clamped to two lines in CSS so
+// content can never exceed the box.
+const NODE_HEIGHTS = { ports: 124, checklist: 128, spine: 86 };
 
 function computeLayout(project, epic, NODE_H) {
   const pid = project.id;

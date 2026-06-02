@@ -200,7 +200,10 @@ body {
 .qid-hash svg { width: 1em; height: 1em; display: block; }
 .qid-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-button.bare {
+/* Button reset. Kept at single-class specificity so component classes
+   (.vtab, .proj-trigger, .ctl, .ref-row, …) win on the padding/border/bg
+   they set; .bare only fills the gaps they leave (font, cursor, resets). */
+.bare {
   font: inherit; color: inherit; background: none; border: none;
   cursor: pointer; padding: 0;
 }
@@ -510,7 +513,10 @@ button.bare {
   cursor: pointer;
 }
 .dag-node:hover { border-color: var(--border-strong); box-shadow: var(--pop-shadow); transform: translateY(-1px); }
-.dag-node .ntitle { font-weight: 550; font-size: 13.5px; line-height: 1.34; }
+.dag-node .ntitle {
+  font-weight: 550; font-size: 13.5px; line-height: 1.34;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
 .dag-node .nid { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-3); }
 .dag-node.is-done { opacity: .85; }
 
