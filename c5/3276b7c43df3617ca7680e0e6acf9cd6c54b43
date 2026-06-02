@@ -1,0 +1,23 @@
+src/loom_web/frontend/src/App.tsx
+  s_156f417e1db0ac::t_e9de2a2a68f7dd 2,4-13,20
+src/loom_web/frontend/src/components/DagView.tsx
+  s_156f417e1db0ac::t_e03233baa14551 1-208
+src/loom_web/frontend/src/components/EpicPickerDrawer.tsx
+  s_156f417e1db0ac::t_57f67151d3f204 1-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c53276b7c43df3617ca7680e0e6acf9cd6c54b43",
+  "prompts": {},
+  "sessions": {
+    "s_156f417e1db0ac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17ae9911-d559-4752-9884-e6a7d7c990fa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
