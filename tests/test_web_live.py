@@ -7,6 +7,7 @@ Tests for the real-time update pipeline:
 from __future__ import annotations
 
 import asyncio
+import threading
 
 import pytest
 
@@ -63,3 +64,84 @@ async def test_broadcaster_empty_publish_is_noop() -> None:
 
     hub = Broadcaster()
     await hub.publish({"qid": "proj:abc:4"})  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# Task 2: updates worker — run get_updates() and forward to broadcaster
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_updates_worker_forwards_qid_to_broadcaster() -> None:
+    """UpdatesWorker feeds qids from get_updates() into the broadcaster."""
+    from unittest.mock import MagicMock
+
+    from loom_web.broadcaster import Broadcaster
+    from loom_web.updates import UpdatesWorker
+
+    hub = Broadcaster()
+    received: asyncio.Queue = asyncio.Queue()
+    hub.subscribe(received)
+
+    # Build a fake item whose _record has the right attributes.
+    fake_record = MagicMock()
+    fake_record.qualified_id = "proj:abc:1"
+    fake_record.type = "task"
+    fake_record.title = "A task"
+    fake_record.status = "ready"
+    fake_record.assignee = None
+    fake_record.branch = None
+    fake_record.pr_url = None
+    fake_record.tags = []
+    fake_record.archived = False
+    fake_item = MagicMock()
+    fake_item._record = fake_record
+
+    def fake_get_updates(**kwargs):
+        yield "proj:abc:1"
+
+    mock_loom = MagicMock()
+    mock_loom.get_updates = fake_get_updates
+    mock_loom.get.return_value = fake_item
+
+    worker = UpdatesWorker(loom=mock_loom, broadcaster=hub)
+    loop = asyncio.get_event_loop()
+    t = threading.Thread(target=worker.run, args=(loop,), daemon=True)
+    t.start()
+    t.join(timeout=2.0)
+    assert not t.is_alive(), "Worker thread should have finished"
+
+    msg = await asyncio.wait_for(received.get(), timeout=1.0)
+    assert msg["qid"] == "proj:abc:1"
+    assert msg["type"] == "task"
+
+
+@pytest.mark.asyncio
+async def test_updates_worker_tombstone_for_deleted_qid() -> None:
+    """Tombstone payload {qid, deleted: true} is broadcast for unknown qid after deletion."""
+    from unittest.mock import MagicMock
+
+    from loom_web.broadcaster import Broadcaster
+    from loom_web.updates import UpdatesWorker
+
+    hub = Broadcaster()
+    received: asyncio.Queue = asyncio.Queue()
+    hub.subscribe(received)
+
+    def fake_get_updates(**kwargs):
+        yield "proj:abc:deleted"
+
+    mock_loom = MagicMock()
+    mock_loom.get_updates = fake_get_updates
+    mock_loom.get.side_effect = Exception("not found")
+
+    worker = UpdatesWorker(loom=mock_loom, broadcaster=hub, on_not_found="tombstone")
+    loop = asyncio.get_event_loop()
+    t = threading.Thread(target=worker.run, args=(loop,), daemon=True)
+    t.start()
+    t.join(timeout=2.0)
+    assert not t.is_alive()
+
+    msg = await asyncio.wait_for(received.get(), timeout=1.0)
+    assert msg["qid"] == "proj:abc:deleted"
+    assert msg.get("deleted") is True
