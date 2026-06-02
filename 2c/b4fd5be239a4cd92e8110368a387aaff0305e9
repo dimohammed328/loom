@@ -1,0 +1,21 @@
+uv.lock
+  ai_agent 51,64,207-232
+pyproject.toml
+  s_156f417e1db0ac::t_a5ffe806088407 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2cb4fd5be239a4cd92e8110368a387aaff0305e9",
+  "prompts": {},
+  "sessions": {
+    "s_156f417e1db0ac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17ae9911-d559-4752-9884-e6a7d7c990fa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
