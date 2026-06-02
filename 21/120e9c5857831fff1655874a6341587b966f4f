@@ -1,0 +1,21 @@
+src/loom_web/frontend/tsconfig.json
+  s_156f417e1db0ac::t_67adbb4eaa730f 1-21
+src/loom_web/frontend/package.json
+  s_156f417e1db0ac::t_1ff5afa425d48b 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "21120e9c5857831fff1655874a6341587b966f4f",
+  "prompts": {},
+  "sessions": {
+    "s_156f417e1db0ac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17ae9911-d559-4752-9884-e6a7d7c990fa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
