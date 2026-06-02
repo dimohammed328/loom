@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.resources
 import threading
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from loom.api import Loom
 from loom.errors import NotFound
@@ -17,6 +20,27 @@ from .gateway import LoomGateway
 from .schemas import ItemDetail, ProjectSummary, TreeResponse
 from .serializers import serialize_item_detail, serialize_project, serialize_tree
 from .updates import UpdatesWorker
+
+
+def _static_dir() -> Path:
+    """Resolve the built frontend static assets directory.
+
+    During development the package is installed in editable mode so we can
+    reach ``src/loom_web/static/`` relative to this file.  When installed as
+    a wheel the ``static/`` sub-package is included via ``[tool.uv_build]``
+    (or equivalent) and we locate it via ``importlib.resources``.
+    """
+    here = Path(__file__).parent
+    candidate = here / "static"
+    if candidate.is_dir():
+        return candidate
+    # Fallback: importlib.resources (wheel installs)
+    try:
+        ref = importlib.resources.files("loom_web") / "static"
+        return Path(str(ref))
+    except Exception:
+        return candidate
+
 
 _GATEWAY_KEY = "loom_gateway"
 
@@ -97,6 +121,24 @@ def create_app(root: str | None = None) -> FastAPI:
     async def health() -> dict:
         """Liveness probe."""
         return {"status": "ok"}
+
+    # ------------------------------------------------------------------
+    # Static assets + SPA fallback
+    # ------------------------------------------------------------------
+    static_dir = _static_dir()
+    if static_dir.is_dir():
+        # Mount static files at /static so JS/CSS are reachable.
+        # The catch-all below serves index.html for every other path so
+        # client-side routing works.  API routes registered above take
+        # priority over this catch-all because FastAPI evaluates routes
+        # in declaration order before the mount.
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def spa_fallback(full_path: str) -> FileResponse:
+            """Serve index.html for any non-API path (SPA client-side routing)."""
+            index = static_dir / "index.html"
+            return FileResponse(str(index))
 
     # ------------------------------------------------------------------
     # WebSocket endpoint
