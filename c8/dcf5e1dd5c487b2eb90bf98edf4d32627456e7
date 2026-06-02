@@ -1,0 +1,20 @@
+src/loom_web/serializers.py
+  s_156f417e1db0ac::t_34e790db145856 1-80,82-108
+  s_156f417e1db0ac::t_1b0c8f4b35becb 81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c8dcf5e1dd5c487b2eb90bf98edf4d32627456e7",
+  "prompts": {},
+  "sessions": {
+    "s_156f417e1db0ac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17ae9911-d559-4752-9884-e6a7d7c990fa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
