@@ -23662,8 +23662,8 @@ var require_jsx_dev_runtime = __commonJS((exports, module) => {
 });
 
 // src/main.tsx
-var import_react2 = __toESM(require_react(), 1);
-var import_client = __toESM(require_client(), 1);
+var import_react3 = __toESM(require_react(), 1);
+var import_client2 = __toESM(require_client(), 1);
 
 // src/state/store.tsx
 var import_react = __toESM(require_react(), 1);
@@ -23701,26 +23701,403 @@ function AppProvider({ children }) {
     children
   }, undefined, false, undefined, this);
 }
+function useAppStore() {
+  const ctx = import_react.useContext(AppContext);
+  if (!ctx)
+    throw new Error("useAppStore must be used inside <AppProvider>");
+  return ctx;
+}
+
+// src/components/TopBar.tsx
+var import_react2 = __toESM(require_react(), 1);
+
+// src/api/client.ts
+async function apiFetch(path) {
+  const res = await fetch(path);
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (body.detail)
+        detail = body.detail;
+    } catch {}
+    throw new Error(`API ${res.status}: ${detail} (${path})`);
+  }
+  return res.json();
+}
+function listProjects() {
+  return apiFetch("/api/projects");
+}
+
+// src/theme.ts
+function getTheme() {
+  return localStorage.getItem("loom-theme") ?? "light";
+}
+function setTheme(_theme) {}
+
+// src/components/TopBar.tsx
+var jsx_dev_runtime2 = __toESM(require_jsx_dev_runtime(), 1);
+function IconChevronDown() {
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("svg", {
+    width: "14",
+    height: "14",
+    viewBox: "0 0 14 14",
+    fill: "none",
+    "aria-hidden": true,
+    children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("path", {
+      d: "M3 5l4 4 4-4",
+      stroke: "currentColor",
+      strokeWidth: "1.6",
+      strokeLinecap: "round",
+      strokeLinejoin: "round"
+    }, undefined, false, undefined, this)
+  }, undefined, false, undefined, this);
+}
+function IconCheck() {
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("svg", {
+    width: "14",
+    height: "14",
+    viewBox: "0 0 14 14",
+    fill: "none",
+    "aria-hidden": true,
+    children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("path", {
+      d: "M2.5 7l3.5 3.5 5.5-6",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round"
+    }, undefined, false, undefined, this)
+  }, undefined, false, undefined, this);
+}
+function IconBoard() {
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("svg", {
+    width: "15",
+    height: "15",
+    viewBox: "0 0 15 15",
+    fill: "none",
+    "aria-hidden": true,
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("rect", {
+        x: "1",
+        y: "1",
+        width: "5.5",
+        height: "13",
+        rx: "1.5",
+        fill: "currentColor",
+        opacity: ".35"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("rect", {
+        x: "8.5",
+        y: "1",
+        width: "5.5",
+        height: "8",
+        rx: "1.5",
+        fill: "currentColor"
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+function IconTable() {
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("svg", {
+    width: "15",
+    height: "15",
+    viewBox: "0 0 15 15",
+    fill: "none",
+    "aria-hidden": true,
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("rect", {
+        x: "1",
+        y: "1",
+        width: "13",
+        height: "3",
+        rx: "1",
+        fill: "currentColor"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("rect", {
+        x: "1",
+        y: "6",
+        width: "13",
+        height: "2.5",
+        rx: "1",
+        fill: "currentColor",
+        opacity: ".4"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("rect", {
+        x: "1",
+        y: "10.5",
+        width: "13",
+        height: "2.5",
+        rx: "1",
+        fill: "currentColor",
+        opacity: ".4"
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+function IconGraph() {
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("svg", {
+    width: "15",
+    height: "15",
+    viewBox: "0 0 15 15",
+    fill: "none",
+    "aria-hidden": true,
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("circle", {
+        cx: "3",
+        cy: "7.5",
+        r: "2",
+        fill: "currentColor"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("circle", {
+        cx: "12",
+        cy: "3",
+        r: "2",
+        fill: "currentColor"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("circle", {
+        cx: "12",
+        cy: "12",
+        r: "2",
+        fill: "currentColor"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("path", {
+        d: "M5 7.5h2.5M7.5 7.5L10 3M7.5 7.5L10 12",
+        stroke: "currentColor",
+        strokeWidth: "1.5",
+        strokeLinecap: "round"
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+function IconGithub() {
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("svg", {
+    width: "14",
+    height: "14",
+    viewBox: "0 0 16 16",
+    fill: "currentColor",
+    "aria-hidden": true,
+    children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("path", {
+      d: "M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+    }, undefined, false, undefined, this)
+  }, undefined, false, undefined, this);
+}
+function IconSun() {
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("svg", {
+    width: "15",
+    height: "15",
+    viewBox: "0 0 15 15",
+    fill: "none",
+    "aria-hidden": true,
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("circle", {
+        cx: "7.5",
+        cy: "7.5",
+        r: "2.5",
+        fill: "currentColor"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("path", {
+        d: "M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M3.05 3.05l1.06 1.06M10.89 10.89l1.06 1.06M10.89 4.11l1.06-1.06M3.05 11.95l1.06-1.06",
+        stroke: "currentColor",
+        strokeWidth: "1.5",
+        strokeLinecap: "round"
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+function IconMoon() {
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("svg", {
+    width: "15",
+    height: "15",
+    viewBox: "0 0 15 15",
+    fill: "none",
+    "aria-hidden": true,
+    children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("path", {
+      d: "M12.5 9.5A6 6 0 015.5 2.5a6 6 0 100 10 6 6 0 007-3z",
+      fill: "currentColor"
+    }, undefined, false, undefined, this)
+  }, undefined, false, undefined, this);
+}
+function ProjectMenu({ projects, current, onSelect, onClose }) {
+  const ref = import_react2.useRef(null);
+  import_react2.useEffect(() => {
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target))
+        onClose();
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+    className: "proj-menu",
+    ref,
+    role: "menu",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+        className: "mlabel",
+        children: "Projects"
+      }, undefined, false, undefined, this),
+      projects.map((p) => /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("button", {
+        className: "proj-item bare",
+        role: "menuitem",
+        onClick: () => {
+          onSelect(p);
+          onClose();
+        },
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+            className: "picon",
+            children: "\uD83D\uDCCB"
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+            className: "pmeta",
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+                className: "t",
+                children: p.title
+              }, undefined, false, undefined, this),
+              p.repo && /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+                className: "s",
+                children: repoLabel(p.repo)
+              }, undefined, false, undefined, this)
+            ]
+          }, undefined, true, undefined, this),
+          p.qid === current.qid && /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+            className: "check",
+            children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(IconCheck, {}, undefined, false, undefined, this)
+          }, undefined, false, undefined, this)
+        ]
+      }, p.qid, true, undefined, this))
+    ]
+  }, undefined, true, undefined, this);
+}
+function repoLabel(repo) {
+  try {
+    const url = new URL(repo);
+    return url.pathname.replace(/^\//, "").replace(/\.git$/, "");
+  } catch {
+    return repo;
+  }
+}
+var TABS = [
+  { id: "board", label: "Board", Icon: IconBoard },
+  { id: "table", label: "Table", Icon: IconTable },
+  { id: "graph", label: "Graph", Icon: IconGraph }
+];
+function TopBar() {
+  const { projects, currentProject, view, setProjects, setCurrentProject, setView } = useAppStore();
+  const [menuOpen, setMenuOpen] = import_react2.useState(false);
+  const [isDark, setIsDark] = import_react2.useState(() => getTheme() === "dark");
+  import_react2.useEffect(() => {
+    if (projects !== null)
+      return;
+    listProjects().then(setProjects).catch((err) => console.error("Failed to load projects:", err));
+  }, [projects, setProjects]);
+  const toggleMenu = import_react2.useCallback(() => setMenuOpen((v) => !v), []);
+  const closeMenu = import_react2.useCallback(() => setMenuOpen(false), []);
+  const handleThemeToggle = import_react2.useCallback(() => {
+    const next = isDark ? "light" : "dark";
+    setTheme(next);
+    setIsDark(!isDark);
+  }, [isDark]);
+  const repoUrl = currentProject?.repo ?? null;
+  const repoName = repoUrl ? repoLabel(repoUrl) : null;
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("header", {
+    className: "topbar",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+        className: "proj-switch",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("button", {
+            className: "proj-trigger bare",
+            "aria-haspopup": "menu",
+            "aria-expanded": menuOpen,
+            onClick: toggleMenu,
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+                className: "picon",
+                children: "\uD83D\uDCCB"
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+                className: "pname",
+                children: currentProject?.title ?? "No project"
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+                className: "chev",
+                children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(IconChevronDown, {}, undefined, false, undefined, this)
+              }, undefined, false, undefined, this)
+            ]
+          }, undefined, true, undefined, this),
+          menuOpen && projects && currentProject && /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(ProjectMenu, {
+            projects,
+            current: currentProject,
+            onSelect: setCurrentProject,
+            onClose: closeMenu
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+        className: "hdivider",
+        "aria-hidden": true
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("nav", {
+        className: "vtabs",
+        "aria-label": "Views",
+        children: TABS.map(({ id, label, Icon }) => /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("button", {
+          className: `vtab bare${view === id ? " active" : ""}`,
+          "aria-current": view === id ? "page" : undefined,
+          onClick: () => setView(id),
+          children: [
+            /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Icon, {}, undefined, false, undefined, this),
+            label
+          ]
+        }, id, true, undefined, this))
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+        className: "spacer"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("button", {
+        className: "theme-toggle bare",
+        title: isDark ? "Switch to light theme" : "Switch to dark theme",
+        "aria-label": isDark ? "Switch to light theme" : "Switch to dark theme",
+        onClick: handleThemeToggle,
+        children: isDark ? /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(IconSun, {}, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(IconMoon, {}, undefined, false, undefined, this)
+      }, undefined, false, undefined, this),
+      repoUrl && /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("a", {
+        className: "repo",
+        href: repoUrl,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        "aria-label": `Open repository ${repoName ?? ""}`,
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(IconGithub, {}, undefined, false, undefined, this),
+          repoName
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
 
 // src/App.tsx
-var jsx_dev_runtime2 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime3 = __toESM(require_jsx_dev_runtime(), 1);
 function App() {
-  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(AppProvider, {
-    children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+  return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(AppProvider, {
+    children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
       className: "app",
-      children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("p", {
-        style: { padding: "1rem", color: "var(--text-2)" },
-        children: "Loom — loading…"
-      }, undefined, false, undefined, this)
-    }, undefined, false, undefined, this)
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(TopBar, {}, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("main", {
+          className: "view-scroll"
+        }, undefined, false, undefined, this)
+      ]
+    }, undefined, true, undefined, this)
   }, undefined, false, undefined, this);
 }
 
 // src/main.tsx
-var jsx_dev_runtime3 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
 var container = document.getElementById("root");
 if (!container)
   throw new Error("Root element not found");
-import_client.createRoot(container).render(/* @__PURE__ */ jsx_dev_runtime3.jsxDEV(import_react2.default.StrictMode, {
-  children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(App, {}, undefined, false, undefined, this)
+import_client2.createRoot(container).render(/* @__PURE__ */ jsx_dev_runtime4.jsxDEV(import_react3.default.StrictMode, {
+  children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(App, {}, undefined, false, undefined, this)
 }, undefined, false, undefined, this));

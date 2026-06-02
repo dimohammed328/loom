@@ -1,11 +1,13 @@
 import React from "react";
 import { AppProvider } from "./state/store";
+import TopBar from "./components/TopBar";
 
 export default function App(): React.JSX.Element {
   return (
     <AppProvider>
       <div className="app">
-        <p style={{ padding: "1rem", color: "var(--text-2)" }}>Loom — loading…</p>
+        <TopBar />
+        <main className="view-scroll" />
       </div>
     </AppProvider>
   );
