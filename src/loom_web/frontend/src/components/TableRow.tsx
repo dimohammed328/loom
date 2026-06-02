@@ -18,6 +18,7 @@ import {
   progressBarSegments,
   statusPillLabel,
 } from "./tableRowHelpers";
+import { rowClickHandler, rowKeyDownHandler } from "./tableRowClickHelpers";
 
 // Re-export so callers can import from a single place.
 export { taskMeterLabel, progressBarSegments } from "./tableRowHelpers";
@@ -169,12 +170,7 @@ export default function TableRow({
     if (row.hasChildren) onToggle(row.qid);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent): void => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onOpen(row.qid);
-    }
-  };
+  const handleKeyDown = rowKeyDownHandler(row.qid, onOpen) as (e: React.KeyboardEvent) => void;
 
   // Progress cell content.
   let progressCell: React.ReactNode;
@@ -195,7 +191,7 @@ export default function TableRow({
   return (
     <tr
       className={`trow trow-${row.type}`}
-      onClick={() => onOpen(row.qid)}
+      onClick={rowClickHandler(row.qid, onOpen)}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="row"
