@@ -16,6 +16,7 @@ schedules the coroutine on the event loop via
 from __future__ import annotations
 
 import asyncio
+import contextlib
 
 
 class Broadcaster:
@@ -33,10 +34,8 @@ class Broadcaster:
         :meth:`publish_threadsafe`.
         """
         if self._loop is None:
-            try:
+            with contextlib.suppress(RuntimeError):
                 self._loop = asyncio.get_running_loop()
-            except RuntimeError:
-                pass
         self._subscribers.add(q)
 
     def unsubscribe(self, q: asyncio.Queue) -> None:

@@ -11,7 +11,6 @@ import threading
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Task 1: Broadcaster hub unit tests
 # ---------------------------------------------------------------------------
@@ -223,10 +222,9 @@ def test_ws_endpoint_delivers_message_and_unsubscribes(loom_dir) -> None:
 
     def _ws_session() -> None:
         """Run inside a thread: connect, receive a message, then disconnect."""
-        with TestClient(app) as client:
-            with client.websocket_connect("/ws") as ws:
-                data = ws.receive_json()
-                received.append(data)
+        with TestClient(app) as client, client.websocket_connect("/ws") as ws:
+            data = ws.receive_json()
+            received.append(data)
 
     t = threading.Thread(target=_ws_session, daemon=True)
     t.start()
@@ -260,7 +258,7 @@ def test_lifespan_starts_observer_thread_on_startup(loom_dir) -> None:
     from loom_web.app import create_app
 
     app = create_app(root=str(loom_dir))
-    with TestClient(app) as client:
+    with TestClient(app):
         # The lifespan startup has run; worker thread must be running.
         assert app.state.updates_thread is not None
         assert app.state.updates_thread.is_alive()
@@ -276,3 +274,61 @@ def test_lifespan_worker_is_none_before_startup(loom_dir) -> None:
     app = create_app(root=str(loom_dir))
     # Before entering the lifespan context, updates_thread must not exist.
     assert not hasattr(app.state, "updates_thread")
+
+
+# ---------------------------------------------------------------------------
+# Task 6: Full end-to-end live WS test — file change → client receives payload
+# ---------------------------------------------------------------------------
+
+
+def test_ws_client_receives_payload_when_fixture_file_changes(loom_dir) -> None:
+    """End-to-end: WS client connects, a .md file changes, client gets the payload."""
+    import time
+
+    from starlette.testclient import TestClient
+
+    from conftest import write_item
+    from loom.ids import QualifiedId
+    from loom.rebuild import rebuild
+    from loom_web.app import create_app
+
+    # Pre-populate a project/epic/story/task so the file path maps to a qid.
+    write_item(loom_dir, QualifiedId("live"), title="Live Project")
+    write_item(loom_dir, QualifiedId("live", "backlog"), title="Backlog", status="ready")
+    write_item(loom_dir, QualifiedId("live", "backlog", 1), title="Story 1", status="ready")
+    task_path = write_item(
+        loom_dir,
+        QualifiedId("live", "backlog", 1, 1),
+        title="Task 1",
+        status="ready",
+    )
+    rebuild(loom_dir)
+
+    app = create_app(root=str(loom_dir))
+    received: list[dict] = []
+
+    def _ws_session() -> None:
+        with TestClient(app) as client, client.websocket_connect("/ws") as ws:
+            data = ws.receive_json()
+            received.append(data)
+
+    t = threading.Thread(target=_ws_session, daemon=True)
+    t.start()
+
+    # Wait for the broadcaster to have a subscriber (WS connected + loop captured).
+    deadline = time.monotonic() + 3.0
+    while (
+        not app.state.broadcaster._subscribers or app.state.broadcaster._loop is None
+    ) and time.monotonic() < deadline:
+        time.sleep(0.01)
+
+    # Touch the task file to trigger a watchdog event.
+    task_path.write_text(task_path.read_text())
+
+    t.join(timeout=5.0)
+    assert not t.is_alive(), "WS session thread did not finish in time"
+    assert len(received) == 1
+    payload = received[0]
+    assert payload["qid"] == "live:backlog:1:1"
+    # Must not contain body.
+    assert "body" not in payload
