@@ -1,0 +1,21 @@
+src/loom_web/frontend/src/components/StoryCard.tsx
+  s_156f417e1db0ac::t_ac8fdcd88a249d 1-205
+src/loom_web/frontend/src/components/StoryCard.test.ts
+  s_156f417e1db0ac::t_8984dca9d90ae0 1-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "dfa7ceb72147f6ae11d0096b3bc6000f59d29662",
+  "prompts": {},
+  "sessions": {
+    "s_156f417e1db0ac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17ae9911-d559-4752-9884-e6a7d7c990fa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
