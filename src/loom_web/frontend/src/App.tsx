@@ -2,6 +2,7 @@ import React from "react";
 import { AppProvider, useAppStore } from "./state/store";
 import TopBar from "./components/TopBar";
 import BoardView from "./components/BoardView";
+import TableView from "./components/TableView";
 
 function ViewRouter(): React.JSX.Element {
   const { view, currentProject, openModal } = useAppStore();
@@ -23,7 +24,11 @@ function ViewRouter(): React.JSX.Element {
     return <BoardView project={currentProject} onOpen={openModal} />;
   }
 
-  // Table and Graph views are out-of-scope for this story.
+  if (view === "table") {
+    return <TableView project={currentProject} onOpen={openModal} />;
+  }
+
+  // Graph view is out-of-scope for this story.
   return (
     <div
       className="view-scroll"
