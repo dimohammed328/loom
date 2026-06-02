@@ -1,0 +1,23 @@
+src/loom_web/frontend/src/components/TableRowHelpers.ts
+  s_156f417e1db0ac::t_b4ed390c4ef740 1-35
+src/loom_web/frontend/src/components/TableRow.tsx
+  s_156f417e1db0ac::t_496c146dcf0c29 1-160
+src/loom_web/frontend/src/components/TableRowHelpers.test.ts
+  s_156f417e1db0ac::t_1e24ba13a12b4c 1-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a75422ff8d4a8154f10bb2424371e76a7ff99bf2",
+  "prompts": {},
+  "sessions": {
+    "s_156f417e1db0ac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17ae9911-d559-4752-9884-e6a7d7c990fa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
