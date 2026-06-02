@@ -23730,10 +23730,23 @@ function listProjects() {
 }
 
 // src/theme.ts
+var STORAGE_KEY = "loom-theme";
+var ATTR = "data-theme";
+var CSS_THEME = {
+  light: "notion",
+  dark: "linear"
+};
 function getTheme() {
-  return localStorage.getItem("loom-theme") ?? "light";
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return stored === "dark" ? "dark" : "light";
 }
-function setTheme(_theme) {}
+function setTheme(theme) {
+  document.documentElement.setAttribute(ATTR, CSS_THEME[theme]);
+  localStorage.setItem(STORAGE_KEY, theme);
+}
+function initTheme() {
+  setTheme(getTheme());
+}
 
 // src/components/TopBar.tsx
 var jsx_dev_runtime2 = __toESM(require_jsx_dev_runtime(), 1);
@@ -24095,6 +24108,7 @@ function App() {
 
 // src/main.tsx
 var jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
+initTheme();
 var container = document.getElementById("root");
 if (!container)
   throw new Error("Root element not found");
