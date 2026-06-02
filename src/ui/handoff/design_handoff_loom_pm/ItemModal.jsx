@@ -104,11 +104,33 @@ function RefRow({ qs, onOpen }) {
 
 function ItemModal({ qs, onClose, onOpen, reviewStyle }) {
   const rstyle = reviewStyle || "banner";
+  const panelRef = React.useRef(null);
+  const openerRef = React.useRef(null);
+
+  // Focus management: move focus into the dialog on open, trap Tab within it,
+  // and restore focus to the element that opened it on close.
   React.useEffect(() => {
-    if (!qs) return;
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    if (qs) {
+      if (!openerRef.current) openerRef.current = document.activeElement;
+      const panel = panelRef.current;
+      if (panel) panel.focus();
+      const onKey = (e) => {
+        if (e.key === "Escape") { onClose(); return; }
+        if (e.key === "Tab" && panel) {
+          const f = panel.querySelectorAll('button, a[href], input, [tabindex]:not([tabindex="-1"])');
+          if (!f.length) return;
+          const first = f[0], last = f[f.length - 1];
+          if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+      };
+      document.addEventListener("keydown", onKey);
+      return () => document.removeEventListener("keydown", onKey);
+    } else if (openerRef.current) {
+      const o = openerRef.current;
+      openerRef.current = null;
+      if (o && o.focus) o.focus();
+    }
   }, [qs]);
 
   if (!qs) return null;
@@ -146,7 +168,7 @@ function ItemModal({ qs, onClose, onOpen, reviewStyle }) {
 
   return (
     <div className="modal-scrim" onClick={onClose}>
-      <div className="modal-panel" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div className="modal-panel" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="modal-title-h" ref={panelRef} tabIndex={-1}>
         {/* header */}
         <div className="modal-head">
           <div className="modal-head-l">
@@ -167,7 +189,7 @@ function ItemModal({ qs, onClose, onOpen, reviewStyle }) {
             ))}
           </div>
 
-          <h1 className="modal-title">{item.title}</h1>
+          <h1 className="modal-title" id="modal-title-h">{item.title}</h1>
 
           {level === "epic" && rstyle === "banner" && <EpicReviewBanner epic={epic} sum={epicSummary(epic.stories)} />}
           {level === "epic" && rstyle === "stepper" && <EpicLifecycle epic={epic} />}

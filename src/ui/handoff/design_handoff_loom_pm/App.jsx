@@ -126,22 +126,26 @@ function App() {
       {/* ---------- TOP BAR ---------- */}
       <div className="topbar">
         <div className="proj-switch" ref={projRef}>
-          <div className="proj-trigger" onClick={() => setProjMenu((o) => !o)}>
+          <button className="bare proj-trigger" onClick={() => setProjMenu((o) => !o)}
+            aria-haspopup="menu" aria-expanded={projMenu} title="Switch project">
+            <span className="picon" aria-hidden="true">{project.icon}</span>
             <span className="pname">{project.title}</span>
             <span className="chev"><Icon.chevDown /></span>
-          </div>
+          </button>
           {projMenu &&
-          <div className="proj-menu">
+          <div className="proj-menu" role="menu" aria-label="Projects">
               <div className="mlabel">Projects</div>
               {projects.map((p) =>
-            <div className="proj-item" key={p.id}
+            <button className="bare proj-item" key={p.id}
+            role="menuitemradio" aria-checked={p.id === currentId}
             onClick={() => {setCurrentId(p.id);setProjMenu(false);setView("board");}}>
+                  <span className="picon" aria-hidden="true">{p.icon}</span>
                   <span className="pmeta">
                     <span className="t">{p.title}</span>
                     <span className="s">{p.subtitle}</span>
                   </span>
                   {p.id === currentId && <span className="check"><Icon.check /></span>}
-                </div>
+                </button>
             )}
             </div>
           }
@@ -150,23 +154,23 @@ function App() {
         <span className="hdivider"></span>
 
         <div className="vtabs">
-          <div className={"vtab" + (view === "board" ? " active" : "")} onClick={() => setView("board")}>
+          <button className={"bare vtab" + (view === "board" ? " active" : "")} onClick={() => setView("board")} aria-current={view === "board" ? "page" : undefined}>
             <Icon.board /> Board
-          </div>
-          <div className={"vtab" + (view === "table" ? " active" : "")} onClick={() => setView("table")}>
+          </button>
+          <button className={"bare vtab" + (view === "table" ? " active" : "")} onClick={() => setView("table")} aria-current={view === "table" ? "page" : undefined}>
             <Icon.table /> Table
-          </div>
-          <div className={"vtab" + (view === "graph" ? " active" : "")} onClick={() => setView("graph")}>
+          </button>
+          <button className={"bare vtab" + (view === "graph" ? " active" : "")} onClick={() => setView("graph")} aria-current={view === "graph" ? "page" : undefined}>
             <Icon.graph /> Graph
-          </div>
+          </button>
         </div>
 
         <span className="spacer"></span>
 
         {view === "table" &&
         <span style={{ display: "inline-flex", gap: 6 }}>
-            <span className="ctl" onClick={() => setAllCollapsed(false)}>Expand all</span>
-            <span className="ctl" onClick={() => setAllCollapsed(true)}>Collapse all</span>
+            <button className="bare ctl" onClick={() => setAllCollapsed(false)}>Expand all</button>
+            <button className="bare ctl" onClick={() => setAllCollapsed(true)}>Collapse all</button>
           </span>
         }
 

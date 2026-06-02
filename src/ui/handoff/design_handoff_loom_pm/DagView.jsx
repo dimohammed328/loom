@@ -158,14 +158,14 @@ function EpicDrawer({ epics, dagEpicId, setDagEpicId, pid }) {
             value={q}
             onChange={(e) => setQ(e.target.value)} />
 
-            {q && <button className="bare dd-search-clear" onClick={() => setQ("")}><Icon.x /></button>}
+            {q && <button className="bare dd-search-clear" onClick={() => setQ("")} aria-label="Clear search"><Icon.x /></button>}
           </div>
-          <button className="bare dd-toggle" onClick={() => setOpen((o) => !o)} title="Collapse">
+          <button className="bare dd-toggle" onClick={() => setOpen((o) => !o)} title="Collapse" aria-label="Collapse epics panel">
             <Icon.chevRight />
           </button>
         </div> :
       <div className="dd-bar">
-          <button className="bare dd-toggle" onClick={() => setOpen((o) => !o)} title="Epics">
+          <button className="bare dd-toggle" onClick={() => setOpen((o) => !o)} title="Epics" aria-label="Expand epics panel">
             <Icon.chevLeft />
           </button>
           <span className="dd-title-v">Epics</span>

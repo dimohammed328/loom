@@ -32,6 +32,7 @@ body {
   --pop-shadow: 0 6px 22px rgba(15,15,15,0.10), 0 1px 3px rgba(15,15,15,0.06);
   --radius: 9px;
   --radius-sm: 6px;
+  --ring: #4C7DD9;
   --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-head: var(--font-body);
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
@@ -52,6 +53,7 @@ body {
   --pop-shadow: 0 8px 26px rgba(30,41,59,0.13), 0 1px 3px rgba(30,41,59,0.08);
   --radius: 10px;
   --radius-sm: 7px;
+  --ring: #3B82F6;
   --font-body: "Hanken Grotesk", -apple-system, system-ui, sans-serif;
   --font-head: "Hanken Grotesk", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
@@ -72,6 +74,7 @@ body {
   --pop-shadow: 0 8px 24px rgba(70,55,30,0.14), 0 1px 3px rgba(70,55,30,0.08);
   --radius: 8px;
   --radius-sm: 5px;
+  --ring: #B07D3C;
   --font-body: "Hanken Grotesk", -apple-system, system-ui, sans-serif;
   --font-head: "Newsreader", Georgia, serif;
 }
@@ -91,6 +94,7 @@ body {
   --pop-shadow: 0 12px 34px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.5);
   --radius: 7px;
   --radius-sm: 5px;
+  --ring: #8E9BF5;
   --font-body: "Hanken Grotesk", -apple-system, system-ui, sans-serif;
   --font-head: "Hanken Grotesk", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
@@ -174,7 +178,7 @@ body {
 .task-meter { display: inline-flex; align-items: center; gap: 7px; }
 .task-meter .tm-ticks { display: inline-flex; gap: 2.5px; }
 .task-meter .tm-tick { width: 12px; height: 4px; border-radius: 2px; }
-.task-meter .tm-count { font-size: 10.5px; color: var(--text-2); font-weight: 500; }
+.task-meter .tm-count { font-size: 10.5px; color: var(--text-2); font-weight: 500; font-variant-numeric: tabular-nums; }
 
 .tag-chip {
   display: inline-flex; align-items: center;
@@ -182,12 +186,6 @@ body {
   font-size: 12px; font-weight: 500; white-space: nowrap;
 }
 
-.avatar {
-  width: 22px; height: 22px; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 650; color: #fff; flex: none;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25);
-}
 .agent-badge {
   border-radius: 6px; flex: none;
   display: inline-flex; align-items: center; justify-content: center;
@@ -207,6 +205,22 @@ button.bare {
   cursor: pointer; padding: 0;
 }
 
+/* Keyboard focus — a visible ring for keyboard nav; mouse clicks stay clean.
+   The outline inherits each element's own border-radius. */
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.modal-panel:focus, .modal-panel:focus-visible { outline: none; }
+.dd-search-input:focus-visible { outline: none; } /* keeps its own border/bg focus */
+
+/* Honor reduced-motion globally: collapse animations + transitions to a crossfade. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; border: 3px solid var(--bg); }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
@@ -223,6 +237,9 @@ button.bare {
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg) 80%, transparent);
   backdrop-filter: saturate(1.2) blur(6px);
+  /* backdrop-filter creates a stacking context; lift it above the board's
+     sticky headers (z 10–30) so the project-switcher dropdown isn't clipped. */
+  position: relative; z-index: 50;
 }
 
 .proj-switch {
@@ -268,9 +285,6 @@ button.bare {
 .proj-item .pmeta .s { font-size: 12px; color: var(--text-2); }
 .proj-item .check { margin-left: auto; color: var(--text); }
 
-.crumb-sep { color: var(--text-3); font-size: 14px; }
-.crumb-view { color: var(--text-2); font-weight: 500; font-size: 14px; }
-
 .hdivider { width: 1px; align-self: center; height: 22px; background: var(--border); flex: none; margin: 0 4px; }
 .vtabs { display: flex; align-items: stretch; gap: 2px; align-self: stretch; }
 
@@ -281,16 +295,8 @@ button.bare {
   padding: 5px 9px; border-radius: var(--radius-sm);
 }
 .topbar .repo:hover { background: var(--hover); color: var(--text-2); }
-.member-stack { display: flex; }
-.member-stack .avatar { margin-left: -6px; box-shadow: 0 0 0 2px var(--bg); }
-.member-stack .avatar:first-child { margin-left: 0; }
 
-/* ---------- view-tabs row ---------- */
-.viewbar {
-  display: flex; align-items: center; gap: 2px;
-  height: 44px; padding: 0 12px; flex: none;
-  border-bottom: 1px solid var(--border);
-}
+/* ---------- view tabs ---------- */
 .vtab {
   display: inline-flex; align-items: center; gap: 7px;
   height: 52px; padding: 0 11px; cursor: pointer;
@@ -302,7 +308,6 @@ button.bare {
 .vtab.active { color: var(--tab-active-fg, var(--text)); border-bottom-color: var(--tab-active-bd, var(--text)); font-weight: 600; }
 .vtab svg { opacity: .8; }
 
-.viewbar .spacer { flex: 1; }
 .ctl {
   display: inline-flex; align-items: center; gap: 7px;
   height: 30px; padding: 0 11px; border-radius: var(--radius-sm);
@@ -311,13 +316,6 @@ button.bare {
   transition: background .12s, border-color .12s;
 }
 .ctl:hover { background: var(--hover); }
-.ctl .k { color: var(--text); font-weight: 600; }
-.ctl-menu {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 60;
-  min-width: 220px; background: var(--surface);
-  border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: var(--pop-shadow); padding: 6px;
-}
 
 .view-scroll { flex: 1; overflow: auto; min-height: 0; }
 
@@ -485,20 +483,11 @@ button.bare {
 .row-story .tw-ttext { font-weight: 500; }
 .row-task .tw-ttext { color: var(--text-2); font-weight: 450; }
 .tw-id { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-3); flex: none; }
-.tw-typetag {
-  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
-  color: var(--text-3); background: var(--surface); border: 1px solid var(--border);
-  border-radius: 4px; padding: 1px 5px; flex: none;
-}
-.row-epic .tw-typetag { background: transparent; }
-.tcell-tags { display: flex; flex-wrap: nowrap; gap: 5px; overflow: hidden; }
-.tcell-asg { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .tcell-dist { display: inline-flex; align-items: center; gap: 10px; }
 .tcell-dist .dist-bar { width: 104px; flex: none; }
 .tcell-prog { font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .tcell-prog strong { font-weight: 600; color: var(--text); }
 .tcell-none { color: var(--text-3); }
-.tcell-asg .nm { font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tcell-upd { color: var(--text-3); font-size: 12.5px; }
 .indent-1 { padding-left: 26px; }
 .indent-2 { padding-left: 52px; }
