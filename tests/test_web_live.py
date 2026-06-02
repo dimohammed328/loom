@@ -108,10 +108,13 @@ async def test_updates_worker_forwards_qid_to_broadcaster() -> None:
     worker = UpdatesWorker(loom=mock_loom, broadcaster=hub)
     t = threading.Thread(target=worker.run, daemon=True)
     t.start()
-    t.join(timeout=2.0)
-    assert not t.is_alive(), "Worker thread should have finished"
 
-    msg = await asyncio.wait_for(received.get(), timeout=1.0)
+    # Wait until the message is received, then stop the worker explicitly.
+    msg = await asyncio.wait_for(received.get(), timeout=2.0)
+    worker.stop()
+    t.join(timeout=2.0)
+    assert not t.is_alive(), "Worker thread should have finished after stop()"
+
     assert msg["qid"] == "proj:abc:1"
     assert msg["type"] == "task"
 
@@ -139,10 +142,13 @@ async def test_updates_worker_tombstone_for_deleted_qid() -> None:
     worker = UpdatesWorker(loom=mock_loom, broadcaster=hub, on_not_found="tombstone")
     t = threading.Thread(target=worker.run, daemon=True)
     t.start()
+
+    # Wait until the tombstone is received, then stop the worker explicitly.
+    msg = await asyncio.wait_for(received.get(), timeout=2.0)
+    worker.stop()
     t.join(timeout=2.0)
     assert not t.is_alive()
 
-    msg = await asyncio.wait_for(received.get(), timeout=1.0)
     assert msg["qid"] == "proj:abc:deleted"
     assert msg.get("deleted") is True
 
@@ -331,4 +337,82 @@ def test_ws_client_receives_payload_when_fixture_file_changes(loom_dir) -> None:
     payload = received[0]
     assert payload["qid"] == "live:backlog:1:1"
     # Must not contain body.
+    assert "body" not in payload
+
+
+# ---------------------------------------------------------------------------
+# Task 10 (story 10): Regression — worker stays alive past the old death window
+# ---------------------------------------------------------------------------
+
+
+def test_worker_stays_alive_and_delivers_edit_after_startup_idle(loom_dir) -> None:
+    """Worker must stay alive >0.5s past startup; a .md edit still reaches a WS client.
+
+    This is the regression test for the bug where UpdatesWorker.run() used a
+    single for-loop over get_updates(timeout=0.1). After ~0.1s of idle the
+    generator returned, the loop ended, and the worker thread exited silently —
+    so any file change after that point was never delivered.
+    """
+    import time
+
+    from starlette.testclient import TestClient
+
+    from conftest import write_item
+    from loom.ids import QualifiedId
+    from loom.rebuild import rebuild
+    from loom_web.app import create_app
+
+    # Pre-populate a project/epic/story/task so the file path maps to a qid.
+    write_item(loom_dir, QualifiedId("reg"), title="Reg Project")
+    write_item(loom_dir, QualifiedId("reg", "backlog"), title="Backlog", status="ready")
+    write_item(loom_dir, QualifiedId("reg", "backlog", 1), title="Reg Story", status="ready")
+    write_item(
+        loom_dir,
+        QualifiedId("reg", "backlog", 1, 1),
+        title="Reg Task",
+        status="ready",
+    )
+    rebuild(loom_dir)
+
+    app = create_app(root=str(loom_dir))
+    received: list[dict] = []
+
+    def _ws_session() -> None:
+        with TestClient(app) as client, client.websocket_connect("/ws") as ws:
+            data = ws.receive_json()
+            received.append(data)
+
+    t = threading.Thread(target=_ws_session, daemon=True)
+    t.start()
+
+    # Wait for the WS subscriber + event loop to be ready.
+    deadline = time.monotonic() + 3.0
+    while (
+        not app.state.broadcaster._subscribers or app.state.broadcaster._loop is None
+    ) and time.monotonic() < deadline:
+        time.sleep(0.01)
+
+    # Wait well past the old 0.1s death window to prove the worker is still alive.
+    time.sleep(0.6)
+
+    # Verify the worker thread is still alive (this would fail before the fix).
+    assert app.state.updates_thread.is_alive(), (
+        "Worker thread died within the startup idle window — bug not fixed"
+    )
+
+    # Trigger a real content change so the watchdog event fires reliably.
+    # Writing the same bytes is not guaranteed to emit an FSEvents notification
+    # on macOS when the mtime granularity is 1s and no bytes changed.
+    write_item(
+        loom_dir,
+        QualifiedId("reg", "backlog", 1, 1),
+        title="Reg Task Updated",
+        status="in_progress",
+    )
+
+    t.join(timeout=5.0)
+    assert not t.is_alive(), "WS session thread did not finish in time"
+    assert len(received) == 1
+    payload = received[0]
+    assert payload["qid"] == "reg:backlog:1:1"
     assert "body" not in payload
