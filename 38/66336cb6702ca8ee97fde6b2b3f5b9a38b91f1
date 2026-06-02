@@ -1,0 +1,32 @@
+src/loom_web/frontend/src/components/StoryNode.tsx
+  s_156f417e1db0ac::t_e54e7b0370f076 46
+  s_156f417e1db0ac::t_3e9dea2988636e 14
+  s_156f417e1db0ac::t_ad9d19dd354814 57
+src/loom_web/frontend/src/components/ItemModal.tsx
+  s_156f417e1db0ac::t_283b6b93f948a1 94
+  s_156f417e1db0ac::t_18f2d1b086c1fd 27
+  s_156f417e1db0ac::t_90dcbb55a2bd48 148
+src/loom_web/frontend/src/components/statusChip.test.ts
+  s_156f417e1db0ac::t_516c812e7cb1e5 1-32
+src/loom_web/frontend/src/components/TableRow.tsx
+  s_156f417e1db0ac::t_561b2bdc3c955f 23
+  s_156f417e1db0ac::t_6774d50fcc1def 141,145
+src/loom_web/frontend/src/components/statusChip.ts
+  s_156f417e1db0ac::t_c88ee329b0874d 1-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3866336cb6702ca8ee97fde6b2b3f5b9a38b91f1",
+  "prompts": {},
+  "sessions": {
+    "s_156f417e1db0ac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17ae9911-d559-4752-9884-e6a7d7c990fa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
