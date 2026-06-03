@@ -5,7 +5,7 @@
  * and the renderMarkdownBody helper.
  */
 import { describe, expect, test } from "bun:test";
-import { modalScrimStyle, modalPanelStyle } from "./itemModalStyles";
+import { modalScrimStyle, modalPanelStyle, modalHeadStyle, modalBodyStyle } from "./itemModalStyles";
 
 // ---------------------------------------------------------------------------
 // Task 1: react-markdown and remark-gfm must be installed
@@ -45,5 +45,25 @@ describe("modalPanelStyle", () => {
 
   test("borderRadius uses full radius on all corners", () => {
     expect(modalPanelStyle.borderRadius).toBe("var(--radius)");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 4: Header fixed, body scrolls internally
+// ---------------------------------------------------------------------------
+
+describe("modalHeadStyle", () => {
+  test("flexShrink is 0 so header stays fixed", () => {
+    expect(modalHeadStyle.flexShrink).toBe(0);
+  });
+});
+
+describe("modalBodyStyle", () => {
+  test("overflowY is auto so body scrolls internally", () => {
+    expect(modalBodyStyle.overflowY).toBe("auto");
+  });
+
+  test("flex is 1 so body takes remaining height", () => {
+    expect(modalBodyStyle.flex).toBe(1);
   });
 });

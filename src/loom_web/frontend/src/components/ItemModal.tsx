@@ -24,7 +24,7 @@ import {
   childListLabel,
   typePillLabel,
 } from "./itemModalHelpers";
-import { modalScrimStyle, modalPanelStyle } from "./itemModalStyles";
+import { modalScrimStyle, modalPanelStyle, modalHeadStyle, modalBodyStyle } from "./itemModalStyles";
 import { registerModalRefetch } from "../App";
 import { statusChip } from "./statusChip";
 
@@ -376,14 +376,7 @@ export default function ItemModal({
         {/* ---- Modal header ---- */}
         <div
           className="modal-head"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "14px 20px",
-            borderBottom: "1px solid var(--border)",
-            flexShrink: 0,
-          }}
+          style={modalHeadStyle}
         >
           {/* Type pill */}
           {detail && (
@@ -448,7 +441,7 @@ export default function ItemModal({
         {/* ---- Scrollable body ---- */}
         <div
           className="modal-body"
-          style={{ overflowY: "auto", flex: 1, padding: "20px 24px 32px" }}
+          style={modalBodyStyle}
         >
           {/* Breadcrumb */}
           <nav

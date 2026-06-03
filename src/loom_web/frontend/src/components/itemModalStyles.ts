@@ -28,3 +28,27 @@ export const modalPanelStyle: React.CSSProperties = {
   outline: "none",
   animation: "modal-rise 0.22s ease",
 };
+
+/**
+ * Header bar — never scrolls, shrinks to its natural height.
+ * flexShrink:0 keeps it pinned while the body scrolls below.
+ */
+export const modalHeadStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  padding: "14px 20px",
+  borderBottom: "1px solid var(--border)",
+  flexShrink: 0,
+};
+
+/**
+ * Scrollable body region — takes remaining height, scrolls internally.
+ * flex:1 + overflowY:auto is the canonical "fixed header + scroll body"
+ * pattern inside a column flex container.
+ */
+export const modalBodyStyle: React.CSSProperties = {
+  overflowY: "auto",
+  flex: 1,
+  padding: "20px 24px 32px",
+};
