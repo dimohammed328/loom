@@ -36,6 +36,7 @@ class ItemNode(BaseModel):
     pr_url: str | None
     deps: list[str]
     children: list[str]
+    updated_at: str
 
 
 class TreeResponse(BaseModel):

@@ -15,17 +15,20 @@ import type { TableRow as TableRowData } from "../tableModel";
 import { statusColor } from "../status";
 import {
   taskMeterLabel,
-  progressBarSegments,
   statusPillLabel,
 } from "./tableRowHelpers";
 import { rowClickHandler, rowKeyDownHandler } from "./tableRowClickHelpers";
 import { enterClass } from "./enterClass";
 import { statusChip } from "./statusChip";
+import { formatUpdated } from "../formatUpdated";
+import { DistributionBar } from "./distributionBar";
 
 // Re-export so callers can import from a single place.
 export { taskMeterLabel, progressBarSegments } from "./tableRowHelpers";
 export type { ProgressBarData } from "./tableRowHelpers";
 export { statusPillLabel } from "./tableRowHelpers";
+export { distBarSegments } from "./distributionBarHelpers";
+export type { DistBarSegment } from "./distributionBarHelpers";
 
 // ---------------------------------------------------------------------------
 // Inline SVG icons
@@ -92,44 +95,6 @@ function TaskMeter({
   );
 }
 
-/** Mini distribution bar for epic story progress. */
-function StoryProgressBar({
-  done,
-  total,
-}: {
-  done: number;
-  total: number;
-}): React.JSX.Element {
-  if (total === 0) {
-    return <span className="tcell-none">—</span>;
-  }
-  const { remaining } = progressBarSegments(done, total);
-  return (
-    <span
-      className="task-meter"
-      title={`${done}/${total} stories done`}
-    >
-      <span className="tm-ticks">
-        {Array.from({ length: done }, (_, i) => (
-          <span
-            key={`d${i}`}
-            className="tm-tick"
-            style={{ background: "var(--st-done-dot)" }}
-          />
-        ))}
-        {Array.from({ length: remaining }, (_, i) => (
-          <span
-            key={`r${i}`}
-            className="tm-tick"
-            style={{ background: "var(--border-strong)" }}
-          />
-        ))}
-      </span>
-      <span className="tm-count mono">{taskMeterLabel(done, total)}</span>
-    </span>
-  );
-}
-
 /** Colored status pill. */
 function StatusPill({ status }: { status: string | null }): React.JSX.Element {
   if (status === null) {
@@ -181,14 +146,8 @@ export default function TableRow({
   let progressCell: React.ReactNode;
   if (row.type === "story" && row.taskTotal !== null && row.taskDone !== null) {
     progressCell = <TaskMeter done={row.taskDone} total={row.taskTotal} />;
-  } else if (
-    row.type === "epic" &&
-    row.storyTotal !== null &&
-    row.storyDone !== null
-  ) {
-    progressCell = (
-      <StoryProgressBar done={row.storyDone} total={row.storyTotal} />
-    );
+  } else if (row.type === "epic" && row.statusDistribution !== null) {
+    progressCell = <DistributionBar segments={row.statusDistribution} />;
   } else {
     progressCell = <span className="tcell-none">—</span>;
   }
@@ -234,7 +193,7 @@ export default function TableRow({
 
       {/* Updated cell */}
       <td className="tcell-upd">
-        <span className="tcell-upd-text">—</span>
+        <span className="tcell-upd-text">{formatUpdated(row.updatedAt)}</span>
       </td>
     </tr>
   );

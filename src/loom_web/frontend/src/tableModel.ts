@@ -9,6 +9,8 @@
  */
 
 import type { TreeResponse, ItemNode } from "./api/client";
+import type { DistBarSegment } from "./components/distributionBarHelpers";
+import { distBarSegments } from "./components/distributionBarHelpers";
 
 // ---------------------------------------------------------------------------
 // Public constants
@@ -36,6 +38,8 @@ export interface TableRow {
   type: string;
   title: string;
   status: string | null;
+  /** ISO-8601 timestamp string from the API node. */
+  updatedAt: string;
   /** Nesting depth: 0=epic, 1=story, 2=task */
   depth: number;
   /** Whether this row has any child items (drives chevron display). */
@@ -53,6 +57,11 @@ export interface TableRow {
   storyDone: number | null;
   /** Total stories under this epic (null for story and task rows). */
   storyTotal: number | null;
+  /**
+   * Per-status story distribution segments for epic rows (for distribution bar).
+   * null for story and task rows.
+   */
+  statusDistribution: DistBarSegment[] | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -89,14 +98,18 @@ export function tableModel(
     const epicCollapsed = !!collapseState[epicQid];
     const epicHasChildren = epicNode.children.length > 0;
 
-    // Compute story-level progress for this epic.
+    // Compute story-level progress and distribution for this epic.
     let storyTotal = 0;
     let storyDone = 0;
+    const storyStatusCols: Record<string, unknown[]> = {};
     for (const sqid of epicNode.children) {
       const sn = byQid.get(sqid);
       if (!sn || sn.type !== "story") continue;
       storyTotal++;
       if (sn.status === "done") storyDone++;
+      const key = sn.status ?? "ready";
+      if (!storyStatusCols[key]) storyStatusCols[key] = [];
+      storyStatusCols[key].push(sn);
     }
 
     rows.push({
@@ -104,6 +117,7 @@ export function tableModel(
       type: "epic",
       title: epicNode.title,
       status: epicNode.status,
+      updatedAt: epicNode.updated_at,
       depth: 0,
       hasChildren: epicHasChildren,
       isCollapsed: epicCollapsed,
@@ -111,6 +125,7 @@ export function tableModel(
       taskTotal: null,
       storyDone,
       storyTotal,
+      statusDistribution: distBarSegments(storyStatusCols),
     });
 
     if (epicCollapsed) continue;
@@ -134,6 +149,7 @@ export function tableModel(
         type: "story",
         title: storyNode.title,
         status: storyNode.status,
+        updatedAt: storyNode.updated_at,
         depth: 1,
         hasChildren: storyHasChildren,
         isCollapsed: storyCollapsed,
@@ -141,6 +157,7 @@ export function tableModel(
         taskTotal,
         storyDone: null,
         storyTotal: null,
+        statusDistribution: null,
       });
 
       if (storyCollapsed) continue;
@@ -152,6 +169,7 @@ export function tableModel(
           type: "task",
           title: taskNode.title,
           status: taskNode.status,
+          updatedAt: taskNode.updated_at,
           depth: 2,
           hasChildren: false,
           isCollapsed: false,
@@ -159,6 +177,7 @@ export function tableModel(
           taskTotal: null,
           storyDone: null,
           storyTotal: null,
+          statusDistribution: null,
         });
       }
     }

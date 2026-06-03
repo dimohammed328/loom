@@ -34,6 +34,7 @@ export interface ItemNode {
   pr_url: string | null;
   deps: string[];
   children: string[];
+  updated_at: string;
 }
 
 export interface TreeResponse {
