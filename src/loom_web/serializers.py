@@ -52,25 +52,23 @@ def serialize_tree(tree_dict: dict) -> TreeResponse:
           ]
         }
 
-    Each item in the tree dict does not carry ``title`` — we drop that
-    field and rely on ``ItemNode`` having only what the tree dict provides.
+    Each item in the tree dict carries ``title`` and ``updated_at`` sourced
+    from the ``IndexRecord``.
     """
     nodes = []
     for raw in tree_dict.get("items", []):
-        # The tree dict has no title field; use an empty string as placeholder
-        # since ItemNode requires it. Callers wanting titles should use
-        # get_item_detail instead.
         nodes.append(
             ItemNode(
                 qid=raw["qid"],
                 type=raw["type"],
-                title="",
+                title=raw.get("title", ""),
                 status=normalize_status(raw.get("status")),
                 assignee=raw.get("assignee"),
                 branch=raw.get("branch"),
                 pr_url=raw.get("pr_url"),
                 deps=raw.get("deps", []),
                 children=raw.get("children", []),
+                updated_at=raw.get("updated_at", ""),
             )
         )
     return TreeResponse(root=tree_dict["root"], items=nodes)
