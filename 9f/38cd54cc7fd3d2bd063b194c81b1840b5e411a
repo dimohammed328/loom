@@ -1,0 +1,19 @@
+src/loom_web/frontend/src/styles/tokens.css
+  s_0360b3e967dc44::t_5c2333be1e8077 318-335,337-352,354-357
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9f38cd54cc7fd3d2bd063b194c81b1840b5e411a",
+  "prompts": {},
+  "sessions": {
+    "s_0360b3e967dc44": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "73189c51-7a32-4017-abda-5359d4a2e97e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
