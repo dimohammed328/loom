@@ -17,13 +17,6 @@ import { getTheme, setTheme } from "../theme";
 // Inline SVG icons (no external deps)
 // ---------------------------------------------------------------------------
 
-function IconChevronDown(): React.JSX.Element {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 function IconCheck(): React.JSX.Element {
   return (
@@ -186,9 +179,7 @@ export default function TopBar(): React.JSX.Element {
           aria-expanded={menuOpen}
           onClick={toggleMenu}
         >
-          <span className="picon">📋</span>
           <span className="pname">{currentProject?.title ?? "No project"}</span>
-          <span className="chev"><IconChevronDown /></span>
         </button>
 
         {menuOpen && projects && currentProject && (
