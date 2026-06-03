@@ -24,6 +24,7 @@ function makeRow(
     taskTotal: null,
     storyDone: null,
     storyTotal: null,
+    statusDistribution: null,
   };
 }
 

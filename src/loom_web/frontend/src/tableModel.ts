@@ -9,6 +9,8 @@
  */
 
 import type { TreeResponse, ItemNode } from "./api/client";
+import type { DistBarSegment } from "./components/distributionBarHelpers";
+import { distBarSegments } from "./components/distributionBarHelpers";
 
 // ---------------------------------------------------------------------------
 // Public constants
@@ -55,6 +57,11 @@ export interface TableRow {
   storyDone: number | null;
   /** Total stories under this epic (null for story and task rows). */
   storyTotal: number | null;
+  /**
+   * Per-status story distribution segments for epic rows (for distribution bar).
+   * null for story and task rows.
+   */
+  statusDistribution: DistBarSegment[] | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -91,14 +98,18 @@ export function tableModel(
     const epicCollapsed = !!collapseState[epicQid];
     const epicHasChildren = epicNode.children.length > 0;
 
-    // Compute story-level progress for this epic.
+    // Compute story-level progress and distribution for this epic.
     let storyTotal = 0;
     let storyDone = 0;
+    const storyStatusCols: Record<string, unknown[]> = {};
     for (const sqid of epicNode.children) {
       const sn = byQid.get(sqid);
       if (!sn || sn.type !== "story") continue;
       storyTotal++;
       if (sn.status === "done") storyDone++;
+      const key = sn.status ?? "ready";
+      if (!storyStatusCols[key]) storyStatusCols[key] = [];
+      storyStatusCols[key].push(sn);
     }
 
     rows.push({
@@ -114,6 +125,7 @@ export function tableModel(
       taskTotal: null,
       storyDone,
       storyTotal,
+      statusDistribution: distBarSegments(storyStatusCols),
     });
 
     if (epicCollapsed) continue;
@@ -145,6 +157,7 @@ export function tableModel(
         taskTotal,
         storyDone: null,
         storyTotal: null,
+        statusDistribution: null,
       });
 
       if (storyCollapsed) continue;
@@ -164,6 +177,7 @@ export function tableModel(
           taskTotal: null,
           storyDone: null,
           storyTotal: null,
+          statusDistribution: null,
         });
       }
     }
