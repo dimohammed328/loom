@@ -1,0 +1,21 @@
+src/loom_web/static/main.css
+  s_0360b3e967dc44::t_1b2596c5a0a616 1
+src/loom_web/static/main.js
+  s_0360b3e967dc44::t_1b2596c5a0a616 1,6,9,13-17,19,21,23-29,31-32,36,41,45,50,56,61,67,71-72,77,81,84,86,88,93-98,100,102,104,106,115,119,128,137,139,141,144-149,151,153,155,160-164,166,168,170,175-176,181-207,212
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "72c3670bf1251bbf5222e1067ff47398c42f3caa",
+  "prompts": {},
+  "sessions": {
+    "s_0360b3e967dc44": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "73189c51-7a32-4017-abda-5359d4a2e97e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
