@@ -12,6 +12,7 @@ function makeNode(
   title: string,
   status: string | null,
   children: string[] = [],
+  updatedAt = "2024-01-01T00:00:00Z",
 ): ItemNode {
   return {
     qid,
@@ -23,6 +24,7 @@ function makeNode(
     pr_url: null,
     deps: [],
     children,
+    updated_at: updatedAt,
   };
 }
 
@@ -214,6 +216,25 @@ describe("tableModel", () => {
     const proj = makeNode("p", "project", "P", null, []);
     const tree: TreeResponse = { root: "p", items: [proj] };
     expect(tableModel(tree, {})).toHaveLength(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // updatedAt field
+  // ---------------------------------------------------------------------------
+
+  test("each row carries the updatedAt string from the source node", () => {
+    const proj = makeNode("p", "project", "P", null, ["p:aaa23"], "2024-01-01T00:00:00Z");
+    const epic = makeNode("p:aaa23", "epic", "E", null, ["p:aaa23:1"], "2024-06-01T12:00:00Z");
+    const story = makeNode("p:aaa23:1", "story", "S", "ready", ["p:aaa23:1:1"], "2024-06-02T08:00:00Z");
+    const task = makeNode("p:aaa23:1:1", "task", "T", "done", [], "2024-06-03T09:00:00Z");
+    const tree: TreeResponse = { root: "p", items: [proj, epic, story, task] };
+    const rows = tableModel(tree, {});
+    const epicRow = rows.find((r) => r.qid === "p:aaa23")!;
+    const storyRow = rows.find((r) => r.qid === "p:aaa23:1")!;
+    const taskRow = rows.find((r) => r.qid === "p:aaa23:1:1")!;
+    expect(epicRow.updatedAt).toBe("2024-06-01T12:00:00Z");
+    expect(storyRow.updatedAt).toBe("2024-06-02T08:00:00Z");
+    expect(taskRow.updatedAt).toBe("2024-06-03T09:00:00Z");
   });
 
   test("items with unknown qid in children array are skipped gracefully", () => {

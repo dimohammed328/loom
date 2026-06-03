@@ -36,6 +36,8 @@ export interface TableRow {
   type: string;
   title: string;
   status: string | null;
+  /** ISO-8601 timestamp string from the API node. */
+  updatedAt: string;
   /** Nesting depth: 0=epic, 1=story, 2=task */
   depth: number;
   /** Whether this row has any child items (drives chevron display). */
@@ -104,6 +106,7 @@ export function tableModel(
       type: "epic",
       title: epicNode.title,
       status: epicNode.status,
+      updatedAt: epicNode.updated_at,
       depth: 0,
       hasChildren: epicHasChildren,
       isCollapsed: epicCollapsed,
@@ -134,6 +137,7 @@ export function tableModel(
         type: "story",
         title: storyNode.title,
         status: storyNode.status,
+        updatedAt: storyNode.updated_at,
         depth: 1,
         hasChildren: storyHasChildren,
         isCollapsed: storyCollapsed,
@@ -152,6 +156,7 @@ export function tableModel(
           type: "task",
           title: taskNode.title,
           status: taskNode.status,
+          updatedAt: taskNode.updated_at,
           depth: 2,
           hasChildren: false,
           isCollapsed: false,
