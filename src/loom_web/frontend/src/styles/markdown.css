@@ -48,12 +48,25 @@
   padding-left: 1.5em;
 }
 
+/* Nested lists: tighten vertical margin so they don't double-space */
+.markdown-body li > ul,
+.markdown-body li > ol {
+  margin-top: 0.2em;
+  margin-bottom: 0;
+}
+
 .markdown-body li {
   margin: 0.2em 0;
 }
 
+/* Collapse paragraph margin inside list items for tight spacing */
 .markdown-body li > p {
   margin: 0;
+}
+
+/* Checklist items that contain block content: small top gap */
+.markdown-body .task-list-item > p {
+  display: inline;
 }
 
 /* GFM task-list checkboxes */
