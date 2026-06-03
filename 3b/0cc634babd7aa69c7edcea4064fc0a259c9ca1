@@ -1,0 +1,21 @@
+src/loom_web/serializers.py
+  s_0360b3e967dc44::t_aa60a432e01e23 55-56,64,71
+src/loom/api.py
+  s_0360b3e967dc44::t_951eb3bd55f77c 223,228
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3b0cc634babd7aa69c7edcea4064fc0a259c9ca1",
+  "prompts": {},
+  "sessions": {
+    "s_0360b3e967dc44": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "73189c51-7a32-4017-abda-5359d4a2e97e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
