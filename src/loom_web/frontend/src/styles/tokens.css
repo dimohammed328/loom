@@ -315,15 +315,46 @@ body {
 }
 .topbar .repo:hover { background: var(--hover); color: var(--text-2); }
 
-/* Theme toggle button */
-.theme-toggle {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; border-radius: var(--radius-sm);
-  border: 1px solid var(--border); background: var(--surface);
-  color: var(--text-2); cursor: pointer;
-  transition: background .12s, border-color .12s, color .12s;
+/* Theme toggle — sun/moon pill slider */
+.theme-slider {
+  display: inline-flex; align-items: center;
+  padding: 0; border: none; background: transparent; cursor: pointer;
 }
-.theme-toggle:hover { background: var(--hover); color: var(--text); }
+.theme-slider .ts-track {
+  position: relative;
+  display: inline-flex; align-items: center;
+  width: 56px; height: 28px; border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  transition: background .2s, border-color .2s;
+  overflow: hidden;
+}
+.theme-slider:hover .ts-track { background: var(--hover); border-color: var(--border-strong); }
+/* Icon slots — sun on left, moon on right */
+.theme-slider .ts-icon {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; color: var(--text-3);
+  transition: color .2s;
+  z-index: 1;
+}
+.theme-slider .ts-sun { left: 4px; }
+.theme-slider .ts-moon { right: 4px; }
+/* Active icon gets full text color */
+.theme-slider:not(.is-dark) .ts-sun { color: var(--text-2); }
+.theme-slider.is-dark .ts-moon { color: var(--text-2); }
+/* Sliding knob */
+.theme-slider .ts-knob {
+  position: absolute; top: 3px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--surface); box-shadow: var(--card-shadow), 0 0 0 1px var(--border);
+  transition: left .2s cubic-bezier(.4,0,.2,1);
+  z-index: 2;
+}
+/* Light mode: knob on the left (sun side) */
+.theme-slider:not(.is-dark) .ts-knob { left: 3px; }
+/* Dark mode: knob on the right (moon side) */
+.theme-slider.is-dark .ts-knob { left: 31px; }
 
 .ctl {
   display: inline-flex; align-items: center; gap: 7px;
