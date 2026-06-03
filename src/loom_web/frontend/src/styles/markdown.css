@@ -64,14 +64,15 @@
 }
 
 .markdown-body .task-list-item {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
+  list-style: none;
+  padding-left: 0;
 }
 
 .markdown-body .task-list-item input[type="checkbox"] {
-  margin: 0;
-  flex-shrink: 0;
+  display: inline-block;
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+  flex-shrink: unset;
   accent-color: var(--ring);
 }
 
