@@ -12,6 +12,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { listProjects, type ProjectSummary } from "../api/client";
 import { useAppStore, type View } from "../state/store";
 import { getTheme, setTheme } from "../theme";
+import { repoLabel } from "../repoUtils";
 
 // ---------------------------------------------------------------------------
 // Inline SVG icons (no external deps)
@@ -123,15 +124,6 @@ function ProjectMenu({ projects, current, onSelect, onClose }: ProjectMenuProps)
       ))}
     </div>
   );
-}
-
-function repoLabel(repo: string): string {
-  try {
-    const url = new URL(repo);
-    return url.pathname.replace(/^\//, "").replace(/\.git$/, "");
-  } catch {
-    return repo;
-  }
 }
 
 // ---------------------------------------------------------------------------
