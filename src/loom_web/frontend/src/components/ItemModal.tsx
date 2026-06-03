@@ -371,17 +371,7 @@ export default function ItemModal({
         aria-modal="true"
         aria-labelledby="modal-title-h"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface)",
-          borderRadius: "var(--radius) var(--radius) 0 0",
-          boxShadow: "var(--pop-shadow)",
-          width: "min(720px, 100vw)",
-          maxHeight: "88vh",
-          display: "flex",
-          flexDirection: "column",
-          outline: "none",
-          animation: "modal-rise 0.22s ease",
-        }}
+        style={modalPanelStyle}
       >
         {/* ---- Modal header ---- */}
         <div
