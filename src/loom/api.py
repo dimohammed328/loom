@@ -18,6 +18,7 @@ Example:
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
 from .errors import Duplicate, LoomError, NotFound
@@ -403,6 +404,75 @@ class Loom:
         # Only _Statused has set_status, but type checks above guarantee it.
         item.set_status("done")  # type: ignore[union-attr]
         return True
+
+    # ----- watch --------------------------------------------------------
+
+    def get_updates(
+        self,
+        *,
+        timeout: float | None = None,
+        debounce_delay: float = 0.05,
+        stop_event: object | None = None,
+    ) -> Iterator[str]:
+        """Yield the qualified id of each item whose ``.md`` file changes.
+
+        Starts a ``watchdog`` observer in a background thread that watches
+        ``$LOOM_DIR`` recursively for ``.md`` create / modify / delete /
+        move events.  For each event the index is synced via
+        :func:`~loom.rebuild.sync_one` before the qid is yielded.
+
+        :param timeout: Per-iteration ``queue.get`` timeout in seconds.
+            ``None`` (default) blocks indefinitely until an event arrives.
+            Pass a small positive float to allow the caller to do periodic
+            work between yields (the generator raises ``StopIteration``
+            when the observer stops).
+        :param debounce_delay: Window in seconds during which duplicate
+            events for the same path are collapsed (default 0.05 s).
+        :param stop_event: An optional :class:`threading.Event`-like object
+            with an ``is_set()`` method.  When set, the generator exits the
+            inner polling loop and stops the observer cleanly.  Checked once
+            per queue-get timeout interval (at most 0.1 s when *timeout* is
+            ``None``).
+
+        The generator is interruptible: closing it (or breaking out of
+        the loop) stops and joins the observer cleanly::
+
+            gen = loom.get_updates()
+            try:
+                for qid in gen:
+                    ...
+            finally:
+                gen.close()  # stops the background thread
+        """
+        import queue as _queue
+
+        from .watch import _STOP, _start_observer
+
+        # Internal poll interval when timeout is None: short enough for
+        # responsive shutdown without creating observer churn.
+        _POLL = 0.1
+
+        q: _queue.Queue[object] = _queue.Queue()
+        observer, debouncer = _start_observer(self._root, q, debounce_delay=debounce_delay)
+        try:
+            while observer.is_alive():
+                if stop_event is not None and stop_event.is_set():
+                    return
+                poll = timeout if timeout is not None else _POLL
+                try:
+                    item = q.get(block=True, timeout=poll)
+                except _queue.Empty:
+                    if timeout is not None:
+                        # Caller requested a finite timeout — stop iteration.
+                        return
+                    continue  # loop back and check stop_event
+                if item is _STOP:
+                    return
+                yield str(item)
+        finally:
+            observer.stop()
+            debouncer.cancel()
+            observer.join()
 
     # ----- maintenance --------------------------------------------------
 
