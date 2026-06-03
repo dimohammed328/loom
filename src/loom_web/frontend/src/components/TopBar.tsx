@@ -12,7 +12,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { listProjects, type ProjectSummary } from "../api/client";
 import { useAppStore, type View } from "../state/store";
 import { getTheme, setTheme } from "../theme";
-import { repoLabel } from "../repoUtils";
+import { repoLabel, repoHref } from "../repoUtils";
 
 // ---------------------------------------------------------------------------
 // Inline SVG icons (no external deps)
@@ -160,6 +160,7 @@ export default function TopBar(): React.JSX.Element {
 
   const repoUrl = currentProject?.repo ?? null;
   const repoName = repoUrl ? repoLabel(repoUrl) : null;
+  const repoLink = repoUrl ? repoHref(repoUrl) : null;
 
   return (
     <header className="topbar">
@@ -227,13 +228,13 @@ export default function TopBar(): React.JSX.Element {
       </button>
 
       {/* Repo link */}
-      {repoUrl && (
+      {repoName && repoLink && (
         <a
           className="repo"
-          href={repoUrl}
+          href={repoLink}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={`Open repository ${repoName ?? ""}`}
+          aria-label={`Open repository ${repoName}`}
         >
           <IconGithub />
           {repoName}

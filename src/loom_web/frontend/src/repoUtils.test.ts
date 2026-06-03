@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { repoLabel } from "./repoUtils";
+import { repoLabel, repoHref } from "./repoUtils";
 
 describe("repoLabel", () => {
   it("parses https url into owner/repo", () => {
@@ -29,5 +29,19 @@ describe("repoLabel", () => {
   it("handles nested path — keeps only last two segments", () => {
     // Some self-hosted git servers have deep paths; we want owner/repo
     expect(repoLabel("https://gitlab.example.com/group/subgroup/repo.git")).toBe("subgroup/repo");
+  });
+});
+
+describe("repoHref", () => {
+  it("returns https github url from https input", () => {
+    expect(repoHref("https://github.com/acme/my-project.git")).toBe("https://github.com/acme/my-project");
+  });
+
+  it("returns https github url from scp ssh input", () => {
+    expect(repoHref("git@github.com:acme/my-project.git")).toBe("https://github.com/acme/my-project");
+  });
+
+  it("returns null for unrecognised input", () => {
+    expect(repoHref("not-a-url")).toBeNull();
   });
 });
