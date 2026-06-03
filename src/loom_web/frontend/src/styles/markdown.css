@@ -57,8 +57,7 @@
 }
 
 /* GFM task-list checkboxes */
-.markdown-body ul.contains-task-list,
-.markdown-body .task-list-item {
+.markdown-body ul.contains-task-list {
   list-style: none;
   padding-left: 0;
 }
@@ -71,8 +70,7 @@
 .markdown-body .task-list-item input[type="checkbox"] {
   display: inline-block;
   margin: 0 6px 0 0;
-  vertical-align: middle;
-  flex-shrink: unset;
+  vertical-align: text-bottom;
   accent-color: var(--ring);
 }
 
