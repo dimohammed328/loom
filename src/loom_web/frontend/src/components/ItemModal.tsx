@@ -15,6 +15,8 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { getItem } from "../api/client";
 import type { ItemDetail, ItemRef } from "../api/client";
 import { statusColor } from "../status";
@@ -23,7 +25,9 @@ import {
   breadcrumbSegments,
   childListLabel,
   typePillLabel,
+  markdownBodyContent,
 } from "./itemModalHelpers";
+import { modalScrimStyle, modalPanelStyle, modalHeadStyle, modalBodyStyle } from "./itemModalStyles";
 import { registerModalRefetch } from "../App";
 import { statusChip } from "./statusChip";
 
@@ -360,16 +364,7 @@ export default function ItemModal({
     <div
       className="modal-scrim"
       onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.35)",
-        backdropFilter: "blur(2px)",
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        zIndex: 100,
-      }}
+      style={modalScrimStyle}
     >
       <div
         className="modal-panel"
@@ -379,29 +374,12 @@ export default function ItemModal({
         aria-modal="true"
         aria-labelledby="modal-title-h"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface)",
-          borderRadius: "var(--radius) var(--radius) 0 0",
-          boxShadow: "var(--pop-shadow)",
-          width: "min(720px, 100vw)",
-          maxHeight: "88vh",
-          display: "flex",
-          flexDirection: "column",
-          outline: "none",
-          animation: "modal-rise 0.22s ease",
-        }}
+        style={modalPanelStyle}
       >
         {/* ---- Modal header ---- */}
         <div
           className="modal-head"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "14px 20px",
-            borderBottom: "1px solid var(--border)",
-            flexShrink: 0,
-          }}
+          style={modalHeadStyle}
         >
           {/* Type pill */}
           {detail && (
@@ -466,7 +444,7 @@ export default function ItemModal({
         {/* ---- Scrollable body ---- */}
         <div
           className="modal-body"
-          style={{ overflowY: "auto", flex: 1, padding: "20px 24px 32px" }}
+          style={modalBodyStyle}
         >
           {/* Breadcrumb */}
           <nav
@@ -636,27 +614,23 @@ export default function ItemModal({
                 >
                   Description
                 </div>
-                {detail.body ? (
-                  <p
-                    className="modal-prose"
-                    style={{
-                      fontSize: 14,
-                      color: "var(--text)",
-                      lineHeight: 1.6,
-                      whiteSpace: "pre-wrap",
-                      margin: 0,
-                    }}
-                  >
-                    {detail.body}
-                  </p>
-                ) : (
-                  <p
-                    className="modal-prose empty"
-                    style={{ fontSize: 13.5, color: "var(--text-3)", fontStyle: "italic", margin: 0 }}
-                  >
-                    No description yet.
-                  </p>
-                )}
+                {(() => {
+                  const { isEmpty, content } = markdownBodyContent(detail.body);
+                  return isEmpty ? (
+                    <p
+                      className="modal-prose empty"
+                      style={{ fontSize: 13.5, color: "var(--text-3)", fontStyle: "italic", margin: 0 }}
+                    >
+                      No description yet.
+                    </p>
+                  ) : (
+                    <div className="modal-prose markdown-body">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {content}
+                      </ReactMarkdown>
+                    </div>
+                  );
+                })()}
               </section>
 
               {/* Dependencies */}
