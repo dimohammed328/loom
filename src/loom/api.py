@@ -220,10 +220,12 @@ class Loom:
                 {
                     "qid": record.qualified_id,
                     "type": record.type,
+                    "title": record.title,
                     "status": record.status,
                     "branch": record.branch,
                     "pr_url": record.pr_url,
                     "assignee": record.assignee,
+                    "updated_at": record.updated_at,
                     "deps": deps,
                     "children": children,
                 }

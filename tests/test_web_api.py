@@ -145,6 +145,21 @@ def test_tree_unknown_project_returns_404(client: TestClient) -> None:
     assert "detail" in resp.json()
 
 
+def test_tree_nodes_have_title_and_updated_at(client: TestClient) -> None:
+    """Every tree node must carry a non-empty title and an ISO updated_at."""
+    resp = client.get("/api/projects/acme/tree")
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert items, "tree must return at least one item"
+    for node in items:
+        assert node["title"], f"node {node['qid']} has empty title"
+        assert node["updated_at"], f"node {node['qid']} missing updated_at"
+        # Must be a valid ISO datetime string (contains 'T' separator)
+        assert "T" in node["updated_at"], (
+            f"node {node['qid']} updated_at is not ISO format: {node['updated_at']}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # GET /api/items/{qid}
 # ---------------------------------------------------------------------------
