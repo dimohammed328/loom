@@ -1,0 +1,30 @@
+src/loom_web/frontend/src/components/distributionBarHelpers.ts
+  s_0360b3e967dc44::t_6031952894d271 1-25
+src/loom_web/frontend/src/components/EpicRowHeader.test.ts
+  s_0360b3e967dc44::t_2f5e6267cb0a27 71,82,88,93
+src/loom_web/frontend/src/components/distributionBar.tsx
+  s_0360b3e967dc44::t_60d1e5193ef645 1,3,7-13,15,18-52
+  s_0360b3e967dc44::t_b11ead76af9bfc 2,4-6,14,16-17
+src/loom_web/frontend/src/components/EpicRowHeader.tsx
+  s_0360b3e967dc44::t_22d11153b7ce09 15-17
+  s_0360b3e967dc44::t_295f05626ebf75 191
+src/loom_web/frontend/src/components/distributionBar.test.ts
+  s_0360b3e967dc44::t_dac3fc9e50ee24 2
+  s_0360b3e967dc44::t_32b93e8e9e9771 1,3-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e7aad13bdd3b1669d7e0191fe994e7d42d4f0f21",
+  "prompts": {},
+  "sessions": {
+    "s_0360b3e967dc44": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "73189c51-7a32-4017-abda-5359d4a2e97e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
