@@ -16,6 +16,7 @@ function makeRow(
     type: "epic",
     title: "T",
     status: null,
+    updatedAt: "2024-01-01T00:00:00Z",
     depth: 0,
     hasChildren,
     isCollapsed,
@@ -23,6 +24,7 @@ function makeRow(
     taskTotal: null,
     storyDone: null,
     storyTotal: null,
+    statusDistribution: null,
   };
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { taskMeterLabel, progressBarSegments, statusPillLabel } from "./tableRowHelpers";
+import { formatUpdated } from "../formatUpdated";
 
 // ---------------------------------------------------------------------------
 // taskMeterLabel
@@ -67,5 +68,23 @@ describe("statusPillLabel", () => {
 
   test("capitalizes first letter of unknown statuses", () => {
     expect(statusPillLabel("custom-status")).toBe("Custom-status");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatUpdated integration — verifies the util used in TableRow's Updated cell
+// ---------------------------------------------------------------------------
+
+describe("formatUpdated (used by TableRow Updated cell)", () => {
+  test("recent timestamp produces relative label", () => {
+    const now = new Date("2024-06-15T12:00:00Z");
+    const ts = new Date(now.getTime() - 10 * 60_000).toISOString(); // 10m ago
+    expect(formatUpdated(ts, now)).toBe("10m ago");
+  });
+
+  test("old timestamp produces absolute date label", () => {
+    const now = new Date("2024-06-15T12:00:00Z");
+    const ts = new Date("2024-01-10T08:00:00Z").toISOString();
+    expect(formatUpdated(ts, now)).toBe("Jan 10");
   });
 });

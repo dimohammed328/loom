@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { tableModel, TABLE_COLUMNS } from "./tableModel";
 import type { TreeResponse, ItemNode } from "./api/client";
+import type { DistBarSegment } from "./components/distributionBarHelpers";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -12,6 +13,7 @@ function makeNode(
   title: string,
   status: string | null,
   children: string[] = [],
+  updatedAt = "2024-01-01T00:00:00Z",
 ): ItemNode {
   return {
     qid,
@@ -23,6 +25,7 @@ function makeNode(
     pr_url: null,
     deps: [],
     children,
+    updated_at: updatedAt,
   };
 }
 
@@ -97,6 +100,20 @@ describe("tableModel", () => {
     expect(epicRow!.title).toBe("Alpha Epic");
     expect(epicRow!.status).toBe("in progress");
     expect(epicRow!.depth).toBe(0);
+  });
+
+  test("story row carries the correct title from the source node", () => {
+    const tree = makeTree();
+    const rows = tableModel(tree, {});
+    const storyRow = rows.find((r) => r.qid === "proj:aaa23:1")!;
+    expect(storyRow.title).toBe("Story A");
+  });
+
+  test("task row carries the correct title from the source node", () => {
+    const tree = makeTree();
+    const rows = tableModel(tree, {});
+    const taskRow = rows.find((r) => r.qid === "proj:aaa23:1:1")!;
+    expect(taskRow.title).toBe("Task 1");
   });
 
   test("epics are at depth 0, stories at depth 1, tasks at depth 2", () => {
@@ -214,6 +231,58 @@ describe("tableModel", () => {
     const proj = makeNode("p", "project", "P", null, []);
     const tree: TreeResponse = { root: "p", items: [proj] };
     expect(tableModel(tree, {})).toHaveLength(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // updatedAt field
+  // ---------------------------------------------------------------------------
+
+  test("each row carries the updatedAt string from the source node", () => {
+    const proj = makeNode("p", "project", "P", null, ["p:aaa23"], "2024-01-01T00:00:00Z");
+    const epic = makeNode("p:aaa23", "epic", "E", null, ["p:aaa23:1"], "2024-06-01T12:00:00Z");
+    const story = makeNode("p:aaa23:1", "story", "S", "ready", ["p:aaa23:1:1"], "2024-06-02T08:00:00Z");
+    const task = makeNode("p:aaa23:1:1", "task", "T", "done", [], "2024-06-03T09:00:00Z");
+    const tree: TreeResponse = { root: "p", items: [proj, epic, story, task] };
+    const rows = tableModel(tree, {});
+    const epicRow = rows.find((r) => r.qid === "p:aaa23")!;
+    const storyRow = rows.find((r) => r.qid === "p:aaa23:1")!;
+    const taskRow = rows.find((r) => r.qid === "p:aaa23:1:1")!;
+    expect(epicRow.updatedAt).toBe("2024-06-01T12:00:00Z");
+    expect(storyRow.updatedAt).toBe("2024-06-02T08:00:00Z");
+    expect(taskRow.updatedAt).toBe("2024-06-03T09:00:00Z");
+  });
+
+  // ---------------------------------------------------------------------------
+  // statusDistribution field (epic rows)
+  // ---------------------------------------------------------------------------
+
+  test("epic row carries statusDistribution segments with per-status story counts", () => {
+    const tree = makeTree();
+    const rows = tableModel(tree, {});
+    const epicRow = rows.find((r) => r.qid === "proj:aaa23")!;
+    // aaa23 has s1=ready, s2=done
+    const dist = epicRow.statusDistribution as DistBarSegment[];
+    expect(dist).toBeDefined();
+    expect(dist.find((s) => s.status === "ready")?.count).toBe(1);
+    expect(dist.find((s) => s.status === "done")?.count).toBe(1);
+  });
+
+  test("story and task rows have null statusDistribution", () => {
+    const tree = makeTree();
+    const rows = tableModel(tree, {});
+    const storyRow = rows.find((r) => r.qid === "proj:aaa23:1")!;
+    const taskRow = rows.find((r) => r.qid === "proj:aaa23:1:1")!;
+    expect(storyRow.statusDistribution).toBeNull();
+    expect(taskRow.statusDistribution).toBeNull();
+  });
+
+  test("epic row with no stories has empty statusDistribution array", () => {
+    const proj = makeNode("p", "project", "P", null, ["p:aaa23"]);
+    const epic = makeNode("p:aaa23", "epic", "E", null, []);
+    const tree: TreeResponse = { root: "p", items: [proj, epic] };
+    const rows = tableModel(tree, {});
+    const epicRow = rows.find((r) => r.qid === "p:aaa23")!;
+    expect(epicRow.statusDistribution).toEqual([]);
   });
 
   test("items with unknown qid in children array are skipped gracefully", () => {
