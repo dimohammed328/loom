@@ -21,6 +21,7 @@ import {
 import { rowClickHandler, rowKeyDownHandler } from "./tableRowClickHelpers";
 import { enterClass } from "./enterClass";
 import { statusChip } from "./statusChip";
+import { formatUpdated } from "../formatUpdated";
 
 // Re-export so callers can import from a single place.
 export { taskMeterLabel, progressBarSegments } from "./tableRowHelpers";
@@ -234,7 +235,7 @@ export default function TableRow({
 
       {/* Updated cell */}
       <td className="tcell-upd">
-        <span className="tcell-upd-text">—</span>
+        <span className="tcell-upd-text">{formatUpdated(row.updatedAt)}</span>
       </td>
     </tr>
   );
