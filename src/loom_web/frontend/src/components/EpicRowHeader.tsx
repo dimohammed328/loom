@@ -12,7 +12,9 @@
 import React from "react";
 import type { EpicRow } from "../boardModel";
 import { epicProgress } from "../progress";
-import { statusColor } from "../status";
+import { DistributionBar, distBarSegments } from "./distributionBar";
+export type { DistBarSegment } from "./distributionBar";
+export { distBarSegments } from "./distributionBar";
 
 // ---------------------------------------------------------------------------
 // Pure helpers (exported for tests)
@@ -31,27 +33,6 @@ export function epicReviewBadge(epicStatus: string | null | undefined): ReviewBa
   if (epicStatus === "in review") return { kind: "in_review", label: "In review" };
   if (epicStatus === "accepted") return { kind: "accepted", label: "Accepted" };
   return null;
-}
-
-export interface DistBarSegment {
-  status: string;
-  count: number;
-}
-
-/**
- * Build the list of distribution-bar segments from an EpicRow.
- * Only segments with count > 0 are included.
- */
-export function distBarSegments(row: EpicRow): DistBarSegment[] {
-  const counts = new Map<string, number>();
-  for (const [status, cells] of Object.entries(row.statusColumns)) {
-    if (cells.length > 0) {
-      counts.set(status, (counts.get(status) ?? 0) + cells.length);
-    }
-  }
-  return Array.from(counts.entries())
-    .filter(([, count]) => count > 0)
-    .map(([status, count]) => ({ status, count }));
 }
 
 // ---------------------------------------------------------------------------
@@ -143,29 +124,6 @@ function QidChip({ id }: { id: string }): React.JSX.Element {
   );
 }
 
-function DistributionBar({ row }: { row: EpicRow }): React.JSX.Element {
-  const segs = distBarSegments(row);
-  return (
-    <span className="dist-bar" title="Status distribution">
-      {segs.length === 0 ? (
-        <span className="dist-empty" />
-      ) : (
-        segs.map(({ status, count }) => {
-          const colors = statusColor(status);
-          return (
-            <span
-              key={status}
-              className="dist-seg"
-              style={{ flexGrow: count, background: colors.dot }}
-              title={`${count} ${status}`}
-            />
-          );
-        })
-      )}
-    </span>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // EpicRowHeader
 // ---------------------------------------------------------------------------
@@ -230,7 +188,7 @@ export default function EpicRowHeader({
       </div>
 
       {/* Distribution bar */}
-      <DistributionBar row={row} />
+      <DistributionBar segments={distBarSegments(row.statusColumns)} />
 
       {/* Meta line */}
       <div className="erh-meta">

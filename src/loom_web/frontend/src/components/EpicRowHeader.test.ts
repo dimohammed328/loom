@@ -68,7 +68,7 @@ describe("distBarSegments", () => {
       makeCell("done"),
       makeCell("ready"),
     ]);
-    const segs = distBarSegments(row);
+    const segs = distBarSegments(row.statusColumns);
     const readySeg = segs.find((s) => s.status === "ready");
     const doneSeg = segs.find((s) => s.status === "done");
     expect(readySeg).toBeDefined();
@@ -79,18 +79,18 @@ describe("distBarSegments", () => {
 
   test("omits segments with count === 0", () => {
     const row = makeRow(null, [makeCell("done")]);
-    const segs = distBarSegments(row);
+    const segs = distBarSegments(row.statusColumns);
     expect(segs.every((s) => s.count > 0)).toBe(true);
   });
 
   test("returns empty array when there are no stories", () => {
     const row = makeRow(null, []);
-    expect(distBarSegments(row)).toHaveLength(0);
+    expect(distBarSegments(row.statusColumns)).toHaveLength(0);
   });
 
   test("includes custom-status segments", () => {
     const row = makeRow(null, [makeCell("custom"), makeCell("done")]);
-    const segs = distBarSegments(row);
+    const segs = distBarSegments(row.statusColumns);
     expect(segs.find((s) => s.status === "custom")).toBeDefined();
     expect(segs.find((s) => s.status === "done")).toBeDefined();
   });
