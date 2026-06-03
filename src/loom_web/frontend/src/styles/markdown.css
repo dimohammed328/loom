@@ -114,6 +114,8 @@
   border-radius: 4px;
   padding: 1px 5px;
   color: var(--text-2);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 /* Code blocks */
@@ -154,6 +156,8 @@
   color: var(--ring);
   text-decoration: underline;
   text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
 .markdown-body a:hover {
