@@ -217,14 +217,20 @@ export default function TopBar(): React.JSX.Element {
         </button>
       )}
 
-      {/* Theme toggle */}
+      {/* Theme toggle — sun/moon pill slider */}
       <button
-        className="theme-toggle bare"
+        className={`theme-slider bare${isDark ? " is-dark" : ""}`}
+        role="switch"
+        aria-checked={isDark}
         title={isDark ? "Switch to light theme" : "Switch to dark theme"}
         aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
         onClick={handleThemeToggle}
       >
-        {isDark ? <IconSun /> : <IconMoon />}
+        <span className="ts-track">
+          <span className="ts-icon ts-sun"><IconSun /></span>
+          <span className="ts-icon ts-moon"><IconMoon /></span>
+          <span className="ts-knob" aria-hidden />
+        </span>
       </button>
 
       {/* Repo link */}
