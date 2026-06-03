@@ -29,3 +29,17 @@ export function childListLabel(item: ItemDetail): string | null {
 export function typePillLabel(type: string): string {
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
+
+/**
+ * Prepare the item body content for markdown rendering.
+ * Returns `{ isEmpty, content }` where `isEmpty` is true when there is
+ * nothing to render, and `content` is the raw markdown string to pass
+ * to ReactMarkdown.
+ */
+export function markdownBodyContent(body: string | null): {
+  isEmpty: boolean;
+  content: string;
+} {
+  const content = body ?? "";
+  return { isEmpty: content.trim() === "", content };
+}

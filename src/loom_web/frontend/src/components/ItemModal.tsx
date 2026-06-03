@@ -15,6 +15,8 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { getItem } from "../api/client";
 import type { ItemDetail, ItemRef } from "../api/client";
 import { statusColor } from "../status";
@@ -23,6 +25,7 @@ import {
   breadcrumbSegments,
   childListLabel,
   typePillLabel,
+  markdownBodyContent,
 } from "./itemModalHelpers";
 import { modalScrimStyle, modalPanelStyle, modalHeadStyle, modalBodyStyle } from "./itemModalStyles";
 import { registerModalRefetch } from "../App";
@@ -611,27 +614,23 @@ export default function ItemModal({
                 >
                   Description
                 </div>
-                {detail.body ? (
-                  <p
-                    className="modal-prose"
-                    style={{
-                      fontSize: 14,
-                      color: "var(--text)",
-                      lineHeight: 1.6,
-                      whiteSpace: "pre-wrap",
-                      margin: 0,
-                    }}
-                  >
-                    {detail.body}
-                  </p>
-                ) : (
-                  <p
-                    className="modal-prose empty"
-                    style={{ fontSize: 13.5, color: "var(--text-3)", fontStyle: "italic", margin: 0 }}
-                  >
-                    No description yet.
-                  </p>
-                )}
+                {(() => {
+                  const { isEmpty, content } = markdownBodyContent(detail.body);
+                  return isEmpty ? (
+                    <p
+                      className="modal-prose empty"
+                      style={{ fontSize: 13.5, color: "var(--text-3)", fontStyle: "italic", margin: 0 }}
+                    >
+                      No description yet.
+                    </p>
+                  ) : (
+                    <div className="modal-prose markdown-body">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {content}
+                      </ReactMarkdown>
+                    </div>
+                  );
+                })()}
               </section>
 
               {/* Dependencies */}

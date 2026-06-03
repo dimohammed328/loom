@@ -67,3 +67,27 @@ describe("modalBodyStyle", () => {
     expect(modalBodyStyle.flex).toBe(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 5: Render body via ReactMarkdown + remarkGfm
+// ---------------------------------------------------------------------------
+
+import { markdownBodyContent } from "./itemModalHelpers";
+
+describe("markdownBodyContent", () => {
+  test("returns isEmpty=true for null body", () => {
+    expect(markdownBodyContent(null).isEmpty).toBe(true);
+  });
+
+  test("returns isEmpty=true for empty string body", () => {
+    expect(markdownBodyContent("").isEmpty).toBe(true);
+  });
+
+  test("returns isEmpty=false for non-empty body", () => {
+    expect(markdownBodyContent("# Hello").isEmpty).toBe(false);
+  });
+
+  test("returns the raw body content for rendering", () => {
+    expect(markdownBodyContent("## Title\n- item").content).toBe("## Title\n- item");
+  });
+});
