@@ -12,18 +12,12 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { listProjects, type ProjectSummary } from "../api/client";
 import { useAppStore, type View } from "../state/store";
 import { getTheme, setTheme } from "../theme";
+import { repoLabel, repoHref } from "../repoUtils";
 
 // ---------------------------------------------------------------------------
 // Inline SVG icons (no external deps)
 // ---------------------------------------------------------------------------
 
-function IconChevronDown(): React.JSX.Element {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 function IconCheck(): React.JSX.Element {
   return (
@@ -120,10 +114,8 @@ function ProjectMenu({ projects, current, onSelect, onClose }: ProjectMenuProps)
           role="menuitem"
           onClick={() => { onSelect(p); onClose(); }}
         >
-          <span className="picon">📋</span>
           <span className="pmeta">
             <span className="t">{p.title}</span>
-            {p.repo && <span className="s">{repoLabel(p.repo)}</span>}
           </span>
           {p.qid === current.qid && (
             <span className="check"><IconCheck /></span>
@@ -132,15 +124,6 @@ function ProjectMenu({ projects, current, onSelect, onClose }: ProjectMenuProps)
       ))}
     </div>
   );
-}
-
-function repoLabel(repo: string): string {
-  try {
-    const url = new URL(repo);
-    return url.pathname.replace(/^\//, "").replace(/\.git$/, "");
-  } catch {
-    return repo;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -177,6 +160,7 @@ export default function TopBar(): React.JSX.Element {
 
   const repoUrl = currentProject?.repo ?? null;
   const repoName = repoUrl ? repoLabel(repoUrl) : null;
+  const repoLink = repoUrl ? repoHref(repoUrl) : null;
 
   return (
     <header className="topbar">
@@ -188,9 +172,7 @@ export default function TopBar(): React.JSX.Element {
           aria-expanded={menuOpen}
           onClick={toggleMenu}
         >
-          <span className="picon">📋</span>
           <span className="pname">{currentProject?.title ?? "No project"}</span>
-          <span className="chev"><IconChevronDown /></span>
         </button>
 
         {menuOpen && projects && currentProject && (
@@ -235,24 +217,30 @@ export default function TopBar(): React.JSX.Element {
         </button>
       )}
 
-      {/* Theme toggle */}
+      {/* Theme toggle — sun/moon pill slider */}
       <button
-        className="theme-toggle bare"
+        className={`theme-slider bare${isDark ? " is-dark" : ""}`}
+        role="switch"
+        aria-checked={isDark}
         title={isDark ? "Switch to light theme" : "Switch to dark theme"}
         aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
         onClick={handleThemeToggle}
       >
-        {isDark ? <IconSun /> : <IconMoon />}
+        <span className="ts-track">
+          <span className="ts-icon ts-sun"><IconSun /></span>
+          <span className="ts-icon ts-moon"><IconMoon /></span>
+          <span className="ts-knob" aria-hidden />
+        </span>
       </button>
 
       {/* Repo link */}
-      {repoUrl && (
+      {repoName && repoLink && (
         <a
           className="repo"
-          href={repoUrl}
+          href={repoLink}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={`Open repository ${repoName ?? ""}`}
+          aria-label={`Open repository ${repoName}`}
         >
           <IconGithub />
           {repoName}
