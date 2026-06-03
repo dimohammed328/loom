@@ -120,10 +120,8 @@ function ProjectMenu({ projects, current, onSelect, onClose }: ProjectMenuProps)
           role="menuitem"
           onClick={() => { onSelect(p); onClose(); }}
         >
-          <span className="picon">📋</span>
           <span className="pmeta">
             <span className="t">{p.title}</span>
-            {p.repo && <span className="s">{repoLabel(p.repo)}</span>}
           </span>
           {p.qid === current.qid && (
             <span className="check"><IconCheck /></span>
