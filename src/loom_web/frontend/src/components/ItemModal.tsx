@@ -24,6 +24,7 @@ import {
   childListLabel,
   typePillLabel,
 } from "./itemModalHelpers";
+import { modalScrimStyle, modalPanelStyle } from "./itemModalStyles";
 import { registerModalRefetch } from "../App";
 import { statusChip } from "./statusChip";
 
@@ -360,16 +361,7 @@ export default function ItemModal({
     <div
       className="modal-scrim"
       onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.35)",
-        backdropFilter: "blur(2px)",
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        zIndex: 100,
-      }}
+      style={modalScrimStyle}
     >
       <div
         className="modal-panel"
