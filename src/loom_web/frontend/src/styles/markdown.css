@@ -77,7 +77,10 @@
 /* Tables */
 .markdown-body table {
   border-collapse: collapse;
-  width: 100%;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+  width: max-content;
   margin: 0 0 0.75em;
   font-size: 13px;
 }
