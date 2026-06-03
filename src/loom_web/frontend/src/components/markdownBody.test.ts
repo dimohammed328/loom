@@ -74,6 +74,50 @@ describe("modalBodyStyle", () => {
 
 import { markdownBodyContent } from "./itemModalHelpers";
 
+// ---------------------------------------------------------------------------
+// Task 6: CSS for rendered markdown elements must exist
+// ---------------------------------------------------------------------------
+
+import { readFileSync } from "fs";
+import { join } from "path";
+
+describe("markdown.css", () => {
+  const cssPath = join(import.meta.dir, "../styles/markdown.css");
+
+  test("file exists", () => {
+    expect(() => readFileSync(cssPath, "utf8")).not.toThrow();
+  });
+
+  test("styles .markdown-body headings (h1, h2, h3)", () => {
+    const css = readFileSync(cssPath, "utf8");
+    expect(css).toContain(".markdown-body h1");
+    expect(css).toContain(".markdown-body h2");
+    expect(css).toContain(".markdown-body h3");
+  });
+
+  test("styles .markdown-body lists (ul, ol, li)", () => {
+    const css = readFileSync(cssPath, "utf8");
+    expect(css).toContain(".markdown-body ul");
+    expect(css).toContain(".markdown-body ol");
+    expect(css).toContain(".markdown-body li");
+  });
+
+  test("styles .markdown-body GFM task-list checkboxes", () => {
+    const css = readFileSync(cssPath, "utf8");
+    expect(css).toContain("task-list");
+  });
+
+  test("styles .markdown-body tables", () => {
+    const css = readFileSync(cssPath, "utf8");
+    expect(css).toContain(".markdown-body table");
+  });
+
+  test("styles .markdown-body code", () => {
+    const css = readFileSync(cssPath, "utf8");
+    expect(css).toContain(".markdown-body code");
+  });
+});
+
 describe("markdownBodyContent", () => {
   test("returns isEmpty=true for null body", () => {
     expect(markdownBodyContent(null).isEmpty).toBe(true);
