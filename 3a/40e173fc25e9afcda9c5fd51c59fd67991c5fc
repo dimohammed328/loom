@@ -1,0 +1,19 @@
+src/loom_web/frontend/CLAUDE.md
+  s_4180005dda85a5::t_817ae10c5c0988 1-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3a40e173fc25e9afcda9c5fd51c59fd67991c5fc",
+  "prompts": {},
+  "sessions": {
+    "s_4180005dda85a5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "55328bde-352a-40cb-958f-e72a2608ce76",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
