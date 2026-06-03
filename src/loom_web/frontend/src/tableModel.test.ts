@@ -102,6 +102,20 @@ describe("tableModel", () => {
     expect(epicRow!.depth).toBe(0);
   });
 
+  test("story row carries the correct title from the source node", () => {
+    const tree = makeTree();
+    const rows = tableModel(tree, {});
+    const storyRow = rows.find((r) => r.qid === "proj:aaa23:1")!;
+    expect(storyRow.title).toBe("Story A");
+  });
+
+  test("task row carries the correct title from the source node", () => {
+    const tree = makeTree();
+    const rows = tableModel(tree, {});
+    const taskRow = rows.find((r) => r.qid === "proj:aaa23:1:1")!;
+    expect(taskRow.title).toBe("Task 1");
+  });
+
   test("epics are at depth 0, stories at depth 1, tasks at depth 2", () => {
     const tree = makeTree();
     const rows = tableModel(tree, {});
