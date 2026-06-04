@@ -1,0 +1,22 @@
+web/lib/deps.ts
+  s_c8049e6ce0a436::t_0c5c42333e51ac 2,4,12-13,16,18-22
+  s_c8049e6ce0a436::t_08d41a7f8a530f 189-378
+web/lib/deps-write.test.ts
+  s_c8049e6ce0a436::t_40ddfa48d56c78 1-350
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "b2fa7c7dd0eb75b7681558437439af1a26af4939",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
