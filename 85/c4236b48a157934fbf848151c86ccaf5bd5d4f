@@ -1,0 +1,22 @@
+web/server/web_live_parity.test.ts
+  s_c8049e6ce0a436::t_46b28002e558da 1-280,341-349,408-409
+  s_c8049e6ce0a436::t_150e2d973794ad 281-288,293-298,302-340,350-364,366-407
+  s_c8049e6ce0a436::t_8ebc519eb3c513 289-292,299-301
+  s_c8049e6ce0a436::t_a7dfd6a82b8360 365
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "85c4236b48a157934fbf848151c86ccaf5bd5d4f",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
