@@ -152,10 +152,17 @@ looks like for the story as a whole.
 loom order <story_qid> --json
 ```
 
-This returns the topologically sorted task list. **This is your source of
-truth.** The number of items returned is exactly the number of tasks you
-will execute. Do not add, drop, or merge tasks based on what the story body
-prose suggests — the body is context, `loom order` is the work.
+This returns the topologically sorted task list of **open (non-done) tasks
+only**. **This is your source of truth.** The number of items returned is
+exactly the number of tasks you will execute. Do not add, drop, or merge
+tasks based on what the story body prose suggests — the body is context,
+`loom order` is the work.
+
+**Re-dispatch behavior:** On a second (or later) dispatch, `loom order`
+returns only the tasks that are not yet `done` — the newly-filed fix-tasks.
+You implement those and commit them on the same `<BRANCH>`, stacking on
+top of the prior commits. The integrator will see the full history. There
+is nothing special to do; the same loop applies.
 
 ### Step 5 — Confirm the task list
 
