@@ -1,0 +1,19 @@
+web/server/web_api_parity.test.ts
+  s_c8049e6ce0a436::t_dbe2296aa6d41d 1-247
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "a81f32f8531342ad9186f6002d5997e4222d8fa8",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
