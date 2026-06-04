@@ -18,7 +18,15 @@ export const meta = {
   ],
 }
 
-// ── Schema constants ──────────────────────────────────────────────────────────
+// ── Schema constants ─────────────────────────────────────────────────────────
+// TRUNK_SCHEMA  — trunk-setup agent result
+// BUILD_SCHEMA  — story-executor (loom:story-executor) result
+// REVIEW_SCHEMA — code-reviewer result
+// VALIDATE_SCHEMA — story-validator result
+// MERGE_SCHEMA  — serial merge agent result
+// READY_SCHEMA  — loom ready query result (wave / refill)
+// EPIC_VAL_SCHEMA — loom:epic-validator result
+// FIN_SCHEMA    — finalize agent result (PR URL or merge note)
 
 const TRUNK_SCHEMA = {
   type: 'object',
