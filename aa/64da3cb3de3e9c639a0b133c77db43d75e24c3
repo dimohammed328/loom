@@ -1,0 +1,21 @@
+plugin/agents/code-reviewer.md
+  s_d7a29117652d90::t_5b022660790ff8 4
+plugin/agents/story-validator.md
+  s_d7a29117652d90::t_d3bcda14acc12a 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "aa64da3cb3de3e9c639a0b133c77db43d75e24c3",
+  "prompts": {},
+  "sessions": {
+    "s_d7a29117652d90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c8a3b2c1-e613-405c-b6ea-35c325026dde",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
