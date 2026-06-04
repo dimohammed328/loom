@@ -321,3 +321,77 @@ git branch -d ${result.build.branch}`,
 }
 
 log('All stories merged into trunk.')
+
+// ── Phase 3: Epic validation ──────────────────────────────────────────────────
+
+phase('Validate')
+
+log(`Dispatching epic-validator for ${epicQid}`)
+
+const epicVal = await agent(
+  `epic_qid=${epicQid} branch=${trunk.branch} worktree=${trunk.worktree}`,
+  { label: 'epic-validator', agentType: 'loom:epic-validator', schema: EPIC_VAL_SCHEMA }
+)
+
+if (epicVal.result !== 'ok') {
+  log(`Epic validation FAILED. Notes: ${epicVal.notes ?? '(none)'}`)
+  return {
+    result: 'failed',
+    reason: 'epic-validator returned failed',
+    criteria: epicVal.criteria,
+    notes: epicVal.notes,
+  }
+}
+
+log('Epic validation passed.')
+
+// Mark the epic done in loom
+await agent(
+  `Run: loom complete ${epicQid}`,
+  { label: `complete-epic:${epicQid}`, agentType: 'loom:story-executor' }
+)
+
+// ── Phase 4: Finalize ─────────────────────────────────────────────────────────
+
+phase('Finalize')
+
+let fin
+
+if (finalize === 'merge') {
+  // Local merge + push into main (only when explicitly requested)
+  log(`Merging ${trunk.branch} into main and pushing`)
+  fin = await agent(
+    `Finalize the epic by merging the trunk branch into main and pushing.
+Steps:
+1. cd to the repo root (not the trunk worktree).
+2. git checkout main && git pull --ff-only origin main
+3. git merge --no-ff ${trunk.branch} -m "Merge epic ${epicQid}: ${trunk.branch}"
+4. git push origin main
+5. git branch -d ${trunk.branch}
+6. git worktree remove --force ${trunk.worktree}
+Return pr_url=null and a note confirming the push.`,
+    { label: 'finalize-merge', schema: FIN_SCHEMA }
+  )
+} else {
+  // Default: push branch + open PR
+  log(`Pushing ${trunk.branch} and opening PR`)
+  fin = await agent(
+    `Finalize the epic by pushing the branch and opening a pull request.
+Steps:
+1. git push -u origin ${trunk.branch}
+2. gh pr create --base main --head ${trunk.branch} \\
+     --title "Epic ${epicQid}" \\
+     --body "$(loom show ${epicQid} --json | python3 -c \\"import json,sys; print(json.load(sys.stdin)['body'])\\")"
+3. Return the PR URL as pr_url.`,
+    { label: 'finalize-pr', schema: FIN_SCHEMA }
+  )
+}
+
+log(`Finalized. PR URL: ${fin.pr_url ?? 'n/a (merged directly)'}`)
+
+return {
+  result: 'ok',
+  epic_qid: epicQid,
+  branch: trunk.branch,
+  pr_url: fin.pr_url,
+}
