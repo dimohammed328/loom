@@ -9,7 +9,7 @@ import { describe, test, expect } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { spawnSync } from "child_process";
+import { spawnSync, SpawnSyncOptionsWithStringEncoding } from "child_process";
 import { Loom } from "./loom";
 import { initDb, DB_FILENAME } from "./index";
 import { rebuild } from "./rebuild";
@@ -32,11 +32,16 @@ function makeTmpDir(): string {
 function runCmd(cmd: string[], env?: Record<string, string>): { stdout: string; stderr: string; status: number } {
   // Find repo root — three levels up from web/lib/
   const repoRoot = path.resolve(__dirname, "..", "..");
-  const result = spawnSync(cmd[0], cmd.slice(1), {
+  // Filter undefined values from process.env so the type matches Record<string, string>.
+  const baseEnv: Record<string, string> = Object.fromEntries(
+    Object.entries(process.env).filter((e): e is [string, string] => e[1] !== undefined)
+  );
+  const opts: SpawnSyncOptionsWithStringEncoding = {
     cwd: repoRoot,
-    env: { ...process.env, ...env },
+    env: { ...baseEnv, ...env },
     encoding: "utf8",
-  });
+  };
+  const result = spawnSync(cmd[0]!, cmd.slice(1), opts);
   return {
     stdout: result.stdout ?? "",
     stderr: result.stderr ?? "",

@@ -1,9 +1,9 @@
 """Structural test: pyproject.toml must not contain web-only entries after pruning."""
+
 from __future__ import annotations
 
-from pathlib import Path
-
 import tomllib
+from pathlib import Path
 
 
 def _load_pyproject() -> dict:
@@ -16,9 +16,7 @@ def test_no_loom_web_script() -> None:
     """pyproject.toml must not declare a loom-web console_scripts entry."""
     data = _load_pyproject()
     scripts = data.get("project", {}).get("scripts", {})
-    assert "loom-web" not in scripts, (
-        "loom-web script entry must be removed from pyproject.toml"
-    )
+    assert "loom-web" not in scripts, "loom-web script entry must be removed from pyproject.toml"
 
 
 def test_no_fastapi_dependency() -> None:
