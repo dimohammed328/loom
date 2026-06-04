@@ -19,7 +19,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { Index, IndexRecord } from "./index";
 import { load, dump } from "./storage";
-import { buildRecordSync } from "./scan";
+import { buildRecord, buildRecordSync } from "./scan";
 import {
   QualifiedId,
   ItemType,
@@ -480,6 +480,8 @@ export class _Statused extends Item {
 // Concrete item classes (stubs; full implementation in task 5)
 // ---------------------------------------------------------------------------
 
+const EPIC_ID_MAX_ATTEMPTS = 8;
+
 export class Project extends Item {
   get repo(): string | null {
     return this._record.repo;
@@ -499,9 +501,28 @@ export class Project extends Item {
     return this;
   }
 
-  // createEpic and epics() implemented in items-ext.ts (task 5)
-  async createEpic(_opts: { title: string; body?: string; epicId?: string }): Promise<Epic> {
-    throw new LoomError("createEpic not yet implemented — use task 5");
+  async createEpic(opts: { title: string; body?: string; epicId?: string }): Promise<Epic> {
+    const { title, body = "", epicId } = opts;
+    if (epicId !== undefined) {
+      const qid = new QualifiedId(this._record.project, epicId);
+      const fm = buildFrontmatter(qid, title, "ready");
+      const record = await createItemFile(this._root, qid, fm, body);
+      return new Epic(this._root, record);
+    }
+    for (let attempt = 0; attempt < EPIC_ID_MAX_ATTEMPTS; attempt++) {
+      const { random_epic_id } = await import("./ids");
+      const randomId = random_epic_id();
+      const qid = new QualifiedId(this._record.project, randomId);
+      if (!qidPathExistsAnywhere(this._root, qid)) {
+        const fm = buildFrontmatter(qid, title, "ready");
+        const record = await createItemFile(this._root, qid, fm, body);
+        return new Epic(this._root, record);
+      }
+    }
+    throw new LoomError(
+      `could not allocate a unique epic id for project ${JSON.stringify(this._record.project)} ` +
+        `after ${EPIC_ID_MAX_ATTEMPTS} attempts`
+    );
   }
 
   epics(): Epic[] {
@@ -511,8 +532,14 @@ export class Project extends Item {
 }
 
 export class Epic extends _Statused {
-  async createStory(_opts: { title: string; body?: string }): Promise<Story> {
-    throw new LoomError("createStory not yet implemented — use task 5");
+  async createStory(opts: { title: string; body?: string }): Promise<Story> {
+    const { title, body = "" } = opts;
+    const parentQid = new QualifiedId(this._record.project, this._record.epic);
+    const nextId = nextSequentialId(this._root, parentQid, ItemType.STORY);
+    const qid = new QualifiedId(this._record.project, this._record.epic, nextId);
+    const fm = buildFrontmatter(qid, title, "ready");
+    const record = await createItemFile(this._root, qid, fm, body);
+    return new Story(this._root, record);
   }
 
   stories(): Story[] {
@@ -524,8 +551,23 @@ export class Epic extends _Statused {
 }
 
 export class Story extends _Statused {
-  async createTask(_opts: { title: string; body?: string }): Promise<Task> {
-    throw new LoomError("createTask not yet implemented — use task 5");
+  async createTask(opts: { title: string; body?: string }): Promise<Task> {
+    const { title, body = "" } = opts;
+    const parentQid = new QualifiedId(
+      this._record.project,
+      this._record.epic,
+      this._record.story
+    );
+    const nextId = nextSequentialId(this._root, parentQid, ItemType.TASK);
+    const qid = new QualifiedId(
+      this._record.project,
+      this._record.epic,
+      this._record.story,
+      nextId
+    );
+    const fm = buildFrontmatter(qid, title, "ready");
+    const record = await createItemFile(this._root, qid, fm, body);
+    return new Task(this._root, record);
   }
 
   tasks(): Task[] {
