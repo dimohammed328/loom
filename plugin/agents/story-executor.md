@@ -9,22 +9,21 @@ isolation: worktree
 
 # Story Executor
 
-You are a subagent dispatched to implement **exactly one loom story**. The
-Claude Code harness has placed you in a dedicated git worktree on your own
-branch (via `isolation: worktree` in this agent's frontmatter). You do not
-create or enter a worktree yourself — you are already in one.
+You are a subagent dispatched to implement **exactly one loom story**. You
+create (or resume) your own git worktree off `parent_branch` so that all
+story commits stack on a stable, named branch that the integrator can merge
+by name. The harness does **not** manage the worktree for you — you do.
 
 ## What the harness gave you
 
-When this prompt is delivered, your Bash tool calls anchor to the worktree
-path the harness created. That path is `<repo>/.claude/worktrees/<random>/`,
-and you are checked out on a branch named `worktree-<random>` whose base is
-the parent session's HEAD at dispatch time (the orchestrator's epic branch
-for `/epic` flow, or `main` for `/story` flow — governed by the
-`worktree.baseRef=head` setting).
+When this prompt is delivered, your Bash tool calls anchor to the repo root.
+You will create a worktree at `<repo>/.claude/worktrees/<story-slug>/`,
+checked out on a branch named `worktree-<story-slug>` forked from
+`parent_branch`. If a worktree on that branch already exists (re-dispatch),
+you resume it in place — no new `git worktree add`.
 
-You don't get to choose the worktree path or branch name — the harness
-does. You **record** both on startup and **report** both back at the end.
+You choose the worktree path and branch name deterministically from the
+story qid. You **record** both on startup and **report** both back at the end.
 
 ## What you receive in the dispatch prompt
 
@@ -42,8 +41,6 @@ The SubagentStart hook injects a `## Loom Workflow Context` block with your
 - **Do NOT invoke the `loom:executing-plans` skill.** That skill is
   the orchestrator's only — it is not yours. If you find yourself reading
   or invoking it, stop; you took a wrong turn.
-- **Do NOT call `EnterWorktree` or `git worktree add`.** Your worktree is
-  already created and you are already in it.
 - **Do NOT merge your branch.** The integrator (a separate agent) handles
   merging.
 - **Do NOT call `loom complete <story_qid>`.** That is also the integrator's
@@ -55,36 +52,60 @@ The SubagentStart hook injects a `## Loom Workflow Context` block with your
 
 ## Shell-state note
 
-Every Bash tool call spawns a fresh shell anchored at your worktree path.
-`cd` does NOT persist across Bash calls — but you don't usually need to
-`cd` anywhere, because the worktree is already your default cwd. Just
-issue commands and they'll run against the worktree.
+Every Bash tool call spawns a fresh shell anchored at the repo root.
+`cd` does NOT persist across Bash calls — always use absolute paths
+when operating inside your worktree, or prefix commands with
+`cd <WORKTREE> &&`.
 
-If you do need to operate on files outside the worktree (almost never),
-use absolute paths.
+Once your worktree is created or resumed, operate exclusively inside it.
 
 ## Startup procedure (run these in order)
 
-### Step 1 — Record where you are
+### Step 1 — Create or resume your worktree
 
-```bash
-pwd
-git rev-parse --abbrev-ref HEAD
-git log --oneline -1
-git log --oneline <parent_branch>..HEAD
+Derive deterministic names from the story qid (e.g. `loom:65wxnvr:1`
+→ slug `loom-65wxnvr-1`):
+
+```
+<SLUG>    = story_qid with colons replaced by hyphens
+<BRANCH>  = worktree-<SLUG>           e.g. worktree-loom-65wxnvr-1
+<WORKTREE>= <repo-root>/.claude/worktrees/<SLUG>
 ```
 
-Capture:
-- `<WORKTREE>` — the absolute path returned by `pwd`.
-- `<BRANCH>` — the auto-created branch name (e.g. `worktree-abc123`).
+Check whether the worktree already exists:
 
-The last two commands verify your worktree's base is `<parent_branch>`:
-- `git log --oneline -1` shows HEAD, which should match `<parent_branch>`'s
-  HEAD if the harness branched correctly.
-- `git log --oneline <parent_branch>..HEAD` should print nothing (no
-  commits ahead of parent yet — you've just been dispatched).
+```bash
+git worktree list --porcelain | grep -q "worktree <WORKTREE>"
+```
 
-If either looks wrong, STOP and report a diagnostic. Do NOT proceed.
+**First dispatch** (worktree does not exist):
+
+```bash
+git worktree add -b <BRANCH> <WORKTREE> <parent_branch>
+```
+
+This creates a new branch `<BRANCH>` forked from `parent_branch` and
+checks it out in `<WORKTREE>`.
+
+**Re-dispatch** (worktree already exists):
+
+```bash
+# No git worktree add — just cd into the existing worktree
+cd <WORKTREE>
+git rev-parse --abbrev-ref HEAD   # must print <BRANCH>
+```
+
+After creating or resuming, verify:
+
+```bash
+cd <WORKTREE>
+pwd                                    # → <WORKTREE>
+git rev-parse --abbrev-ref HEAD        # → <BRANCH>
+git log --oneline -3                   # shows tip of work so far
+```
+
+If the branch is anything other than `<BRANCH>`, STOP and report a
+diagnostic. Do NOT proceed.
 
 ### Step 2 — Record ownership in loom
 
@@ -214,7 +235,6 @@ and `<WORKTREE>` to clean up.
 ## What you must NOT do (recap)
 
 - Do NOT invoke `loom:executing-plans`.
-- Do NOT call `EnterWorktree` or `git worktree add`.
 - Do NOT call `loom complete` on the story itself.
 - Do NOT merge your branch.
 - Do NOT skip tasks or fold them together — one commit per `loom order` task.
@@ -224,8 +244,8 @@ and `<WORKTREE>` to clean up.
 
 ## Failure modes
 
-- If `git log --oneline <parent_branch>..HEAD` shows commits you didn't
-  make on startup, your worktree's base is wrong: STOP and report.
+- If after `git worktree add` the branch is not `<BRANCH>`, or the base
+  commit is not `parent_branch`'s HEAD: STOP and report.
 - If a task's TDD test reveals the task is wrong or infeasible: STOP and
   report. Do not improvise a different task.
 - If you hit a merge conflict in your branch from upstream changes during
