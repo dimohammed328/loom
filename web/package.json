@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run server/index.ts",
+    "dev": "bun --hot run server/index.ts",
     "start": "bun run server/index.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "bun x tsc --noEmit && bun x tsc --noEmit -p frontend/tsconfig.json"
   },
   "dependencies": {
     "@xyflow/react": "^12.11.0",

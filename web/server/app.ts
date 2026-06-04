@@ -71,7 +71,7 @@ export function createApp(
   const gateway = new LoomGateway(root);
   const broadcaster = new Broadcaster();
 
-  const bunServer = Bun.serve<WsData, undefined>({
+  const bunServer = Bun.serve<WsData>({
     port,
 
     // ---- WebSocket handlers -------------------------------------------------
@@ -99,9 +99,9 @@ export function createApp(
     // (Bun bundles main.tsx → index.html on first request, with HMR in dev).
     routes: {
       // API routes — handled inline so they take priority over the SPA wildcard.
-      "/api/health": (_req) => jsonResponse({ status: "ok" }),
+      "/api/health": (_req: Request) => jsonResponse({ status: "ok" }),
 
-      "/api/projects": async (_req) => {
+      "/api/projects": async (_req: Request) => {
         try {
           const projects = await gateway.listProjects();
           return jsonResponse(projects.map(serializeProject));
@@ -111,7 +111,7 @@ export function createApp(
         }
       },
 
-      "/api/projects/:project/tree": async (req) => {
+      "/api/projects/:project/tree": async (req: Request) => {
         const project = (req as unknown as { params: Record<string, string> }).params["project"]!;
         try {
           const treeDict = await gateway.getTree(project);
@@ -124,7 +124,7 @@ export function createApp(
 
       // /api/items/* — qids contain colons (e.g. acme:abc:1:2) which are
       // not valid route param characters, so we handle the path manually.
-      "/api/items/*": async (req) => {
+      "/api/items/*": async (req: Request) => {
         const url = new URL(req.url);
         const qid = url.pathname.slice("/api/items/".length);
         if (!qid) return notFound("qid required");
@@ -151,7 +151,7 @@ export function createApp(
     fetch(req: Request, server): Response | Promise<Response> {
       const url = new URL(req.url);
       if (url.pathname === "/ws") {
-        const upgraded = server.upgrade<WsData>(req, { data: { subscriber: null! } });
+        const upgraded = server.upgrade(req, { data: { subscriber: null! } as WsData });
         if (upgraded) return undefined as unknown as Response;
         return new Response("WebSocket upgrade failed", { status: 400 });
       }
