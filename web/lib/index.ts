@@ -134,7 +134,7 @@ function dropSchema(db: Database): void {
 }
 
 export function currentVersion(dbPath: string): number {
-  const db = new Database(dbPath, { readonly: true });
+  const db = openDb(dbPath);
   try {
     const row = db.query("PRAGMA user_version").get() as { user_version: number };
     return row.user_version;
