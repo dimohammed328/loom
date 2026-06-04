@@ -1,0 +1,23 @@
+CLAUDE.md
+  ai_agent 342
+tests/test_examples_cleaned.py
+  s_d7a29117652d90::t_183ad690ec350d 1-27
+AGENTS.md
+  ai_agent 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "09c97e8ab5629ab4b37292d804fc8649493c3c0a",
+  "prompts": {},
+  "sessions": {
+    "s_d7a29117652d90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c8a3b2c1-e613-405c-b6ea-35c325026dde",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
