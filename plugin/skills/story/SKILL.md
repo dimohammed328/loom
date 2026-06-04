@@ -23,15 +23,20 @@ The user has invoked `/story <description>`. The description is in `$ARGUMENTS`.
 
 5. **Hand off to `loom:writing-plans`** with the groomed draft. That skill creates the story under backlog and its tasks; sets `assignee: ${CLAUDE_SESSION_ID}` on the story.
 
-6. **Hand off to `loom:executing-plans`** with `story_qid=<qid>`. The orchestrator creates the story worktree off main, dispatches one story-executor, then one story-integrator (validation only, on the story branch directly). On validation success, `executing-plans` finalizes the branch in-skill — by default pushing the branch and opening a PR via `gh pr create`; if the original `/story` request explicitly asked to merge to main (e.g. "merge to main", "push to main", "no PR"), it merges into `main` and pushes instead.
-
-7. On validation pass, you're done. On validation fail after 3 retries, the orchestrator halts and surfaces the diagnostic.
+6. **Launch the story workflow** by invoking:
+   ```js
+   Workflow({
+     scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/story.workflow.js",
+     args: { story_qid: "<qid>", merge: "<'true' or 'false'>" }
+   })
+   ```
+   Set `merge` to `"true"` only if the original `/story` request explicitly asked to merge to main (e.g. "merge to main", "push to main", "no PR"); otherwise omit it or pass `"false"` (PR is the default). The workflow dispatches one story-executor, runs review and validation, and finalizes the branch. On validation fail after 3 retries, the workflow halts and surfaces the diagnostic.
 
 ## Differences from /epic
 
 - One story, not many. No parallel fanout.
 - No epic worktree. Story worktree branches directly off `main`.
-- Validation runs directly on the story branch (no per-story integrator merge into an epic branch). Final integration is done by the `executing-plans` Finalize step itself: open a PR via `gh pr create` by default, or merge into `main` and push if the user explicitly asked for it.
+- Validation runs directly on the story branch (no per-story integrator merge into an epic branch). Final integration is done by the workflow's Finalize phase: open a PR via `gh pr create` by default, or merge into `main` and push if the user explicitly asked for it.
 - Lives under the `backlog` epic, not a freshly-created epic.
 
 ## Constraints

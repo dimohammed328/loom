@@ -23,9 +23,14 @@ The user has invoked `/epic <description>`. The description is in `$ARGUMENTS`. 
 
 4. **Hand off to `loom:writing-plans`** with the groomed draft. That skill materializes the epic, stories, tasks, and deps in loom via CLI; sets `assignee: ${CLAUDE_SESSION_ID}` on the epic and stories; writes bodies via `--body-file`.
 
-5. **Hand off to `loom:executing-plans`** with `epic_qid=<qid>`. The orchestrator creates the epic worktree, runs the wave loop, and runs final epic validation.
-
-6. On final validation pass, the orchestrator finalizes the epic branch (opens a PR via `gh pr create` by default; merges into `main` and pushes only if the original `/epic` request explicitly asked for it). On failure, the orchestrator halts and surfaces the diagnostic — that ends your turn.
+5. **Launch the epic workflow** by invoking:
+   ```js
+   Workflow({
+     scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/epic.workflow.js",
+     args: { epic_qid: "<qid>", finalize: "<'pr' or 'merge'>" }
+   })
+   ```
+   Set `finalize` to `"merge"` only if the original `/epic` request explicitly asked to merge to main (e.g. "merge to main", "push to main", "no PR"); otherwise use `"pr"` (the default). The workflow creates the epic worktree, runs the story scheduler loop, runs final epic validation, and finalizes the branch. On failure, the workflow halts and surfaces the diagnostic — that ends your turn.
 
 ## Constraints
 
@@ -36,5 +41,5 @@ The user has invoked `/epic <description>`. The description is in `$ARGUMENTS`. 
 ## What you do NOT do here
 
 - Do NOT dispatch subagents directly. Each skill in the chain knows its part.
-- Do NOT write to loom directly. `writing-plans` handles all loom writes during planning; the agents/hooks handle writes during execution.
-- Do NOT create worktrees or branches yourself — `executing-plans` and the story-executor handle them.
+- Do NOT write to loom directly. `writing-plans` handles all loom writes during planning; the workflow handles writes during execution.
+- Do NOT create worktrees or branches yourself — the workflow and the story-executor handle them.
