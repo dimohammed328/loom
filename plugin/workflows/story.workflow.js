@@ -163,3 +163,75 @@ if (!result.ok) {
     reason: result.reason,
   }
 }
+
+// ---- Convergence succeeded — finalize ----
+const { executor } = result
+phase('Finalize')
+
+// Final validation on the story branch before touching main
+log('Running final story-validator before finalize')
+const finalValidation = await agent(
+  `story_qid=${story_qid} branch=${executor.branch} worktree=${executor.worktree}`,
+  { label: 'final-validator', agentType: 'story-validator', schema: VALIDATOR_SCHEMA }
+)
+if (finalValidation.result !== 'ok') {
+  const failed = finalValidation.criteria.filter(c => !c.pass).map(c => c.text).join('; ')
+  return {
+    result: 'failed',
+    story_qid,
+    attempts: attempt,
+    reason: `final-validation: ${failed}`,
+  }
+}
+
+if (doMerge) {
+  // Merge + push path (only when explicitly requested via args.merge=true)
+  log(`Merging ${executor.branch} into main and pushing`)
+  await agent(
+    [
+      `Run these commands in order and confirm each succeeds:`,
+      `1. git fetch origin`,
+      `2. git checkout main`,
+      `3. git pull --ff-only origin main`,
+      `4. git merge --no-ff ${executor.branch} -m "Merge ${executor.branch}: story ${story_qid}"`,
+      `5. git push origin main`,
+      `6. git branch -d ${executor.branch}`,
+      `7. git worktree remove --force ${executor.worktree}`,
+    ].join('\n'),
+    { label: 'merge-push' }
+  )
+  return {
+    result: 'ok',
+    story_qid,
+    branch: executor.branch,
+    merged_to: 'main',
+    attempts: attempt,
+  }
+} else {
+  // Default: open a PR
+  log(`Opening PR for ${executor.branch} → main`)
+  const PR_SCHEMA = {
+    type: 'object',
+    required: ['pr_url'],
+    properties: { pr_url: { type: 'string' } },
+  }
+  const pr = await agent(
+    [
+      `Push the branch and open a GitHub PR, then return the PR URL.`,
+      `Branch: ${executor.branch}`,
+      `Base: main`,
+      `Commands:`,
+      `1. git push -u origin ${executor.branch}`,
+      `2. gh pr create --base main --head ${executor.branch} --title "story ${story_qid}" --body "Automated PR for loom story ${story_qid}." and capture the URL`,
+      `Return JSON: { "pr_url": "<url>" }`,
+    ].join('\n'),
+    { label: 'open-pr', schema: PR_SCHEMA }
+  )
+  return {
+    result: 'ok',
+    story_qid,
+    branch: executor.branch,
+    pr_url: pr.pr_url,
+    attempts: attempt,
+  }
+}
