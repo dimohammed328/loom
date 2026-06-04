@@ -1,0 +1,23 @@
+web/server/schemas.test.ts
+  s_c8049e6ce0a436::t_a145c8192a6523 10-12
+  s_c8049e6ce0a436::t_23db536316d8d9 1-9,13-21,32-157
+  s_c8049e6ce0a436::t_19df1a142a99e9 22-31
+web/server/schemas.ts
+  s_c8049e6ce0a436::t_bf0f4d69762457 1-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "e53c289d1e98717082d2c0066deecd62ab5692f7",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
