@@ -1,0 +1,19 @@
+plugin/workflows/epic.workflow.js
+  s_d7a29117652d90::t_3f2e5ba48adf85 231-323
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "7068d9c6dc47fdc8c82ec5bd43bdff71abed8d1e",
+  "prompts": {},
+  "sessions": {
+    "s_d7a29117652d90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c8a3b2c1-e613-405c-b6ea-35c325026dde",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
