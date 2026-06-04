@@ -1,0 +1,30 @@
+web/lib/cross_impl_parity.test.ts
+  s_c8049e6ce0a436::t_bb0ec446306c7c 1-15,17-68,70-87,89-104,107-108,113-114,118-122,126-128,130,133-134,136-141,145-149,152-153,155-160,164-167,171-175,178-179,181-189,192-219,221-224
+  s_c8049e6ce0a436::t_e125a865f3c9bb 109-112
+  s_c8049e6ce0a436::t_74dc1b00afcd26 16
+  s_c8049e6ce0a436::t_c3f29636ea3a2e 88
+  s_c8049e6ce0a436::t_26b3a0f53f8062 105-106,115-117,123-125,129,131-132,142-144,150-151,161-163,168-170,176-177,190-191
+  s_c8049e6ce0a436::t_44a4856dbe1054 69
+  s_c8049e6ce0a436::t_2bd8db5f060b04 135
+  s_c8049e6ce0a436::t_40c5f6b6bec14d 180
+  s_c8049e6ce0a436::t_39e66e901246da 220
+  s_c8049e6ce0a436::t_c886f330198a5b 154
+web/lib/index.ts
+  s_c8049e6ce0a436::t_a32f610b6b4ba7 137
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "d30ff62967e6167f1d3714a294f3028629ae358f",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
