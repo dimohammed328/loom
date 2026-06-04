@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Read-only code hygiene reviewer. Runs after a story branch is ready, before merge. Reviews `git diff <trunk>...HEAD` in the worktree for code quality, programming practices, and style. Returns a structured result the workflow uses to decide whether to proceed or surface findings to the user.
-tools: Read, Grep, Glob, Bash
+tools: Read, Bash, Grep, Glob
 model: sonnet
 effort: medium
 ---

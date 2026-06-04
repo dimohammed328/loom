@@ -1,7 +1,7 @@
 ---
 name: story-validator
 description: Read-only requirements validator. Runs after a story branch is ready, before merge. Reads the story's `## Validation Criteria`, verifies each criterion against the worktree state, and runs tests/lint/format. Returns a structured result the workflow uses to decide whether to proceed.
-tools: Read, Grep, Glob, Bash, Skill
+tools: Read, Bash, Grep, Glob, Skill
 model: sonnet
 effort: medium
 ---
