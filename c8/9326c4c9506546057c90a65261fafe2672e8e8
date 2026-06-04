@@ -1,0 +1,21 @@
+web/server/broadcaster.test.ts
+  s_c8049e6ce0a436::t_66c95ce2de921b 1-55
+web/server/broadcaster.ts
+  s_c8049e6ce0a436::t_9f7bf47fd0e467 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "c89326c4c9506546057c90a65261fafe2672e8e8",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
