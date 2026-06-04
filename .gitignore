@@ -1,3 +1,6 @@
+# Frontend build artifacts (Bun fullstack bundles on the fly; don't commit)
+src/loom_web/static/
+
 # Python
 __pycache__/
 *.py[cod]

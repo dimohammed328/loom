@@ -3,8 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "bun run build --watch",
-    "build": "bun build src/main.tsx --outdir ../static --entry-naming '[name].[ext]' --asset-naming '[name].[ext]' --target browser --minify",
     "test": "bun test"
   },
   "dependencies": {
