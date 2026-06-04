@@ -1,0 +1,26 @@
+web/frontend/index.html
+  s_c8049e6ce0a436::t_161a4ca6a53b7b 1-12
+web/server/app.ts
+  s_c8049e6ce0a436::t_33f9613b9230ac 125-130,136,139-140
+  s_c8049e6ce0a436::t_6873a19af7a159 10,13-17,25
+  s_c8049e6ce0a436::t_64c157c3a0b657 96-102,104,109,112,114-115,120,123,141-145,147,152,154-156
+  s_c8049e6ce0a436::t_4b309b4bbbffc9 148-151,153,158
+web/server/app.test.ts
+  s_c8049e6ce0a436::t_ae2c3743722c54 225-259
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "645bbfc3b649327176c958afe8ae9745f34bd4ad",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
