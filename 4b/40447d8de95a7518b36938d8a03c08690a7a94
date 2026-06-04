@@ -1,0 +1,23 @@
+AGENTS.md
+  s_d7a29117652d90::t_e51c8b0db8da92 4
+CLAUDE.md
+  s_d7a29117652d90::t_e51c8b0db8da92 342
+plugin/agents/story-executor.md
+  s_d7a29117652d90::t_8f3affcc7d0c20 12-15,19-23,25-26,41-45,53-56,58,62-73,76,79,81-83,85-106,153-163,213-214,219-221,224,235,240-241,245,255-256
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "4b40447d8de95a7518b36938d8a03c08690a7a94",
+  "prompts": {},
+  "sessions": {
+    "s_d7a29117652d90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c8a3b2c1-e613-405c-b6ea-35c325026dde",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
