@@ -158,3 +158,110 @@ describe("schema shape", () => {
     expect(idx.allQualifiedIds()).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// IndexRecord type + applyRecord
+// ---------------------------------------------------------------------------
+
+describe("applyRecord", () => {
+  test("inserts a new item and retrieves it", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    const r = makeRecord();
+    idx.applyRecord(r);
+    const got = idx.get(r.qualified_id);
+    expect(got).not.toBeNull();
+    expect(got!.qualified_id).toBe(r.qualified_id);
+    expect(got!.title).toBe(r.title);
+    expect(got!.archived).toBe(false);
+  });
+
+  test("upserts an existing item (does not delete and reinsert)", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    const r = makeRecord();
+    idx.applyRecord(r);
+    const updated = { ...r, title: "Updated title" };
+    idx.applyRecord(updated);
+    const got = idx.get(r.qualified_id);
+    expect(got!.title).toBe("Updated title");
+  });
+
+  test("replaces outgoing tags on update but leaves incoming edges untouched", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    const r = makeRecord({ tags: ["alpha", "beta"] });
+    idx.applyRecord(r);
+    // Update with different tags
+    const updated = { ...r, tags: ["gamma"] };
+    idx.applyRecord(updated);
+    const got = idx.get(r.qualified_id);
+    expect(got!.tags).toEqual(["gamma"]);
+  });
+
+  test("replaces outgoing deps on update", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    // Insert dep target first
+    const target = makeRecord({
+      qualified_id: "myproj:backlog:1:2",
+      task: 2,
+      file_path: "projects/myproj/epics/backlog/stories/1/tasks/2.md",
+    });
+    idx.applyRecord(target);
+    const r = makeRecord({ depends_on: ["myproj:backlog:1:2"] });
+    idx.applyRecord(r);
+    expect(idx.get(r.qualified_id)!.depends_on).toEqual(["myproj:backlog:1:2"]);
+    // Now remove the dep
+    idx.applyRecord({ ...r, depends_on: [] });
+    expect(idx.get(r.qualified_id)!.depends_on).toEqual([]);
+  });
+
+  test("CRITICAL: applyRecord preserves incoming dependency edges on unrelated update (cascade-bug regression)", () => {
+    // This is the critical regression test from CLAUDE.md gotchas.
+    // If apply_record used DELETE+INSERT instead of UPSERT, the ON DELETE CASCADE
+    // on dependencies would wipe incoming edges from *other* items' frontmatter.
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+
+    // target: task 1
+    const target = makeRecord({
+      qualified_id: "myproj:backlog:1:1",
+      task: 1,
+      title: "Target task",
+    });
+    idx.applyRecord(target);
+
+    // source: task 2 depends on task 1
+    const source = makeRecord({
+      qualified_id: "myproj:backlog:1:2",
+      task: 2,
+      file_path: "projects/myproj/epics/backlog/stories/1/tasks/2.md",
+      depends_on: ["myproj:backlog:1:1"],
+    });
+    idx.applyRecord(source);
+
+    // Verify the dep exists
+    expect(idx.dependentsOf("myproj:backlog:1:1")).toEqual(["myproj:backlog:1:2"]);
+
+    // Now update target (unrelated change — just update title)
+    idx.applyRecord({ ...target, title: "Target task (updated)" });
+
+    // The incoming dep from source → target must STILL exist after the update.
+    expect(idx.dependentsOf("myproj:backlog:1:1")).toEqual(["myproj:backlog:1:2"]);
+  });
+
+  test("IndexRecord archived field roundtrips correctly", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    const r = makeRecord({ archived: true });
+    idx.applyRecord(r);
+    expect(idx.get(r.qualified_id)!.archived).toBe(true);
+  });
+});
