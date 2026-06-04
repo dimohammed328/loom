@@ -5,7 +5,7 @@ hierarchy-agnostic project management CLI — into your AI-assisted development 
 
 ## What this plugin provides
 
-- **Lifecycle hooks** — SubagentStart injects loom workflow context; SubagentStop/Task/PostToolUse events are logged.
+- **Lifecycle hooks** — SubagentStart injects loom workflow context; SubagentStop and Bash git-operation events are logged.
 - **Skills** — `/brainstorming`, `/epic`, `/story`, `/writing-plans`, and more.
 - **Agents** — Specialized subagents for story execution and validation.
 
