@@ -48,37 +48,52 @@
   padding-left: 1.5em;
 }
 
+/* Nested lists: tighten vertical margin so they don't double-space */
+.markdown-body li > ul,
+.markdown-body li > ol {
+  margin-top: 0.2em;
+  margin-bottom: 0;
+}
+
 .markdown-body li {
   margin: 0.2em 0;
 }
 
+/* Collapse paragraph margin inside list items for tight spacing */
 .markdown-body li > p {
   margin: 0;
 }
 
+/* Checklist items that contain block content: small top gap */
+.markdown-body .task-list-item > p {
+  display: inline;
+}
+
 /* GFM task-list checkboxes */
-.markdown-body ul.contains-task-list,
-.markdown-body .task-list-item {
+.markdown-body ul.contains-task-list {
   list-style: none;
   padding-left: 0;
 }
 
 .markdown-body .task-list-item {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
+  list-style: none;
+  padding-left: 0;
 }
 
 .markdown-body .task-list-item input[type="checkbox"] {
-  margin: 0;
-  flex-shrink: 0;
+  display: inline-block;
+  margin: 0 6px 0 0;
+  vertical-align: text-bottom;
   accent-color: var(--ring);
 }
 
 /* Tables */
 .markdown-body table {
   border-collapse: collapse;
-  width: 100%;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+  width: max-content;
   margin: 0 0 0.75em;
   font-size: 13px;
 }
@@ -112,6 +127,8 @@
   border-radius: 4px;
   padding: 1px 5px;
   color: var(--text-2);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 /* Code blocks */
@@ -152,6 +169,8 @@
   color: var(--ring);
   text-decoration: underline;
   text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
 .markdown-body a:hover {
