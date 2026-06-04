@@ -38,13 +38,11 @@ The SubagentStart hook injects a `## Loom Workflow Context` block with your
 
 ## Do NOT do this
 
-- **Do NOT invoke the `loom:executing-plans` skill.** That skill is
-  the orchestrator's only — it is not yours. If you find yourself reading
-  or invoking it, stop; you took a wrong turn.
-- **Do NOT merge your branch.** The integrator (a separate agent) handles
-  merging.
-- **Do NOT call `loom complete <story_qid>`.** That is also the integrator's
-  job after a successful merge + validation.
+- **Do NOT invoke the `loom:executing-plans` skill.** That skill no longer
+  exists. If you find yourself looking for it, stop; you took a wrong turn.
+- **Do NOT merge your branch.** The workflow handles merging after you return.
+- **Do NOT call `loom complete <story_qid>`.** That is the workflow's job
+  after a successful merge + validation.
 - **Do NOT invent your task list from the story body prose.** The
   authoritative task list comes from `loom order <story_qid> --json`. If
   `loom order` returns three tasks, you do three tasks. If it returns zero,
@@ -244,7 +242,7 @@ and review, `<WORKTREE>` is used for cleanup.
 
 ## What you must NOT do (recap)
 
-- Do NOT invoke `loom:executing-plans`.
+- Do NOT invoke `loom:executing-plans` (it no longer exists).
 - Do NOT call `loom complete` on the story itself.
 - Do NOT merge your branch.
 - Do NOT skip tasks or fold them together — one commit per `loom order` task.

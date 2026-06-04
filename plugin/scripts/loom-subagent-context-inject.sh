@@ -24,7 +24,7 @@ input=$(cat)
 agent_type=$(jq -r '.agent_type // ""' <<<"$input")
 
 case "$agent_type" in
-  story-executor|story-integrator|epic-validator|codebase-researcher)
+  story-executor|epic-validator|codebase-researcher)
     : # fall through to inject context
     ;;
   *)
