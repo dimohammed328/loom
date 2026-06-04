@@ -299,11 +299,10 @@ export class Loom {
     parent?: string;
     recursive?: boolean;
   } = {}): Item[] {
-    const candidates = this._index.findPickable({
-      type: opts.type,
-      tag: opts.tag,
-      limit: undefined,
-    });
+    const pickableFilters: { type?: string; tag?: string; limit?: number } = {};
+    if (opts.type !== undefined) pickableFilters.type = opts.type;
+    if (opts.tag !== undefined) pickableFilters.tag = opts.tag;
+    const candidates = this._index.findPickable(pickableFilters);
 
     const out: Item[] = [];
     for (const record of candidates) {
