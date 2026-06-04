@@ -1,0 +1,21 @@
+web/lib/rebuild.ts
+  s_c8049e6ce0a436::t_70699080e536fa 1-190
+web/lib/rebuild.test.ts
+  s_c8049e6ce0a436::t_8ac90a3e341be4 1-233
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "fd80b8a5356fbc7fe5e86ba72debc6ea1ae5f9d3",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
