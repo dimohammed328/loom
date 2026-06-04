@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+static/
+*.js.map
+
+# Bun cache
+.bun/
+
+# TypeScript build info
+*.tsbuildinfo
