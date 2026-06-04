@@ -244,7 +244,7 @@ function rowToRecord(
   };
 }
 
-function recordValues(r: IndexRecord): unknown[] {
+function recordValues(r: IndexRecord): (string | number | null)[] {
   return [
     r.qualified_id,
     r.type,
@@ -414,7 +414,7 @@ export class Index {
     tag?: string;
   } = {}): IndexRecord[] {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: (string | number)[] = [];
     let joins = "";
     if (filters.tag !== undefined) {
       joins = " JOIN tags ON tags.item_id = items.qualified_id";
@@ -526,7 +526,7 @@ export class Index {
     limit?: number;
   } = {}): IndexRecord[] {
     const clauses = ["items.status = 'ready'", "items.archived = 0"];
-    const params: unknown[] = [];
+    const params: (string | number)[] = [];
     let joins = "";
     if (filters.tag !== undefined) {
       joins = " JOIN tags ON tags.item_id = items.qualified_id";
