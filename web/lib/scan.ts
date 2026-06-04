@@ -141,6 +141,74 @@ export async function buildRecord(
 }
 
 // ---------------------------------------------------------------------------
+// buildRecordSync
+// ---------------------------------------------------------------------------
+
+/**
+ * Synchronous variant of buildRecord using Node's crypto module.
+ *
+ * Used by the mutator contract in items.ts where async is inconvenient.
+ * The hash is computed from the raw on-disk bytes, identical to buildRecord.
+ */
+export function buildRecordSync(filePath: string, root: string): IndexRecord {
+  const [qid, archived] = qid_from_path(filePath, root);
+  const [fm] = load(filePath);
+
+  const raw = fs.readFileSync(filePath);
+  const { createHash } = require("crypto") as typeof import("crypto");
+  const bodyHash = createHash("sha256").update(raw).digest("hex");
+
+  const relPath = path.relative(root, filePath);
+  const mtimeIso = pathMtimeIso(filePath);
+  const created_at = optStr(fm["created_at"]) ?? mtimeIso;
+  const updated_at = optStr(fm["updated_at"]) ?? mtimeIso;
+  const title = optStr(fm["title"]) ?? `(untitled) ${qid.toString()}`;
+
+  let status: string | null = null;
+  if (qid.type !== ItemType.PROJECT) {
+    status = optStr(fm["status"]) ?? "ready";
+  }
+
+  const parent = qid.parent;
+  const parent_id = parent ? parent.toString() : null;
+
+  const isProject = qid.type === ItemType.PROJECT;
+  const repo = isProject ? optStr(fm["repo"]) ?? null : null;
+  const default_branch = isProject ? optStr(fm["default_branch"]) ?? null : null;
+
+  const rawDeps = fm["depends_on"];
+  const depends_on = Array.isArray(rawDeps) ? rawDeps.map((x) => String(x)) : [];
+
+  const rawTags = fm["tags"];
+  const tags = Array.isArray(rawTags) ? rawTags.map((x) => String(x)) : [];
+
+  return {
+    qualified_id: qid.toString(),
+    type: qid.type,
+    project: qid.project,
+    epic: qid.epic,
+    story: qid.story,
+    task: qid.task,
+    parent_id,
+    title,
+    status,
+    assignee: optStr(fm["assignee"]) ?? null,
+    branch: optStr(fm["branch"]) ?? null,
+    pr_url: optStr(fm["pr_url"]) ?? null,
+    repo,
+    default_branch,
+    archived,
+    created_at,
+    updated_at,
+    file_path: relPath,
+    body_hash: bodyHash,
+    frontmatter_json: frontmatterToJson(fm as Record<string, unknown>),
+    depends_on,
+    tags,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
