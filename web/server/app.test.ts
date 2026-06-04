@@ -222,3 +222,38 @@ describe("GET /api/items/{qid}", () => {
     expect(resp.status).toBe(404);
   });
 });
+
+// ---------------------------------------------------------------------------
+// SPA / React app serving (Bun fullstack HTML import)
+// ---------------------------------------------------------------------------
+
+describe("SPA fallback (Bun fullstack)", () => {
+  test("GET / returns HTML with content-type text/html", async () => {
+    const resp = await fetch(`${baseUrl}/`);
+    expect(resp.status).toBe(200);
+    const ct = resp.headers.get("content-type") ?? "";
+    expect(ct).toContain("text/html");
+  });
+
+  test("GET / HTML contains a script tag (bundled by Bun)", async () => {
+    const resp = await fetch(`${baseUrl}/`);
+    const html = await resp.text();
+    expect(html).toContain("<script");
+  });
+
+  test("GET /some/spa/route also returns HTML (SPA fallback)", async () => {
+    const resp = await fetch(`${baseUrl}/some/spa/route`);
+    expect(resp.status).toBe(200);
+    const ct = resp.headers.get("content-type") ?? "";
+    expect(ct).toContain("text/html");
+  });
+
+  test("API routes still return JSON, not HTML", async () => {
+    const resp = await fetch(`${baseUrl}/api/health`);
+    expect(resp.status).toBe(200);
+    const ct = resp.headers.get("content-type") ?? "";
+    expect(ct).toContain("application/json");
+    const data = await resp.json();
+    expect((data as { status: string }).status).toBe("ok");
+  });
+});
