@@ -1,0 +1,158 @@
+web/frontend/ws/client.ts
+  s_c8049e6ce0a436::t_247386c436013e 97
+  s_c8049e6ce0a436::t_a308022aed40ad 1-96,98-180
+web/frontend/components/TableRowClick.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-63
+web/frontend/components/TableView.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-113
+web/frontend/state/wsIntegration.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-26
+web/frontend/tableModel.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-300
+web/frontend/components/StoryCard.tsx
+  s_c8049e6ce0a436::t_a308022aed40ad 1-208
+web/frontend/components/tableRowHelpers.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-30
+web/frontend/components/BoardView.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-60
+web/frontend/main.tsx
+  s_c8049e6ce0a436::t_a308022aed40ad 1-18
+web/frontend/status.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-77
+web/frontend/components/distributionBar.tsx
+  s_c8049e6ce0a436::t_a308022aed40ad 1-52
+web/frontend/styles/markdown.css
+  s_c8049e6ce0a436::t_a308022aed40ad 1-163
+web/frontend/components/StoryCard.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-61
+web/frontend/state/store.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-21,23-126
+  s_c8049e6ce0a436::t_9f3856814501da 22
+web/frontend/status.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-66
+web/frontend/components/BoardView.tsx
+  s_c8049e6ce0a436::t_a308022aed40ad 1-259
+web/frontend/boardModel.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-149
+web/frontend/components/ItemModal.tsx
+  s_c8049e6ce0a436::t_a308022aed40ad 1-824
+web/frontend/components/markdownBody.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-137
+web/frontend/components/itemModalHelpers.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-45
+web/frontend/dagLayout.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-128
+web/frontend/components/distributionBarHelpers.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-25
+web/frontend/components/TableRow.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-90
+web/frontend/components/tableRowClickHelpers.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-31
+web/package.json
+  s_c8049e6ce0a436::t_183c12ad648f37 13-14,17-19,22
+web/frontend/components/statusChip.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-32
+web/frontend/components/enterClass.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-9
+web/tsconfig.json
+  s_c8049e6ce0a436::t_a1c72f3523f437 18
+  s_c8049e6ce0a436::t_ab6a868080adad 26
+web/frontend/progress.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-125
+web/frontend/components/itemModalStyles.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-54
+web/frontend/api/client.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-36,38-104
+  s_c8049e6ce0a436::t_6328d0d34cc7fe 37
+web/frontend/components/EpicRowHeader.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-97
+web/frontend/formatUpdated.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-39
+web/frontend/components/ItemModal.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-97
+web/frontend/dagLayout.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-130
+web/frontend/components/tableViewHelpers.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-43
+web/frontend/components/TableView.tsx
+  s_c8049e6ce0a436::t_a308022aed40ad 1-192
+web/frontend/styles/tokens.css
+  s_c8049e6ce0a436::t_a308022aed40ad 1-839
+web/frontend/state/itemsReducer.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-53,55-58
+  s_c8049e6ce0a436::t_6424d18c57c17b 54
+web/frontend/tsconfig.json
+  s_c8049e6ce0a436::t_9c1c8de91b4a26 1-16,19-22
+  s_c8049e6ce0a436::t_044b7bf76d7e0d 17-18
+web/frontend/theme.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-46
+web/frontend/tableModel.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-41,43-187
+  s_c8049e6ce0a436::t_10a600224f00bd 42
+web/frontend/styles/motion.css
+  s_c8049e6ce0a436::t_a308022aed40ad 1-49
+web/frontend/components/EpicRowHeader.tsx
+  s_c8049e6ce0a436::t_a308022aed40ad 1-221
+web/frontend/components/TopBar.tsx
+  s_c8049e6ce0a436::t_a308022aed40ad 1-251
+web/frontend/App.tsx
+  s_c8049e6ce0a436::t_a308022aed40ad 1-105,107-127
+  s_c8049e6ce0a436::t_82e4626d758640 106
+web/bun.lock
+  ai_agent 8-9,13-14,17,27-48,51-54,63-70,73-74,77-90,93-146,151-154,157-250,255-264,267-278,282-305
+web/frontend/repoUtils.test.ts
+  s_c8049e6ce0a436::t_4c0b634bf7dcf4 1
+  s_c8049e6ce0a436::t_a308022aed40ad 2-47
+web/frontend/components/DagView.tsx
+  s_c8049e6ce0a436::t_a308022aed40ad 1-170
+web/frontend/components/distributionBar.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-49
+web/frontend/components/enterClass.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-33
+web/frontend/repoUtils.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-63
+web/frontend/components/StoryNode.tsx
+  s_c8049e6ce0a436::t_c9898421f0f2a8 20
+  s_c8049e6ce0a436::t_0721962f63880a 32
+  s_c8049e6ce0a436::t_a308022aed40ad 1-10,12-19,21-31,33-68
+  s_c8049e6ce0a436::t_d17f4da1489263 11
+web/frontend/components/statusChip.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-10
+web/frontend/state/store.tsx
+  s_c8049e6ce0a436::t_a308022aed40ad 1-158
+web/frontend/ws/client.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-101
+web/frontend/boardModel.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-131
+web/frontend/formatUpdated.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-52
+web/frontend/state/wsIntegration.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-55
+web/frontend/components/EpicPickerDrawer.tsx
+  s_c8049e6ce0a436::t_a308022aed40ad 1-100
+web/frontend/components/TableRow.tsx
+  s_c8049e6ce0a436::t_a308022aed40ad 1-195,197-200
+  s_c8049e6ce0a436::t_8ea9c341cc1a75 196
+web/frontend/progress.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-58
+web/frontend/styles/motion.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-70
+web/frontend/state/itemsReducer.test.ts
+  s_c8049e6ce0a436::t_a308022aed40ad 1-150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "5ce53d7a472f0acb416a4ad176ae225782b43843",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
