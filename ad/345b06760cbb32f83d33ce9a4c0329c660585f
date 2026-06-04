@@ -1,0 +1,23 @@
+web/lib/storage.ts
+  s_c8049e6ce0a436::t_f932a303651652 1-201
+web/lib/storage.test.ts
+  s_c8049e6ce0a436::t_99a2432879c4d7 1-135
+web/package.json
+  s_c8049e6ce0a436::t_1139f15a1aeb09 13,18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "ad345b06760cbb32f83d33ce9a4c0329c660585f",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
