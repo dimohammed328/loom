@@ -29,28 +29,6 @@
         ]
       }
     ],
-    "TaskCreated": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/loom-log.sh\"",
-            "async": true
-          }
-        ]
-      }
-    ],
-    "TaskCompleted": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/loom-log.sh\"",
-            "async": true
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "hooks": [
