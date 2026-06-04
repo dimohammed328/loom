@@ -205,15 +205,18 @@ For each task in order:
 > Specifically:
 > - `branch` MUST be the literal string printed by
 >   `git rev-parse --abbrev-ref HEAD` at the end of your work.
+> - `worktree` MUST be the absolute path you confirmed with `pwd` inside
+>   your worktree.
 > - Every SHA in `commits` MUST come from `git log --oneline` or
 >   `git rev-parse HEAD` output you observed in this session.
 > - `tasks_done` MUST list only task qids you personally ran
 >   `loom complete <task-qid>` on and got a success response for.
-> - Test/lint/format results in `notes` MUST reflect actual command
->   output — do NOT infer or assume they pass without running them.
+> - `summary` is a 1–3 sentence human-readable description of what was
+>   implemented — write it yourself from what you actually did.
+> - Test/lint/format results belong in `summary` if relevant.
 >
 > If you cannot produce a field from real observed output, set it to
-> `null` and explain why in `notes`.
+> `null` and explain why in `summary`.
 
 When all tasks from `loom order` are done, return a structured report:
 
@@ -224,13 +227,13 @@ When all tasks from `loom order` are done, return a structured report:
   "worktree": "<WORKTREE>",
   "commits": ["<sha1>", "<sha2>", ...],
   "tasks_done": ["<tqid1>", "<tqid2>", ...],
-  "notes": "<any concerns or surprises>"
+  "summary": "<1-3 sentences: what was implemented, any concerns>"
 }
 ```
 
 `<BRANCH>` and `<WORKTREE>` are the values you recorded in step 1. The
-orchestrator passes both to the integrator, which uses `<BRANCH>` to merge
-and `<WORKTREE>` to clean up.
+orchestrator passes both to the integrator: `<BRANCH>` is used for merge
+and review, `<WORKTREE>` is used for cleanup.
 
 ## What you must NOT do (recap)
 
