@@ -157,3 +157,74 @@ Return the worktree path, branch name, and main_sha.`,
 )
 
 log(`Trunk worktree: ${trunk.worktree} on branch ${trunk.branch}`)
+
+// ── prepare(s): build → review → validate, up to 3 attempts ─────────────────
+// Returns { qid, build, ok, open }
+//   ok:   true if the story converged
+//   open: array of unmet-criterion strings (non-empty only when ok=false)
+
+async function prepare(s) {
+  const MAX_ATTEMPTS = 3
+  let attempt = 0
+  let open = []
+
+  while (attempt < MAX_ATTEMPTS) {
+    attempt++
+    log(`[${s.qualified_id}] prepare attempt ${attempt}/${MAX_ATTEMPTS}`)
+
+    // ── Step A: story-executor (build) ───────────────────────────────────────
+    const build = await agent(
+      `story_qid=${s.qualified_id} parent_branch=${trunk.branch}`,
+      { label: `executor:${s.qualified_id}:${attempt}`, agentType: 'loom:story-executor', schema: BUILD_SCHEMA }
+    )
+
+    // ── Step B: code-reviewer ────────────────────────────────────────────────
+    const review = await agent(
+      `story_qid=${s.qualified_id} branch=${build.branch} trunk=${trunk.branch} worktree=${build.worktree}`,
+      { label: `reviewer:${s.qualified_id}:${attempt}`, agentType: 'code-reviewer', schema: REVIEW_SCHEMA }
+    )
+
+    if (!review.clean) {
+      const errors = review.findings.filter(f => f.severity === 'error')
+      log(`[${s.qualified_id}] code-reviewer found ${errors.length} error(s)`)
+      if (errors.length > 0) {
+        // File error findings as loom tasks and retry
+        for (const f of errors) {
+          await agent(
+            `Run: loom -y task create --title ${JSON.stringify('fix: ' + f.title)} ` +
+            `--body ${JSON.stringify(f.detail)} ${s.qualified_id}`,
+            { label: `file-task:${s.qualified_id}`, agentType: 'loom:story-executor' }
+          )
+        }
+        open = errors.map(f => f.title)
+        continue  // retry
+      }
+    }
+
+    // ── Step C: story-validator ──────────────────────────────────────────────
+    const validate = await agent(
+      `story_qid=${s.qualified_id} branch=${build.branch} worktree=${build.worktree}`,
+      { label: `validator:${s.qualified_id}:${attempt}`, agentType: 'story-validator', schema: VALIDATE_SCHEMA }
+    )
+
+    if (validate.result === 'ok') {
+      return { qid: s.qualified_id, build, ok: true, open: [] }
+    }
+
+    // Validation failed — file unmet criteria as fix tasks and retry
+    const failed = validate.criteria.filter(c => !c.pass)
+    log(`[${s.qualified_id}] validator failed: ${failed.length} unmet criteria`)
+    for (const c of failed) {
+      await agent(
+        `Run: loom -y task create --title ${JSON.stringify('fix: ' + c.text)} ` +
+        `--body ${JSON.stringify('Evidence: ' + c.evidence)} ${s.qualified_id}`,
+        { label: `file-task:${s.qualified_id}`, agentType: 'loom:story-executor' }
+      )
+    }
+    open = failed.map(c => c.text)
+  }
+
+  // Exhausted retries
+  log(`[${s.qualified_id}] did not converge after ${MAX_ATTEMPTS} attempts`)
+  return { qid: s.qualified_id, build: null, ok: false, open }
+}
