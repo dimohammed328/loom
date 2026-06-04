@@ -9,21 +9,24 @@ STORY_EXECUTOR_MD = PLUGIN_ROOT / "agents" / "story-executor.md"
 PLUGIN_README = PLUGIN_ROOT / "README.md"
 
 
-def test_story_executor_no_self_managed_worktree() -> None:
-    """story-executor.md must not claim the executor creates its own worktree.
+def test_story_executor_is_self_managed_worktree() -> None:
+    """story-executor.md must describe the self-managed worktree model.
 
-    The harness creates and manages the worktree; the executor is placed in it.
+    The executor creates (or resumes) its own worktree off parent_branch. This is
+    REQUIRED, not stylistic: the convergence loop re-dispatches the executor after
+    filing fix-tasks, and only a deterministic self-created worktree can be
+    *resumed* so the new fix-commits stack on the prior attempt's work. A fresh
+    harness-managed worktree per dispatch would lose the earlier commits and never
+    converge.
     """
     content = STORY_EXECUTOR_MD.read_text()
-    assert "harness does not manage the worktree" not in content, (
-        "story-executor.md incorrectly states the harness does not manage the worktree; "
-        "update to reflect that the harness creates the worktree"
+    assert "git worktree add -b" in content, (
+        "story-executor.md must instruct the executor to create its own worktree "
+        "('git worktree add -b … parent_branch') so re-dispatches can resume it"
     )
-    # The file may mention "git worktree add" in a prohibition (Do NOT ...) but must
-    # not contain instructions telling the executor to run it.
-    assert "git worktree add -b" not in content, (
-        "story-executor.md must not instruct the executor to run 'git worktree add -b'; "
-        "the harness manages worktree creation"
+    assert "resume" in content.lower(), (
+        "story-executor.md must document resuming the existing worktree on re-dispatch "
+        "(required for the convergence retry loop)"
     )
 
 
