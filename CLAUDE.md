@@ -6,7 +6,7 @@ here are not re-litigatable without explicit user approval.
 
 ## Commands
 
-### Python core (`uv`-managed, Python 3.11)
+`uv`-managed Python 3.11 project.
 
 | Task | Command |
 |---|---|
@@ -19,18 +19,6 @@ here are not re-litigatable without explicit user approval.
 | Run the CLI | `uv run loom <command>` (e.g. `LOOM_DIR=/tmp/x uv run loom init`) |
 | Add a runtime dep | `uv add <pkg>` |
 | Add a dev dep | `uv add --group dev <pkg>` |
-
-### Web stack (`web/` — Bun + TypeScript)
-
-| Task | Command |
-|---|---|
-| Install deps | `cd web && bun install` |
-| Start dev server (hot-reload) | `cd web && bun run dev` |
-| Start production server | `cd web && bun run start` |
-| Run TS tests | `cd web && bun test` |
-| Type-check (TS) | `cd web && bun run typecheck` |
-
-See `web/README.md` for layout details and path aliases.
 
 Tests, lint, and format must all pass before declaring work complete.
 
@@ -152,8 +140,6 @@ by direct library API calls. See `src/loom/state.py`.
 
 ## Module map
 
-### Python core (`src/loom/`)
-
 ```
 paths.py        $LOOM_DIR resolution: $LOOM_DIR → $XDG_DATA_HOME/loom → ~/.local/share/loom
 errors.py       LoomError hierarchy. Add new concrete errors here, not inline.
@@ -175,18 +161,8 @@ gitprobe.py     Subprocess wrappers: is_git_repo, discover_remote, git_toplevel
 cli.py          typer app; each subcommand is a thin wrapper over the library
 ```
 
-### Bun/TypeScript web stack (`web/`)
-
-```
-web/lib/        TypeScript SDK — mirrors the Python core: ids, storage, scan, rebuild, items, deps, api
-web/server/     Bun HTTP server (Bun.serve): REST API + WebSocket live-update endpoint
-web/frontend/   React application (Vite-free, served by the Bun server)
-web/package.json  Bun scripts (dev / start / test / typecheck) and npm dependencies
-web/tsconfig.json Strict TypeScript config with path aliases (@lib/*, @server/*, @frontend/*)
-```
-
 v1 is complete. Potential future work (intentionally deferred): FTS5
-search, per-task attachment directories.
+search, file-watch auto-sync, per-task attachment directories.
 
 ## CLI ergonomics
 
