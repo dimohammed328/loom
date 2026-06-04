@@ -1,0 +1,26 @@
+plugin/scripts/loom-subagent-context-inject.sh
+  s_d7a29117652d90::t_7da920a018c881 27
+plugin/agents/story-executor.md
+  s_d7a29117652d90::t_8a206c5e30799c 41-45
+  s_d7a29117652d90::t_21b8fecf7a103f 245
+plugin/README.md
+  s_d7a29117652d90::t_7cd7885df87b82 51
+  s_d7a29117652d90::t_a41ae3347ad050 9-10
+  s_d7a29117652d90::t_e742ea0a427c75 41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "c94e9ec2acc90ce0026d9e323b189ffc536bb04e",
+  "prompts": {},
+  "sessions": {
+    "s_d7a29117652d90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c8a3b2c1-e613-405c-b6ea-35c325026dde",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
