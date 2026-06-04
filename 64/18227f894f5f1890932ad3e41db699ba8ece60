@@ -1,0 +1,24 @@
+web/lib/watch.test.ts
+  s_c8049e6ce0a436::t_a66ceb002f8e66 1-214
+web/lib/loom.ts
+  s_c8049e6ce0a436::t_efdd7676641b4a 46
+  s_c8049e6ce0a436::t_42a332d5c7a9af 373-392
+web/lib/watch.ts
+  s_c8049e6ce0a436::t_e8e0a3e224ae62 1-199
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "6418227f894f5f1890932ad3e41db699ba8ece60",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
