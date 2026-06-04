@@ -12,6 +12,7 @@
  */
 
 import { Broadcaster } from "./broadcaster";
+import type { IndexRecord } from "../lib/index";
 
 // ---------------------------------------------------------------------------
 // Minimal Loom interface needed by UpdatesWorker
@@ -19,7 +20,7 @@ import { Broadcaster } from "./broadcaster";
 
 interface LoomLike {
   getUpdates(opts: { stopSignal?: { stopped: boolean } }): AsyncGenerator<string, void, unknown>;
-  get(qualifiedId: string): { record: Record<string, unknown> } | Promise<{ record: Record<string, unknown> }>;
+  get(qualifiedId: string): { record: IndexRecord } | Promise<{ record: IndexRecord }>;
 }
 
 // ---------------------------------------------------------------------------

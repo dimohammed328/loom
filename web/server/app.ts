@@ -7,8 +7,14 @@
  *   GET /api/projects/{project}/tree     → TreeResponse
  *   GET /api/items/{qid:path}            → ItemDetail
  *   WS  /ws                              → ItemUpdate / ItemTombstone stream
+ *   GET /*                               → React SPA (Bun fullstack HTML bundling)
  *
  * NotFound errors map to HTTP 404 with { detail: string }.
+ *
+ * Bun fullstack: importing index.html causes Bun to bundle main.tsx and all
+ * CSS imports on the fly (with HMR in dev). The bundled page is served for all
+ * non-API routes via the `routes["/*"]` wildcard, while API routes are matched
+ * first via their explicit `/api/*` prefix handler.
  */
 
 import { LoomGateway } from "./gateway";
@@ -16,6 +22,7 @@ import { serializeProject, serializeTree, serializeItemDetail } from "./serializ
 import { NotFound } from "../lib/errors";
 import { Broadcaster, type Subscriber } from "./broadcaster";
 import { UpdatesWorker } from "./updates";
+import indexHtml from "../frontend/index.html";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,7 +71,7 @@ export function createApp(
   const gateway = new LoomGateway(root);
   const broadcaster = new Broadcaster();
 
-  const bunServer = Bun.serve<WsData, undefined>({
+  const bunServer = Bun.serve<WsData>({
     port,
 
     // ---- WebSocket handlers -------------------------------------------------
@@ -86,64 +93,69 @@ export function createApp(
       },
     },
 
-    // ---- HTTP fetch ---------------------------------------------------------
-    async fetch(req: Request, server): Promise<Response> {
-      const url = new URL(req.url);
-      const pathname = url.pathname;
+    // ---- Static routes ------------------------------------------------------
+    // Bun evaluates routes before fetch. /api/* and /ws are handled inline;
+    // /* catches all remaining paths and returns the bundled React SPA
+    // (Bun bundles main.tsx → index.html on first request, with HMR in dev).
+    routes: {
+      // API routes — handled inline so they take priority over the SPA wildcard.
+      "/api/health": (_req: Request) => jsonResponse({ status: "ok" }),
 
-      // ---- WS /ws -----------------------------------------------------------
-      if (pathname === "/ws") {
-        const upgraded = server.upgrade<WsData>(req, { data: { subscriber: null! } });
-        if (upgraded) return undefined as unknown as Response;
-        return new Response("WebSocket upgrade failed", { status: 400 });
-      }
-
-      // ---- GET /api/health --------------------------------------------------
-      if (req.method === "GET" && pathname === "/api/health") {
-        return jsonResponse({ status: "ok" });
-      }
-
-      // ---- GET /api/projects ------------------------------------------------
-      if (req.method === "GET" && pathname === "/api/projects") {
+      "/api/projects": async (_req: Request) => {
         try {
           const projects = await gateway.listProjects();
           return jsonResponse(projects.map(serializeProject));
         } catch (e) {
-          if (e instanceof NotFound) return notFound(String(e.message));
+          if (e instanceof NotFound) return notFound(String((e as Error).message));
           throw e;
         }
-      }
+      },
 
-      // ---- GET /api/projects/{project}/tree ---------------------------------
-      const treeMatch = pathname.match(/^\/api\/projects\/([^/]+)\/tree$/);
-      if (req.method === "GET" && treeMatch) {
-        const project = treeMatch[1]!;
+      "/api/projects/:project/tree": async (req: Request) => {
+        const project = (req as unknown as { params: Record<string, string> }).params["project"]!;
         try {
           const treeDict = await gateway.getTree(project);
           return jsonResponse(serializeTree(treeDict));
         } catch (e) {
-          if (e instanceof NotFound) return notFound(String(e.message));
+          if (e instanceof NotFound) return notFound(String((e as Error).message));
           throw e;
         }
-      }
+      },
 
-      // ---- GET /api/items/{qid:path} ----------------------------------------
-      // The qid may contain colons (e.g. acme:abc:1:2), so we strip the
-      // prefix and treat the rest as the qid.
-      const itemsPrefix = "/api/items/";
-      if (req.method === "GET" && pathname.startsWith(itemsPrefix)) {
-        const qid = pathname.slice(itemsPrefix.length);
+      // /api/items/* — qids contain colons (e.g. acme:abc:1:2) which are
+      // not valid route param characters, so we handle the path manually.
+      "/api/items/*": async (req: Request) => {
+        const url = new URL(req.url);
+        const qid = url.pathname.slice("/api/items/".length);
+        if (!qid) return notFound("qid required");
         try {
           const item = await gateway.getItemDetail(qid);
           const children = await gateway.getChildren(qid);
           return jsonResponse(serializeItemDetail(item, children));
         } catch (e) {
-          if (e instanceof NotFound) return notFound(String(e.message));
+          if (e instanceof NotFound) return notFound(String((e as Error).message));
           throw e;
         }
-      }
+      },
 
-      // ---- 404 for everything else ------------------------------------------
+      // SPA fallback — all non-API, non-WS paths serve the bundled React app.
+      // Bun's HTML import causes index.html + main.tsx to be bundled; in dev
+      // mode (bun dev) this includes HMR.
+      "/*": indexHtml,
+    },
+
+    // ---- HTTP fetch ---------------------------------------------------------
+    // Only handles WebSocket upgrade requests. All HTTP routes are handled via
+    // the `routes` object above. Bun does not support WS upgrades inside
+    // route handlers, so /ws must remain here.
+    fetch(req: Request, server): Response | Promise<Response> {
+      const url = new URL(req.url);
+      if (url.pathname === "/ws") {
+        const upgraded = server.upgrade(req, { data: { subscriber: null! } as WsData });
+        if (upgraded) return undefined as unknown as Response;
+        return new Response("WebSocket upgrade failed", { status: 400 });
+      }
+      // Fallback for unrouted requests (should not occur in practice).
       return notFound("Not found");
     },
   });
