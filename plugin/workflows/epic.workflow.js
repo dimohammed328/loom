@@ -228,3 +228,96 @@ async function prepare(s) {
   log(`[${s.qualified_id}] did not converge after ${MAX_ATTEMPTS} attempts`)
   return { qid: s.qualified_id, build: null, ok: false, open }
 }
+
+// ── Phase 2: Streaming scheduler + serial merge ───────────────────────────────
+
+phase('Stories')
+
+// refill() queries loom for stories that are ready (deps satisfied, not done)
+async function refill() {
+  const result = await agent(
+    `Run: loom ready ${epicQid} --type story --json
+Output the JSON array as the "stories" field.`,
+    { label: 'refill', schema: READY_SCHEMA }
+  )
+  return result.stories ?? []
+}
+
+// inflight: Map<qid, Promise<{qid, build, ok, open}>>
+const inflight = new Map()
+// openFindings: Map<qid, string[]> — findings from stories that failed to converge
+const openFindings = new Map()
+
+let stories = await refill()
+
+while (stories.length > 0 || inflight.size > 0) {
+  // Launch prepare() for every new ready story not already in flight
+  for (const s of stories) {
+    if (!inflight.has(s.qualified_id)) {
+      log(`Launching prepare for ${s.qualified_id}: ${s.title}`)
+      inflight.set(s.qualified_id, prepare(s))
+    }
+  }
+
+  if (inflight.size === 0) break
+
+  // Wait for whichever prepare() finishes next
+  const result = await Promise.race(inflight.values())
+  inflight.delete(result.qid)
+
+  if (!result.ok) {
+    // Story failed to converge — surface findings and halt
+    openFindings.set(result.qid, result.open)
+    log(`Story ${result.qid} did not converge. Open findings: ${result.open.join('; ')}`)
+    // Surface all accumulated open findings and halt
+    const summary = [...openFindings.entries()]
+      .map(([q, fs]) => `${q}: ${fs.join(', ')}`)
+      .join('\n')
+    return {
+      result: 'failed',
+      reason: `Story ${result.qid} failed to converge after 3 attempts`,
+      open_findings: summary,
+    }
+  }
+
+  // Story converged — merge it serially into the trunk
+  log(`Merging ${result.qid} (branch: ${result.build.branch}) into trunk`)
+  const merge = await agent(
+    `Merge story branch into the epic trunk.
+cd ${trunk.worktree}
+git checkout ${trunk.branch}
+git merge --no-ff ${result.build.branch} -m "Merge story ${result.qid}: ${result.build.branch}"
+Then run: git rev-parse HEAD
+Return merged=true and merge_sha from git rev-parse HEAD output.
+If there is a conflict, run git merge --abort and return merged=false with conflict description.`,
+    { label: `merge:${result.qid}`, schema: MERGE_SCHEMA }
+  )
+
+  if (!merge.merged) {
+    return {
+      result: 'failed',
+      reason: `Merge conflict for story ${result.qid}: ${merge.conflict}`,
+    }
+  }
+
+  log(`Merged ${result.qid} at ${merge.merge_sha}. Running loom complete.`)
+
+  // Mark story done in loom
+  await agent(
+    `Run: loom complete ${result.qid}`,
+    { label: `complete:${result.qid}`, agentType: 'loom:story-executor' }
+  )
+
+  // Remove story worktree
+  await agent(
+    `Run in ${trunk.worktree}:
+git worktree remove --force ${result.build.worktree}
+git branch -d ${result.build.branch}`,
+    { label: `cleanup:${result.qid}`, agentType: 'loom:story-executor' }
+  )
+
+  // Refill with any newly-unblocked stories
+  stories = await refill()
+}
+
+log('All stories merged into trunk.')
