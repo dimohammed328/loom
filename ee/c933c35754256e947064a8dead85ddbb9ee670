@@ -1,0 +1,19 @@
+tests/test_docs_orchestrator_log_absent.py
+  s_d7a29117652d90::t_f01086d220ed25 1-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "eec933c35754256e947064a8dead85ddbb9ee670",
+  "prompts": {},
+  "sessions": {
+    "s_d7a29117652d90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c8a3b2c1-e613-405c-b6ea-35c325026dde",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
