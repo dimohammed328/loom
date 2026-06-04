@@ -1,0 +1,22 @@
+web/lib/validation.test.ts
+  s_c8049e6ce0a436::t_5cd45d1a9574b9 218,221
+  s_c8049e6ce0a436::t_519bd228a26b58 1-217,219-220,222-262
+web/lib/validation.ts
+  s_c8049e6ce0a436::t_44d53b08f52ad6 1-199
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "3b9c39c4418b2f73c94758f0aa95e61de60427d0",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
