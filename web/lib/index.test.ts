@@ -265,3 +265,203 @@ describe("applyRecord", () => {
     expect(idx.get(r.qualified_id)!.archived).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Query methods
+// ---------------------------------------------------------------------------
+
+describe("Index query methods", () => {
+  test("get returns null for missing item", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    expect(idx.get("nope:backlog:1:1")).toBeNull();
+  });
+
+  test("has returns false for missing item", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    expect(idx.has("nope:backlog:1:1")).toBe(false);
+  });
+
+  test("has returns true after insert", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    idx.applyRecord(makeRecord());
+    expect(idx.has("myproj:backlog:1:1")).toBe(true);
+  });
+
+  test("delete removes item and has returns false", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    idx.applyRecord(makeRecord());
+    idx.delete("myproj:backlog:1:1");
+    expect(idx.has("myproj:backlog:1:1")).toBe(false);
+  });
+
+  test("allQualifiedIds returns sorted ids", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    const t2 = makeRecord({
+      qualified_id: "myproj:backlog:1:2",
+      task: 2,
+      file_path: "projects/myproj/epics/backlog/stories/1/tasks/2.md",
+    });
+    const t1 = makeRecord();
+    idx.applyRecord(t1);
+    idx.applyRecord(t2);
+    expect(idx.allQualifiedIds()).toEqual([
+      "myproj:backlog:1:1",
+      "myproj:backlog:1:2",
+    ]);
+  });
+
+  test("find by type", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    idx.applyRecord(makeRecord({ type: "task" }));
+    const tasks = idx.find({ type: "task" });
+    expect(tasks.length).toBe(1);
+    const stories = idx.find({ type: "story" });
+    expect(stories.length).toBe(0);
+  });
+
+  test("find by status", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    idx.applyRecord(makeRecord({ status: "ready" }));
+    expect(idx.find({ status: "ready" }).length).toBe(1);
+    expect(idx.find({ status: "done" }).length).toBe(0);
+  });
+
+  test("find by archived flag", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    idx.applyRecord(makeRecord({ archived: false }));
+    const archivedR = makeRecord({
+      qualified_id: "myproj:backlog:1:2",
+      task: 2,
+      file_path: "projects/myproj/epics/backlog/stories/1/tasks/2.md",
+      archived: true,
+    });
+    idx.applyRecord(archivedR);
+    expect(idx.find({ archived: false }).length).toBe(1);
+    expect(idx.find({ archived: true }).length).toBe(1);
+  });
+
+  test("find by tag", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    idx.applyRecord(makeRecord({ tags: ["urgent"] }));
+    expect(idx.find({ tag: "urgent" }).length).toBe(1);
+    expect(idx.find({ tag: "other" }).length).toBe(0);
+  });
+
+  test("statuses returns distinct non-null statuses sorted", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    idx.applyRecord(makeRecord({ status: "done" }));
+    idx.applyRecord(
+      makeRecord({
+        qualified_id: "myproj:backlog:1:2",
+        task: 2,
+        file_path: "projects/myproj/epics/backlog/stories/1/tasks/2.md",
+        status: "ready",
+      })
+    );
+    expect(idx.statuses()).toEqual(["done", "ready"]);
+  });
+
+  test("findPickable returns ready unarchived items with all deps done", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    // task1: ready, no deps → pickable
+    const t1 = makeRecord({ status: "ready", archived: false });
+    // task2: ready but depends on task3 which is not done → blocked
+    const t3 = makeRecord({
+      qualified_id: "myproj:backlog:1:3",
+      task: 3,
+      file_path: "projects/myproj/epics/backlog/stories/1/tasks/3.md",
+      status: "ready",
+    });
+    const t2 = makeRecord({
+      qualified_id: "myproj:backlog:1:2",
+      task: 2,
+      file_path: "projects/myproj/epics/backlog/stories/1/tasks/2.md",
+      status: "ready",
+      depends_on: ["myproj:backlog:1:3"],
+    });
+    idx.applyRecord(t1);
+    idx.applyRecord(t3);
+    idx.applyRecord(t2);
+    const pickable = idx.findPickable();
+    const ids = pickable.map((r) => r.qualified_id).sort();
+    expect(ids).toContain("myproj:backlog:1:1");
+    expect(ids).toContain("myproj:backlog:1:3");
+    expect(ids).not.toContain("myproj:backlog:1:2");
+  });
+
+  test("findPickable custom status does not satisfy dependency", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    // dep target has custom status 'completed' — should NOT satisfy
+    const depTarget = makeRecord({
+      qualified_id: "myproj:backlog:1:2",
+      task: 2,
+      file_path: "projects/myproj/epics/backlog/stories/1/tasks/2.md",
+      status: "completed",
+    });
+    const source = makeRecord({
+      depends_on: ["myproj:backlog:1:2"],
+    });
+    idx.applyRecord(depTarget);
+    idx.applyRecord(source);
+    const pickable = idx.findPickable();
+    const ids = pickable.map((r) => r.qualified_id);
+    expect(ids).not.toContain("myproj:backlog:1:1");
+  });
+
+  test("dependenciesOf and dependentsOf", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    const t1 = makeRecord();
+    const t2 = makeRecord({
+      qualified_id: "myproj:backlog:1:2",
+      task: 2,
+      file_path: "projects/myproj/epics/backlog/stories/1/tasks/2.md",
+      depends_on: ["myproj:backlog:1:1"],
+    });
+    idx.applyRecord(t1);
+    idx.applyRecord(t2);
+    expect(idx.dependenciesOf("myproj:backlog:1:2")).toEqual(["myproj:backlog:1:1"]);
+    expect(idx.dependentsOf("myproj:backlog:1:1")).toEqual(["myproj:backlog:1:2"]);
+  });
+
+  test("allDependencies returns all edges", () => {
+    const dir = makeTmpDir();
+    initDb(path.join(dir, DB_FILENAME));
+    const idx = new Index(dir);
+    const t1 = makeRecord();
+    const t2 = makeRecord({
+      qualified_id: "myproj:backlog:1:2",
+      task: 2,
+      file_path: "projects/myproj/epics/backlog/stories/1/tasks/2.md",
+      depends_on: ["myproj:backlog:1:1"],
+    });
+    idx.applyRecord(t1);
+    idx.applyRecord(t2);
+    expect(idx.allDependencies()).toEqual([["myproj:backlog:1:2", "myproj:backlog:1:1"]]);
+  });
+});
