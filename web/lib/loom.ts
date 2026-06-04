@@ -43,6 +43,7 @@ import {
   descendants,
   topologicalSort,
 } from "./deps";
+import { getUpdates, StopSignal } from "./watch";
 
 export class Loom {
   private _root: string;
@@ -367,6 +368,26 @@ export class Loom {
     const item = itemFromRecord(this._root, record);
     (item as _Statused).setStatus("done");
     return true;
+  }
+
+  // ----- watch -------------------------------------------------------------
+
+  /**
+   * Async generator that yields the qualified id of each item whose .md
+   * file changes. Uses fs.watch under the hood with debouncing.
+   *
+   * Break out of the loop or call gen.return() to stop the watcher cleanly.
+   *
+   * @param opts.debounceDelay  Seconds to collapse burst events (default 0.05).
+   * @param opts.stopSignal     { stopped: boolean } — set stopped=true to exit.
+   * @param opts.timeout        Max ms to wait for an event before exiting.
+   */
+  getUpdates(opts: {
+    debounceDelay?: number;
+    stopSignal?: StopSignal;
+    timeout?: number;
+  } = {}): AsyncGenerator<string, void, unknown> {
+    return getUpdates(this._root, opts);
   }
 
   // ----- maintenance -------------------------------------------------------
