@@ -1,0 +1,23 @@
+web/package.json
+  s_c8049e6ce0a436::t_61c0b91004b036 19
+web/tsconfig.json
+  s_c8049e6ce0a436::t_260771b492d206 7
+web/bun.lock
+  ai_agent 14,20-21,28-29,43-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "d61dd0260a53bc0fbf341a602406fc81e03a7952",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
