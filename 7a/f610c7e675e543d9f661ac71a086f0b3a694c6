@@ -1,0 +1,41 @@
+web/reference/design_handoff_loom_pm/tweaks-panel.jsx
+  s_c8049e6ce0a436::t_a15b33ba3e0347 1-540
+web/reference/design_handoff_loom_pm/DagView.jsx
+  s_c8049e6ce0a436::t_a15b33ba3e0347 1-251
+web/reference/design_handoff_loom_pm/KanbanView.jsx
+  s_c8049e6ce0a436::t_a15b33ba3e0347 1-165
+web/reference/design_handoff_loom_pm/styles.css
+  s_c8049e6ce0a436::t_a15b33ba3e0347 1-806
+web/reference/design_handoff_loom_pm/TableView.jsx
+  s_c8049e6ce0a436::t_a15b33ba3e0347 1-124
+web/reference/design_handoff_loom_pm/ItemModal.jsx
+  s_c8049e6ce0a436::t_a15b33ba3e0347 1-275
+web/reference/design_handoff_loom_pm/App.jsx
+  s_c8049e6ce0a436::t_a15b33ba3e0347 1-224
+web/reference/design_handoff_loom_pm/Loom.html
+  s_c8049e6ce0a436::t_a15b33ba3e0347 1-33
+web/reference/design_handoff_loom_pm/README.md
+  s_c8049e6ce0a436::t_a15b33ba3e0347 1-225
+web/reference/design_handoff_loom_pm/data.js
+  s_c8049e6ce0a436::t_a15b33ba3e0347 1-300
+web/reference/design_handoff_loom_pm/shared.jsx
+  s_c8049e6ce0a436::t_a15b33ba3e0347 1-209
+web/frontend/styles/markdown.css
+  s_c8049e6ce0a436::t_297fe51f83ed99 51-57,62,67-71,73,79-80,84-86,93-96,130-131,172-173
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "7af610c7e675e543d9f661ac71a086f0b3a694c6",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
