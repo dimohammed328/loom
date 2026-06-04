@@ -1,4 +1,5 @@
 """Structural test: src/loom_web must not exist after backend removal."""
+
 from __future__ import annotations
 
 import importlib

@@ -55,22 +55,9 @@ loom update <story-qid> assignee ${session_id}:${agent_id}
 
 This claims ownership for the audit trail.
 
-The TaskCreated / TaskCompleted hooks are enforcing **strict mode** for
-your agent_type:
-- Every TaskCreate subject MUST start with \`[<loom-task-qid>] \` where the
-  qid resolves to an existing ready task. Malformed task creations will
-  be blocked with a diagnostic.
-- TaskCompleted will automatically run \`loom complete <qid>\` for tasks
-  whose subjects carry the qid prefix.
-
 Read the story body (with \`## Validation Criteria\`) via
 \`loom show <story-qid>\` and get the topological task list via
 \`loom order <story-qid>\`.
-
-If you are a **story-executor**: emit exactly one \`TaskCreate\` per task
-returned by \`loom order\` — your Task List must have one entry per child
-task, never a single entry for the story qid itself. With N tasks
-returned, expect N TaskCreate calls before any task work begins.
 EOF
 )
 
