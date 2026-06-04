@@ -1,0 +1,22 @@
+CLAUDE.md
+  s_c8049e6ce0a436::t_093dfe1e0c1148 155-156,178-187,189
+  s_c8049e6ce0a436::t_204b95d2939042 9,23-33
+tests/test_docs_bun_stack.py
+  s_c8049e6ce0a436::t_2e1778368bda71 1-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "3456b06ca264eb88da7f32f1f78154bdd4b88192",
+  "prompts": {},
+  "sessions": {
+    "s_c8049e6ce0a436": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1270c859-299b-4ad6-9d39-61d3f124044d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
