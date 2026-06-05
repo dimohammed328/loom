@@ -22,6 +22,10 @@ set -euo pipefail
 
 input=$(cat)
 agent_type=$(jq -r '.agent_type // ""' <<<"$input")
+# Claude Code dispatches plugin agents under their namespaced names
+# (e.g. "loom:story-executor"). Strip any "<plugin>:" prefix so the case
+# below matches whether the payload carries the bare or namespaced form.
+agent_type="${agent_type##*:}"
 
 case "$agent_type" in
   story-executor|epic-validator|codebase-researcher)
@@ -61,8 +65,11 @@ Read the story body (with \`## Validation Criteria\`) via
 EOF
 )
 
+# hookEventName is REQUIRED inside hookSpecificOutput — Claude Code
+# silently discards the output (no context injected) if it is missing.
 jq -n --arg ctx "$context" '{
   hookSpecificOutput: {
+    hookEventName: "SubagentStart",
     additionalContext: $ctx
   }
 }'
