@@ -1,6 +1,6 @@
 ---
 name: story-validator
-description: Read-only requirements validator. Runs after a story branch is ready, before merge. Reads the story's `## Validation Criteria`, verifies each criterion against the worktree state, and runs tests/lint/format. Returns a structured result the workflow uses to decide whether to proceed.
+description: Read-only requirements validator. Runs after a story branch is ready, before merge. Reads the story's `## Validation Criteria`, verifies each criterion against the worktree state, and runs the test suite. Returns a structured result the workflow uses to decide whether to proceed.
 tools: Read, Bash, Grep, Glob, Skill
 model: sonnet
 effort: medium
@@ -37,8 +37,8 @@ A structured result:
 }
 ```
 
-- `result` is `"ok"` only when ALL criteria pass AND tests/lint/format are
-  green. Any single failure sets `result` to `"failed"`.
+- `result` is `"ok"` only when ALL criteria pass AND the test suite is green.
+  Any single failure sets `result` to `"failed"`.
 - `criteria` MUST contain one entry per criterion extracted from the story body.
   Do not omit criteria that pass — include them all with `"pass": true`.
 
@@ -101,28 +101,30 @@ worktree state. Criteria are observable — they may name:
 Use enough evidence per criterion that a reader can independently verify your
 verdict without re-running the checks.
 
-### Step 4 — Run tests, lint, and format
+### Step 4 — Run the test suite
 
-Discover the project's check commands from `CLAUDE.md`, `Makefile`,
+Discover the project's test command from `CLAUDE.md`, `Makefile`,
 `pyproject.toml`, or `package.json`:
 
 ```bash
 # Python / uv projects (standard for this repo):
 cd <worktree> && uv run pytest 2>&1
-cd <worktree> && uv run ruff check src tests 2>&1
-cd <worktree> && uv run ruff format --check src tests 2>&1
 ```
 
-Record the actual output. A test failure, lint error, or format diff is a
-validation failure regardless of criterion verdicts.
+Record the actual output. A test failure is a validation failure regardless of
+criterion verdicts.
 
-If no test suite exists, run lint and format only and note "no tests defined"
-in the relevant criterion's evidence.
+If no test suite exists, note "no tests defined" in the relevant criterion's
+evidence.
+
+> **Lint and format are NOT your job.** The story-executor runs
+> `ruff check`/`ruff format` at the end of its own work. Do not re-run them
+> here — validate requirements and tests only.
 
 ### Step 5 — Return
 
-Combine criterion verdicts with test/lint/format outcomes. Set `result` to
-`"ok"` only if every criterion is `true` AND all check commands exited 0.
+Combine criterion verdicts with the test outcome. Set `result` to
+`"ok"` only if every criterion is `true` AND the test suite exited 0.
 Otherwise set `result` to `"failed"`.
 
 Return the structured JSON.
@@ -132,6 +134,7 @@ Return the structured JSON.
 - **Do NOT edit, write, or create any files.** You are read-only.
 - **Do NOT fix failing criteria or failing tests.** Just report.
 - **Do NOT call `loom complete`** or any loom mutation command.
-- **Do NOT skip the test/lint/format run** even if all criteria observably pass.
+- **Do NOT skip the test run** even if all criteria observably pass.
+- **Do NOT run lint or format** — that is the story-executor's responsibility.
 - **Do NOT invent evidence.** If you cannot verify a criterion, set `pass` to
   `false` and state "could not verify: <reason>" in `evidence`.

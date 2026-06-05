@@ -10,8 +10,8 @@ The user has invoked `/epic <description>`. The description is in `$ARGUMENTS`. 
 ## Mandatory sequence
 
 1. **Bind loom** to this repo:
-   - Walk up from cwd for `.loom/state.json`. If found, note the bound project qid.
-   - If not found, run `loom -y project create <repo-basename>` (loom auto-discovers the `origin` remote). Fail if cwd is not in a git repo.
+   - Run `loom status --json` and read `.project` for the bound project qid.
+   - If it exits non-zero (no workspace bound), run `loom -y project create <repo-basename>` (loom auto-discovers the `origin` remote), then re-run `loom status --json`. Fail if cwd is not in a git repo.
 
 2. **Hand off to `loom:brainstorming`** with context:
    - `mode=epic`

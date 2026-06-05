@@ -31,16 +31,19 @@ A structured result:
   "findings": [
     {
       "title": "<short title>",
-      "detail": "<specific observation: file, line, what was found>",
-      "severity": "error" | "warning" | "suggestion"
+      "file": "<path, e.g. src/foo/bar.py>",
+      "lines": "<line or range, e.g. 42 or 42-50>",
+      "detail": "<specific observation and why it must be fixed>"
     }
   ]
 }
 ```
 
-- `clean` is `true` when there are zero `error`-severity findings. Warnings
-  and suggestions do not block — they are surfaced to the user for awareness.
+- `clean` is `true` only when `findings` is empty.
 - `findings` is an empty array `[]` when there is nothing to report.
+- Every finding is a **must-fix** issue. There is no severity tier — if you
+  report it, it will be filed as a task and fixed before merge. So report only
+  genuine problems, never stylistic nitpicks or speculative concerns.
 
 ## Workflow
 
@@ -57,7 +60,7 @@ cd <worktree> && git log --oneline -5
 Confirm the branch matches what was dispatched. If not, STOP and return:
 
 ```json
-{"clean": false, "findings": [{"title": "Wrong branch", "detail": "<what you saw>", "severity": "error"}]}
+{"clean": false, "findings": [{"title": "Wrong branch", "file": "(n/a)", "lines": "(n/a)", "detail": "<what you saw>"}]}
 ```
 
 ### Step 2 — Collect the diff
@@ -75,35 +78,34 @@ If the diff is empty (no changes), return immediately:
 
 ### Step 3 — Review the diff
 
-Examine the changed files and the diff for the following concerns:
+Examine the changed files and the diff. Report a finding for any genuine
+problem that should be fixed before this branch merges, such as:
 
-**Error-severity (blocks merge):**
 - Secrets, credentials, API keys, tokens committed in plain text
 - Syntax errors or obvious broken imports that tests would not catch
 - Deleted test files or test coverage removed without replacement
-
-**Warning-severity (surfaced to user, does not block):**
-- Dead code added (unreachable branches, unused imports, commented-out blocks
-  of non-trivial size)
+- Dead code added (unreachable branches, unused imports, sizeable
+  commented-out blocks)
 - Hardcoded magic values that belong in constants or config
-- Overly complex functions that could be split (rough heuristic: >50 lines of
+- Overly complex functions that should be split (rough heuristic: >50 lines of
   logic, deeply nested conditions)
 - Missing or incomplete docstrings/comments on public interfaces
+- Naming or structure that diverges from the surrounding codebase style
+- Re-implementing logic that an existing utility already provides
 
-**Suggestion-severity (informational):**
-- Minor naming inconsistencies with the surrounding codebase style
-- Opportunities to reuse existing utilities instead of re-implementing
-- Non-blocking style notes
+Apply judgement: only report issues a maintainer would genuinely want fixed.
+Every finding becomes a task, so a borderline nitpick is noise — leave it out.
 
 Use `Read`, `Grep`, and `Glob` to look at the full file context when a diff
 hunk is ambiguous — don't judge a function from a fragment.
 
 ### Step 4 — Return
 
-Return the structured JSON result. Every `detail` field MUST:
-- Name the specific file (e.g., `src/foo/bar.py:42`)
-- Quote or paraphrase the relevant line(s)
-- State concretely what the concern is
+Return the structured JSON result. For every finding:
+- `file` MUST name the specific file (e.g., `src/foo/bar.py`)
+- `lines` MUST give the line or range (e.g., `42` or `42-50`)
+- `detail` MUST quote or paraphrase the relevant line(s) and state concretely
+  what the concern is and why it must be fixed
 
 Do NOT write vague findings like "code could be cleaner" — if you cannot cite
 a specific location and observation, omit the finding.

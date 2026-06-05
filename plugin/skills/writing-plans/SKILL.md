@@ -115,11 +115,11 @@ Workflow({
 ```js
 Workflow({
   scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/story.workflow.js",
-  args: { story_qid: "<qid>", merge: "<'true' or 'false'>" }
+  args: { story_qid: "<qid>", finalize: "<'pr' or 'merge'>" }
 })
 ```
 
-Set `finalize`/`merge` based on whether the original request explicitly asked to merge to main. Default is PR (`finalize: "pr"` / omit `merge`). The workflow handles worktree creation, execution, validation, and finalization.
+Both workflows take the same `finalize` argument: `"pr"` (default) opens a pull request, `"merge"` merges into `main` and pushes. Set it to `"merge"` only when the original request explicitly asked to merge to main; otherwise use `"pr"`. The workflow handles worktree creation, execution, validation, and finalization.
 
 ## Constraints
 
