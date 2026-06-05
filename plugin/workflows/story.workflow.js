@@ -21,13 +21,12 @@ const doMerge = finalize === 'merge'
 // ---- Schema helpers ----
 const EXECUTOR_SCHEMA = {
   type: 'object',
-  required: ['story_qid', 'branch', 'worktree', 'commits'],
+  required: ['story_qid', 'branch', 'worktree'],
   properties: {
-    story_qid:  { type: 'string' },
-    branch:     { type: 'string' },
-    worktree:   { type: 'string' },
-    commits:    { type: 'array', items: { type: 'string' } },
-    notes:      { type: 'string' },
+    story_qid: { type: 'string' },
+    branch:    { type: 'string' },
+    worktree:  { type: 'string' },
+    notes:     { type: 'string' },
   },
 }
 
@@ -86,88 +85,92 @@ async function fileFixes(story_qid, fixes) {
   )
 }
 
-// ---- prepare(): execute → review → validate for one story attempt ----
-// Returns { ok: true, executor } on success, or { ok: false, reason } on failure.
-// Fix-items from BOTH the review and validate steps are collated as local
-// objects and filed via a single agent at the end of the attempt.
+// ---- prepare(): build → review → validate convergence loop (≤3 attempts) ----
+// Mirrors epic.workflow.js: the retry loop lives INSIDE prepare(). Each attempt
+// collates fix-items from BOTH the review and validate steps as local objects
+// and files them via a single agent before re-dispatching the executor (which
+// resumes its worktree and implements only the newly-filed tasks).
+// Returns { ok: true, executor, attempts } on success, or
+// { ok: false, attempts, reason } once retries are exhausted.
 
 async function prepare(story_qid) {
-  // Phase: Execute
-  phase('Execute')
-  log(`Dispatching story-executor for ${story_qid}`)
-  const executor = await agent(
-    `story_qid=${story_qid} parent_branch=main`,
-    { label: 'story-executor', agentType: 'loom:story-executor', schema: EXECUTOR_SCHEMA }
-  )
-  log(`Executor done: branch=${executor.branch}  commits=${executor.commits.length}`)
+  const MAX_ATTEMPTS = 3
+  let attempt = 0
+  let lastReason = ''
 
-  const fixes = []  // [{ title, body }]
+  while (attempt < MAX_ATTEMPTS) {
+    attempt++
+    log(`[${story_qid}] prepare attempt ${attempt}/${MAX_ATTEMPTS}`)
 
-  // Phase: Review
-  phase('Review')
-  const reviewer = await agent(
-    `story_qid=${story_qid} branch=${executor.branch} trunk=main worktree=${executor.worktree}`,
-    { label: 'code-reviewer', agentType: 'code-reviewer', schema: REVIEWER_SCHEMA }
-  )
-  if (!reviewer.clean) {
-    for (const f of reviewer.findings) {
-      fixes.push({
-        title: `fix: ${f.title}`,
-        body: `${f.detail}\n\nLocation: ${f.file}:${f.lines}`,
-      })
+    // Phase: Execute
+    phase('Execute')
+    const executor = await agent(
+      `story_qid=${story_qid} parent_branch=main`,
+      { label: `story-executor:${attempt}`, agentType: 'loom:story-executor', schema: EXECUTOR_SCHEMA }
+    )
+    log(`Executor done: branch=${executor.branch}`)
+
+    const fixes = []  // [{ title, body }]
+
+    // Phase: Review
+    phase('Review')
+    const reviewer = await agent(
+      `story_qid=${story_qid} branch=${executor.branch} trunk=main worktree=${executor.worktree}`,
+      { label: `code-reviewer:${attempt}`, agentType: 'code-reviewer', schema: REVIEWER_SCHEMA }
+    )
+    if (!reviewer.clean) {
+      for (const f of reviewer.findings) {
+        fixes.push({
+          title: `fix: ${f.title}`,
+          body: `${f.detail}\n\nLocation: ${f.file}:${f.lines}`,
+        })
+      }
     }
-  }
 
-  // Phase: Validate
-  phase('Validate')
-  const validator = await agent(
-    `story_qid=${story_qid} branch=${executor.branch} worktree=${executor.worktree}`,
-    { label: 'story-validator', agentType: 'story-validator', schema: VALIDATOR_SCHEMA }
-  )
-  if (validator.result !== 'ok') {
-    for (const c of validator.criteria.filter(c => !c.pass)) {
-      fixes.push({
-        title: `fix: ${c.text}`,
-        body: `Validation criterion failed.\n\nCriterion: ${c.text}\n\nEvidence: ${c.evidence}`,
-      })
+    // Phase: Validate
+    phase('Validate')
+    const validator = await agent(
+      `story_qid=${story_qid} branch=${executor.branch} worktree=${executor.worktree}`,
+      { label: `story-validator:${attempt}`, agentType: 'story-validator', schema: VALIDATOR_SCHEMA }
+    )
+    if (validator.result !== 'ok') {
+      for (const c of validator.criteria.filter(c => !c.pass)) {
+        fixes.push({
+          title: `fix: ${c.text}`,
+          body: `Validation criterion failed.\n\nCriterion: ${c.text}\n\nEvidence: ${c.evidence}`,
+        })
+      }
     }
+
+    if (fixes.length === 0) {
+      return { ok: true, executor, attempts: attempt }
+    }
+
+    // File the collated fix-items so the next dispatch rediscovers them.
+    lastReason = fixes.map(f => f.title).join('; ')
+    log(`[${story_qid}] filing ${fixes.length} fix-task(s) (${lastReason})`)
+    await fileFixes(story_qid, fixes)
   }
 
-  if (fixes.length === 0) {
-    return { ok: true, executor }
-  }
-
-  log(`Filing ${fixes.length} fix-task(s) and retrying`)
-  await fileFixes(story_qid, fixes)
-  return { ok: false, reason: fixes.map(f => f.title).join('; ') }
+  log(`[${story_qid}] did not converge after ${MAX_ATTEMPTS} attempts`)
+  return { ok: false, attempts: MAX_ATTEMPTS, reason: lastReason }
 }
 
-// ---- Convergence loop (≤3 attempts) ----
-const MAX_ATTEMPTS = 3
-let attempt = 0
-let result = null
-
-while (attempt < MAX_ATTEMPTS) {
-  attempt++
-  log(`Attempt ${attempt}/${MAX_ATTEMPTS} for story ${story_qid}`)
-  result = await prepare(story_qid)
-  if (result.ok) break
-  if (attempt < MAX_ATTEMPTS) {
-    log(`Attempt ${attempt} failed (${result.reason}) — re-running executor with fix-tasks`)
-  }
-}
+// ---- Run the convergence loop ----
+const result = await prepare(story_qid)
 
 if (!result.ok) {
   return {
     result: 'failed',
     story_qid,
-    attempts: attempt,
+    attempts: result.attempts,
     reason: result.reason,
   }
 }
 
 // ---- Convergence succeeded — finalize ----
 const { executor } = result
+const attempt = result.attempts
 phase('Finalize')
 
 // Final validation on the story branch before touching main

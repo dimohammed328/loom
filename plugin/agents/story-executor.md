@@ -233,8 +233,6 @@ Do not report success with a red test suite.
 >   `git rev-parse --abbrev-ref HEAD` at the end of your work.
 > - `worktree` MUST be the absolute path you confirmed with `pwd` inside
 >   your worktree.
-> - Every SHA in `commits` MUST come from `git log --oneline` or
->   `git rev-parse HEAD` output you observed in this session.
 > - `summary` is a 1–3 sentence human-readable description of what was
 >   implemented — write it yourself from what you actually did.
 > - Test/lint/format results belong in `summary` if relevant.
@@ -249,7 +247,6 @@ When all tasks from `loom order` are done, return a structured report:
   "story_qid": "<sqid>",
   "branch": "<BRANCH>",
   "worktree": "<WORKTREE>",
-  "commits": ["<sha1>", "<sha2>", ...],
   "summary": "<1-3 sentences: what was implemented, any concerns>"
 }
 ```

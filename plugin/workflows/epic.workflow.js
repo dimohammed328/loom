@@ -40,13 +40,12 @@ const TRUNK_SCHEMA = {
 
 const BUILD_SCHEMA = {
   type: 'object',
-  required: ['story_qid', 'branch', 'worktree', 'commits'],
+  required: ['story_qid', 'branch', 'worktree'],
   properties: {
-    story_qid:  { type: 'string' },
-    branch:     { type: 'string' },
-    worktree:   { type: 'string' },
-    commits:    { type: 'array', items: { type: 'string' } },
-    notes:      { type: 'string' },
+    story_qid: { type: 'string' },
+    branch:    { type: 'string' },
+    worktree:  { type: 'string' },
+    notes:     { type: 'string' },
   },
 }
 
