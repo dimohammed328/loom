@@ -178,7 +178,7 @@ const attempts = result.attempts
 // Hygiene edits land on the branch and are then verified by story-validator.
 log('Running code-hygiene pass before final validation')
 await agent(
-  `branch=${executor.branch} worktree=${executor.worktree}`,
+  `branch=${executor.branch} worktree=${executor.worktree} trunk=main`,
   { label: 'code-hygiene', phase: 'Validate', agentType: 'loom:code-hygiene', schema: HYGIENE_SCHEMA }
 )
 

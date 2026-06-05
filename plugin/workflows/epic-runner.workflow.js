@@ -346,7 +346,7 @@ log('All stories merged into trunk.')
 // Hygiene edits land on the trunk and are then gated by epic-validator.
 log(`Running code-hygiene pass over trunk before epic validation`)
 await agent(
-  `branch=${trunk.branch} worktree=${trunk.worktree}`,
+  `branch=${trunk.branch} worktree=${trunk.worktree} trunk=main`,
   { label: 'code-hygiene', phase: 'Epic validation', agentType: 'loom:code-hygiene', schema: HYGIENE_SCHEMA }
 )
 

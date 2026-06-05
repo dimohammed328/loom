@@ -17,6 +17,7 @@ The dispatching prompt contains:
 
 - `branch` — the branch to clean up (e.g. `worktree-<slug>`)
 - `worktree` — absolute path to the branch's worktree
+- `trunk` — the base branch to diff against (defaults to `main` if omitted)
 
 ## What you are allowed to fix
 
@@ -61,9 +62,11 @@ Confirm the branch matches what was dispatched. If not, STOP and commit nothing.
 
 ### Step 2 — Collect the diff
 
+Use the `trunk` value from your dispatch prompt (default `main` if not provided):
+
 ```bash
-cd <worktree> && git diff main...HEAD --name-only
-cd <worktree> && git diff main...HEAD
+cd <worktree> && git diff <trunk>...HEAD --name-only
+cd <worktree> && git diff <trunk>...HEAD
 ```
 
 If the diff is empty, commit nothing and return immediately.
