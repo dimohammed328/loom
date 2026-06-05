@@ -140,9 +140,13 @@ const PR_SCHEMA = {
 
 // ── Inputs ───────────────────────────────────────────────────────────────────
 
-const epicQid = args.epic_qid
+// args may arrive as an object or as a JSON-encoded string depending on the
+// invoking harness; normalize to an object before reading fields.
+const input = typeof args === 'string' ? JSON.parse(args) : (args ?? {})
+
+const epicQid = input.epic_qid
 if (!epicQid) throw new Error('epic_qid is required')
-const finalize = args.finalize ?? 'pr'
+const finalize = input.finalize ?? 'pr'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
