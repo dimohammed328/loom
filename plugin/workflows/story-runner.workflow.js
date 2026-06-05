@@ -2,17 +2,17 @@
 // Receives: args.story_qid, args.finalize ('pr' | 'merge', default 'pr').
 //
 // Phases:
-//   Execute / Review / Validate — convergence loop (prepare)
-//   Finalize                    — final validation, then open a PR (default) or
-//                                 merge + push to main
+//   Execute / Validate / Fix — convergence loop (prepare)
+//   Finalize                 — final validation, then open a PR (default) or
+//                              merge + push to main
 
 export const meta = {
   name: 'story-runner',
-  description: 'Single-story runner: build → review → validate convergence loop, then finalize (open a PR by default, or merge + push to main when requested)',
+  description: 'Single-story runner: build → validate convergence loop (with inline story-fixer), then finalize (open a PR by default, or merge + push to main when requested)',
   phases: [
     { title: 'Execute',  detail: 'story-executor builds the story branch' },
-    { title: 'Review',   detail: 'code-reviewer checks hygiene' },
     { title: 'Validate', detail: 'story-validator checks criteria and tests' },
+    { title: 'Fix',      detail: 'story-fixer applies validator failures inline' },
     { title: 'Finalize', detail: 'final validation, then open a PR (default) or merge + push to main' },
   ],
 }
@@ -91,46 +91,40 @@ const finalize = input.finalize ?? 'pr'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-// prepare(qid, parentBranch) — build → review → validate convergence loop
-// (≤3 attempts). Each attempt collates fix-items from BOTH the review and
-// validate steps as local objects and files them via a single agent before
-// re-dispatching the executor (which resumes its worktree and implements only
-// the newly-filed tasks). Steps are tagged via opts.phase (NOT phase()) so the
-// loop is safe to run concurrently. Returns { qid, executor, ok, open, attempts }:
+// prepare(qid, parentBranch) — execute → validate convergence loop (≤3 attempts).
+// Attempt 1: story-executor builds the branch. Subsequent attempts: story-fixer
+// applies the failed criteria from the previous validate step. Steps are tagged
+// via opts.phase (NOT phase()) so the loop is safe to run concurrently.
+// Returns { qid, executor, ok, open, attempts }:
 //   ok:       true if the story converged
-//   executor: the executor result on success, else null
-//   open:     array of unmet-item titles (non-empty only when ok=false)
+//   executor: the executor result (kept from attempt 1)
+//   open:     array of unmet criterion texts (non-empty only when ok=false)
 //   attempts: number of attempts made
 async function prepare(qid, parentBranch) {
   const MAX_ATTEMPTS = 3
   let attempt = 0
+  let executor = null
   let open = []
 
   while (attempt < MAX_ATTEMPTS) {
     attempt++
     log(`[${qid}] prepare attempt ${attempt}/${MAX_ATTEMPTS}`)
 
-    // Execute: story-executor builds the story branch.
-    const executor = await agent(
-      `story_qid=${qid} parent_branch=${parentBranch}`,
-      { label: `executor:${qid}:${attempt}`, phase: 'Execute', agentType: 'loom:story-executor', schema: EXECUTOR_SCHEMA }
-    )
-    log(`[${qid}] executor done: branch=${executor.branch}`)
-
-    const fixes = []  // [{ title, body }]
-
-    // Review: code-reviewer checks hygiene.
-    const review = await agent(
-      `story_qid=${qid} branch=${executor.branch} trunk=${parentBranch} worktree=${executor.worktree}`,
-      { label: `reviewer:${qid}:${attempt}`, phase: 'Review', agentType: 'loom:code-reviewer', schema: REVIEWER_SCHEMA }
-    )
-    if (!review.clean) {
-      for (const f of review.findings) {
-        fixes.push({
-          title: `fix: ${f.title}`,
-          body: `${f.detail}\n\nLocation: ${f.file}:${f.lines}`,
-        })
-      }
+    if (attempt === 1) {
+      // Execute: story-executor builds the story branch.
+      executor = await agent(
+        `story_qid=${qid} parent_branch=${parentBranch}`,
+        { label: `executor:${qid}:${attempt}`, phase: 'Execute', agentType: 'loom:story-executor', schema: EXECUTOR_SCHEMA }
+      )
+      log(`[${qid}] executor done: branch=${executor.branch}`)
+    } else {
+      // Fix: story-fixer resumes the existing worktree and applies the failed criteria.
+      const failedLines = open.join('\n')
+      await agent(
+        `story_qid=${qid} branch=${executor.branch} worktree=${executor.worktree}\nfailed_criteria:\n${failedLines}`,
+        { label: `fixer:${qid}:${attempt}`, phase: 'Fix', agentType: 'loom:story-fixer', schema: FIXER_SCHEMA }
+      )
+      log(`[${qid}] fixer done (attempt ${attempt})`)
     }
 
     // Validate: story-validator checks criteria and tests.
@@ -138,28 +132,17 @@ async function prepare(qid, parentBranch) {
       `story_qid=${qid} branch=${executor.branch} worktree=${executor.worktree}`,
       { label: `validator:${qid}:${attempt}`, phase: 'Validate', agentType: 'loom:story-validator', schema: VALIDATOR_SCHEMA }
     )
-    if (validate.result !== 'ok') {
-      for (const c of validate.criteria.filter(c => !c.pass)) {
-        fixes.push({
-          title: `fix: ${c.text}`,
-          body: `Validation criterion failed.\n\nCriterion: ${c.text}\n\nEvidence: ${c.evidence}`,
-        })
-      }
-    }
 
-    // Converged when neither step produced a fix-item.
-    if (fixes.length === 0) {
+    if (validate.result === 'ok') {
       return { qid, executor, ok: true, open: [], attempts: attempt }
     }
 
-    // File the collated fix-items so the next dispatch rediscovers them.
-    log(`[${qid}] filing ${fixes.length} fix-task(s) and retrying`)
-    await fileFixes(qid, fixes)
-    open = fixes.map(f => f.title)
+    open = validate.criteria.filter(c => !c.pass).map(c => c.text)
+    log(`[${qid}] validation failed: ${open.length} unmet criterion(a)`)
   }
 
   log(`[${qid}] did not converge after ${MAX_ATTEMPTS} attempts`)
-  return { qid, executor: null, ok: false, open, attempts: MAX_ATTEMPTS }
+  return { qid, executor, ok: false, open, attempts: MAX_ATTEMPTS }
 }
 
 // ── Convergence ──────────────────────────────────────────────────────────────
