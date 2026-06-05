@@ -102,5 +102,11 @@ cd <worktree> && git log --oneline -1
 
 ### Step 6 — Report back
 
-Return a plain summary of what was changed and the final test status. No
-structured schema is required — the workflow re-validates after you return.
+Return a JSON object with a required `summary` field describing what was
+changed and the final test status:
+
+```json
+{ "summary": "<description of changes made and test outcome>" }
+```
+
+The workflow enforces this schema — do not return plain text.
