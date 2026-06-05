@@ -20,7 +20,6 @@ SCRIPT = Path(__file__).parent.parent / "plugin" / "scripts" / "loom-subagent-co
 
 TARGET_AGENTS = (
     "story-executor",
-    "story-integrator",
     "epic-validator",
     "codebase-researcher",
 )

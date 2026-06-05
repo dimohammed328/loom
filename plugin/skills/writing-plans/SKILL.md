@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: "Use after the brainstorming skill produces an approved groomed draft. Materializes the draft as loom items via `loom epic|story|task create --body-file`, adds dependencies via `loom dep add`, sets `assignee` on epics and stories. Hands off to executing-plans."
+description: "Use after the brainstorming skill produces an approved groomed draft. Materializes the draft as loom items via `loom epic|story|task create --body-file`, adds dependencies via `loom dep add`, sets `assignee` on epics and stories. Hands off by launching the appropriate workflow (epic or story)."
 ---
 
 # Writing Plans — loom-backed materialization
@@ -101,11 +101,25 @@ Show both outputs to the user. Confirm the structure is what they approved. If t
 
 ### Step 5: Hand off
 
-Once the user signs off on the materialized tree, invoke **`loom:executing-plans`** with:
-- `epic_qid=<qid>` (epic mode) or `story_qid=<qid>` (story mode)
-- The orchestrator handles worktree creation and the dispatch loop.
+Once the user signs off on the materialized tree, launch the appropriate workflow:
 
-`executing-plans` is the only skill you hand off to.
+**Epic mode:**
+```js
+Workflow({
+  scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/epic.workflow.js",
+  args: { epic_qid: "<qid>", finalize: "<'pr' or 'merge'>" }
+})
+```
+
+**Story mode:**
+```js
+Workflow({
+  scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/story.workflow.js",
+  args: { story_qid: "<qid>", finalize: "<'pr' or 'merge'>" }
+})
+```
+
+Both workflows take the same `finalize` argument: `"pr"` (default) opens a pull request, `"merge"` merges into `main` and pushes. Set it to `"merge"` only when the original request explicitly asked to merge to main; otherwise use `"pr"`. The workflow handles worktree creation, execution, validation, and finalization.
 
 ## Constraints
 

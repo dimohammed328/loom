@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# scripts/loom-log.sh — dispatcher hook for orchestrator event logging.
+# scripts/loom-log.sh — dispatcher hook for agent lifecycle event logging.
 #
-# Wired to: TaskCreated, PostToolUse (matchers: TaskUpdate, Bash),
-#           TaskCompleted, SubagentStart, SubagentStop,
+# Wired to: PostToolUse (matcher: Bash), SubagentStart, SubagentStop,
 #           WorktreeCreate, WorktreeRemove
 #
 # Reads stdin JSON, detects event type from $CLAUDE_HOOK_EVENT env var
@@ -96,61 +95,6 @@ call_helper() {
   args+=("$@")
 
   "$HELPER" "${args[@]}"
-}
-
-# ---------------------------------------------------------------------------
-# extract_task_qid — pull qid out of "[<qid>] <subject>" pattern
-# ---------------------------------------------------------------------------
-extract_task_qid() {
-  local subject="$1"
-  if [[ "$subject" =~ ^\[([^]]+)\] ]]; then
-    echo "${BASH_REMATCH[1]}"
-  fi
-}
-
-# ---------------------------------------------------------------------------
-# Branch: TaskCreated → task_created
-# ---------------------------------------------------------------------------
-handle_task_created() {
-  local subject task_qid
-  subject=$(echo "$input" | jq -r '.tool_input.subject // .subject // ""' 2>/dev/null)
-  task_qid=$(extract_task_qid "$subject")
-
-  local extra_args=()
-  [[ -n "$task_qid" ]] && extra_args+=(--task-qid "$task_qid")
-  [[ -n "$subject" ]]  && extra_args+=(--field "subject=${subject}")
-
-  call_helper "task_created" "${extra_args[@]}"
-}
-
-# ---------------------------------------------------------------------------
-# Branch: PostToolUse(TaskUpdate) → task_updated
-# ---------------------------------------------------------------------------
-handle_task_updated() {
-  local subject task_qid status
-  subject=$(echo "$input" | jq -r '.tool_input.subject // ""' 2>/dev/null)
-  status=$(echo "$input" | jq -r '.tool_input.status // ""' 2>/dev/null)
-  task_qid=$(extract_task_qid "$subject")
-
-  local extra_args=()
-  [[ -n "$task_qid" ]] && extra_args+=(--task-qid "$task_qid")
-  [[ -n "$status" ]]   && extra_args+=(--field "status=${status}")
-
-  call_helper "task_updated" "${extra_args[@]}"
-}
-
-# ---------------------------------------------------------------------------
-# Branch: TaskCompleted → task_completed
-# ---------------------------------------------------------------------------
-handle_task_completed() {
-  local subject task_qid
-  subject=$(echo "$input" | jq -r '.tool_input.subject // .subject // .tool_response.subject // ""' 2>/dev/null)
-  task_qid=$(extract_task_qid "$subject")
-
-  local extra_args=()
-  [[ -n "$task_qid" ]] && extra_args+=(--task-qid "$task_qid")
-
-  call_helper "task_completed" "${extra_args[@]}"
 }
 
 # ---------------------------------------------------------------------------
@@ -297,12 +241,6 @@ handle_bash() {
 # Main dispatch
 # ---------------------------------------------------------------------------
 case "$event" in
-  TaskCreated)
-    handle_task_created
-    ;;
-  TaskCompleted)
-    handle_task_completed
-    ;;
   SubagentStart)
     handle_subagent_start
     ;;
@@ -318,9 +256,6 @@ case "$event" in
   PostToolUse)
     tool_name=$(echo "$input" | jq -r '.tool_name // ""' 2>/dev/null)
     case "$tool_name" in
-      TaskUpdate)
-        handle_task_updated
-        ;;
       Bash)
         handle_bash
         ;;
