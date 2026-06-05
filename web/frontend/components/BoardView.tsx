@@ -30,6 +30,12 @@ import StoryCard from "./StoryCard";
  *  screens >= ~900px wide without horizontal scroll. */
 export const LANE_MIN_WIDTH = 160;
 
+/** Build the CSS grid-template-columns value for the board.
+ *  Exported for tests so the floor-then-scroll contract is verifiable. */
+export function buildGridTemplate(laneCount: number): string {
+  return `var(--epic-col) repeat(${laneCount}, minmax(${LANE_MIN_WIDTH}px, 1fr))`;
+}
+
 // ---------------------------------------------------------------------------
 // Pure helper (exported for tests)
 // ---------------------------------------------------------------------------
@@ -174,7 +180,7 @@ export default function BoardView({ project, onOpen }: BoardViewProps): React.JS
   }
 
   const headers = boardColumnHeaders(rows);
-  const gridCols = `var(--epic-col) repeat(${BOARD_STATUSES.length}, minmax(${LANE_MIN_WIDTH}px, 1fr))`;
+  const gridCols = buildGridTemplate(BOARD_STATUSES.length);
 
   return (
     <div className="view-scroll">

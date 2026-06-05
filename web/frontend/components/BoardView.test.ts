@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { boardColumnHeaders, LANE_MIN_WIDTH } from "./BoardView";
+import { boardColumnHeaders, LANE_MIN_WIDTH, buildGridTemplate } from "./BoardView";
 import type { EpicRow, StoryCell } from "../boardModel";
 import { BOARD_STATUSES } from "../boardModel";
 
@@ -33,6 +33,25 @@ function makeRow(stories: StoryCell[]): EpicRow {
 describe("LANE_MIN_WIDTH", () => {
   test("is 160px so the board fits on screens >= ~900px wide", () => {
     expect(LANE_MIN_WIDTH).toBe(160);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildGridTemplate — floor-then-scroll contract
+// ---------------------------------------------------------------------------
+
+describe("buildGridTemplate", () => {
+  test("uses LANE_MIN_WIDTH as floor (not 244px) in grid template", () => {
+    const tpl = buildGridTemplate(4);
+    expect(tpl).toContain(`minmax(${LANE_MIN_WIDTH}px, 1fr)`);
+    expect(tpl).not.toContain("244px");
+  });
+
+  test("repeats the lane track for every column count passed", () => {
+    const tpl = buildGridTemplate(4);
+    expect(tpl).toBe(
+      `var(--epic-col) repeat(4, minmax(${LANE_MIN_WIDTH}px, 1fr))`
+    );
   });
 });
 
