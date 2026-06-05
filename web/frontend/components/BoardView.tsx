@@ -30,6 +30,9 @@ import StoryCard from "./StoryCard";
  *  screens >= ~900px wide without horizontal scroll. */
 export const LANE_MIN_WIDTH = 160;
 
+/** Maximum number of story cards shown per status lane before the expander is shown. */
+export const LANE_STORY_CAP = 5;
+
 /** Build the CSS grid-template-columns value for the board.
  *  Exported for tests so the floor-then-scroll contract is verifiable. */
 export function buildGridTemplate(laneCount: number): string {
@@ -37,12 +40,21 @@ export function buildGridTemplate(laneCount: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Pure helper (exported for tests)
+// Pure helpers (exported for tests)
 // ---------------------------------------------------------------------------
 
 export interface ColumnHeader {
   status: string;
   count: number;
+}
+
+/**
+ * Return the subset of cells to show in a lane.
+ * When expanded, all cells are returned. When collapsed, only the first
+ * LANE_STORY_CAP cells are returned (a no-op when the lane has <= cap cards).
+ */
+export function visibleCells(cells: StoryCell[], expanded: boolean): StoryCell[] {
+  return expanded ? cells : cells.slice(0, LANE_STORY_CAP);
 }
 
 /**
