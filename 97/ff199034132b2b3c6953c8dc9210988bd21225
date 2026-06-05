@@ -1,0 +1,58 @@
+plugin/agents/story-executor.md
+  s_d7a29117652d90::t_7eb9db2d022ede 133
+  s_d7a29117652d90::t_338fd8330334d4 205-227
+  s_d7a29117652d90::t_522cb545870be1 278
+  s_d7a29117652d90::t_af1ef181b9ad86 13-14
+  s_d7a29117652d90::t_be18ecc2e41f44 187
+  s_d7a29117652d90::t_77cea558050190 258-259
+  s_d7a29117652d90::t_3796725caf6d35 161-162
+  s_d7a29117652d90::t_1be7e643886d73 3
+plugin/workflows/story.workflow.js
+  s_d7a29117652d90::t_30f037a719d94a 77-86,91-92,104-105,113-117,128-133,136-142
+  s_d7a29117652d90::t_3ae7712977a95f 190,192-200,202,207-214,218,220,222-229,248-259
+  s_d7a29117652d90::t_2c398c96ee0d33 3,8,14,18-19
+  s_d7a29117652d90::t_f67056168c9c47 24,43,45-48
+plugin/workflows/epic.workflow.js
+  s_d7a29117652d90::t_94e498a41e7b30 399,401-415
+  s_d7a29117652d90::t_ba9aad2e8faf6b 151-152,155-156,162-179
+  s_d7a29117652d90::t_a2a0df68d05d19 26
+  s_d7a29117652d90::t_80f98896b7d8ae 206-210,217-221,230-237,239-240,244-253
+  s_d7a29117652d90::t_08a244f02884eb 43,62,64-67
+  s_d7a29117652d90::t_b7f74491a445f4 277-281,286,288,301-306,309,312-314,318-322,325,331-339
+plugin/agents/story-merger.md
+  s_d7a29117652d90::t_79b1a530d9fd2f 1-105
+plugin/agents/code-reviewer.md
+  s_d7a29117652d90::t_5bcd2e9c4240ba 104-108
+  s_d7a29117652d90::t_0a36b514434558 34-36,42,44-46
+  s_d7a29117652d90::t_b364397be07ed0 63
+  s_d7a29117652d90::t_7e51e34853a7db 81-82,87-88,90,93-94,96-97
+plugin/skills/epic/SKILL.md
+  s_d7a29117652d90::t_ca89dc59b9fc6c 13-14
+plugin/skills/writing-plans/SKILL.md
+  s_d7a29117652d90::t_acf267c9af89a2 118,122
+plugin/agents/story-validator.md
+  s_d7a29117652d90::t_976c05222ee9e0 3
+  s_d7a29117652d90::t_9bf0302e403629 40-41
+  s_d7a29117652d90::t_949dfc7eddc3ba 126-127
+  s_d7a29117652d90::t_76e4f54bb74476 137-138
+  s_d7a29117652d90::t_e196950e8d53aa 104,106,114-115,117-122
+plugin/skills/story/SKILL.md
+  s_d7a29117652d90::t_729b7bd031fff9 30,33,37-39
+  s_d7a29117652d90::t_6d6daec977bbda 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "97ff199034132b2b3c6953c8dc9210988bd21225",
+  "prompts": {},
+  "sessions": {
+    "s_d7a29117652d90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c8a3b2c1-e613-405c-b6ea-35c325026dde",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
