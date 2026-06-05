@@ -20,8 +20,7 @@ export const meta = {
 // ── Schema constants ─────────────────────────────────────────────────────────
 // EXECUTOR_SCHEMA  — story-executor (loom:story-executor) result
 // VALIDATOR_SCHEMA — story-validator result
-// FIXER_SCHEMA     — story-fixer result
-// HYGIENE_SCHEMA   — code-hygiene agent result
+// FIXER_SCHEMA     — story-fixer and code-hygiene agent result
 // MERGE_SCHEMA     — finalize-merge agent result
 // PR_SCHEMA        — finalize-pr agent result
 
@@ -64,13 +63,6 @@ const FIXER_SCHEMA = {
   },
 }
 
-const HYGIENE_SCHEMA = {
-  type: 'object',
-  required: ['summary'],
-  properties: {
-    summary: { type: 'string' },
-  },
-}
 
 const MERGE_SCHEMA = {
   type: 'object',
@@ -179,7 +171,7 @@ const attempts = result.attempts
 log('Running code-hygiene pass before final validation')
 await agent(
   `branch=${executor.branch} worktree=${executor.worktree} trunk=main`,
-  { label: 'code-hygiene', phase: 'Validate', agentType: 'loom:code-hygiene', schema: HYGIENE_SCHEMA }
+  { label: 'code-hygiene', phase: 'Validate', agentType: 'loom:code-hygiene', schema: FIXER_SCHEMA }
 )
 
 // ── Finalize ─────────────────────────────────────────────────────────────────
