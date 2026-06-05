@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { boardColumnHeaders } from "./BoardView";
+import { boardColumnHeaders, LANE_MIN_WIDTH } from "./BoardView";
 import type { EpicRow, StoryCell } from "../boardModel";
 import { BOARD_STATUSES } from "../boardModel";
 
@@ -21,6 +21,20 @@ function makeRow(stories: StoryCell[]): EpicRow {
   }
   return { epicQid: "p:aaa23", epicTitle: "E", epicStatus: null, statusColumns: cols };
 }
+
+// ---------------------------------------------------------------------------
+// boardColumnHeaders
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// LANE_MIN_WIDTH
+// ---------------------------------------------------------------------------
+
+describe("LANE_MIN_WIDTH", () => {
+  test("is 160px so the board fits on screens >= ~900px wide", () => {
+    expect(LANE_MIN_WIDTH).toBe(160);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // boardColumnHeaders

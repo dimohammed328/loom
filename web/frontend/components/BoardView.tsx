@@ -2,7 +2,7 @@
  * BoardView — CSS-grid Kanban matrix.
  *
  * Layout:
- *   grid-template-columns: var(--epic-col) repeat(N, minmax(244px, 1fr))
+ *   grid-template-columns: var(--epic-col) repeat(N, minmax(160px, 1fr))
  *   - Column 0: sticky-left epic row-headers
  *   - Columns 1…N: one story-card column per status
  *
@@ -21,6 +21,14 @@ import type { EpicRow, StoryCell } from "../boardModel";
 import { statusColor } from "../status";
 import EpicRowHeader from "./EpicRowHeader";
 import StoryCard from "./StoryCard";
+
+// ---------------------------------------------------------------------------
+// Layout constants (exported for tests)
+// ---------------------------------------------------------------------------
+
+/** Minimum width per status lane. Lowered from 244px so the board fits on
+ *  screens >= ~900px wide without horizontal scroll. */
+export const LANE_MIN_WIDTH = 160;
 
 // ---------------------------------------------------------------------------
 // Pure helper (exported for tests)
@@ -166,7 +174,7 @@ export default function BoardView({ project, onOpen }: BoardViewProps): React.JS
   }
 
   const headers = boardColumnHeaders(rows);
-  const gridCols = `var(--epic-col) repeat(${BOARD_STATUSES.length}, minmax(244px, 1fr))`;
+  const gridCols = `var(--epic-col) repeat(${BOARD_STATUSES.length}, minmax(${LANE_MIN_WIDTH}px, 1fr))`;
 
   return (
     <div className="view-scroll">
