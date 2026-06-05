@@ -74,6 +74,7 @@ const FIXER_SCHEMA = {
 
 const HYGIENE_SCHEMA = {
   type: 'object',
+  required: ['summary'],
   properties: {
     summary: { type: 'string' },
   },

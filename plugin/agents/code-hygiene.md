@@ -88,6 +88,10 @@ If you made no changes, skip the commit.
 
 ### Step 5 — Return
 
-Return a brief plain-text summary of what you changed (or "No hygiene edits needed."
-if nothing was changed). Do not return structured JSON — the workflow ignores the
-return value of this agent.
+Call the `StructuredOutput` tool with a JSON object matching the schema below.
+Set `summary` to a brief description of what you changed, or `"No hygiene edits needed."`
+if nothing was changed.
+
+```json
+{ "summary": "..." }
+```
