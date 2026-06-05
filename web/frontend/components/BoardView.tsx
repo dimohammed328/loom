@@ -77,6 +77,17 @@ export function boardColumnHeaders(rows: EpicRow[]): ColumnHeader[] {
 }
 
 // ---------------------------------------------------------------------------
+// Shared UI elements
+// ---------------------------------------------------------------------------
+
+/** Chevron SVG reused by both the "Show N more" and "Show less" expander buttons. */
+const ChevronIcon = (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+// ---------------------------------------------------------------------------
 // Inline SVG
 // ---------------------------------------------------------------------------
 
@@ -290,9 +301,7 @@ export default function BoardView({ project, onOpen }: BoardViewProps): React.JS
                           aria-expanded={isLaneExpanded}
                         >
                           <span className="lane-expander-chev">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
-                              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
+                            {ChevronIcon}
                           </span>
                           Show {hiddenCount} more
                         </button>
@@ -304,9 +313,7 @@ export default function BoardView({ project, onOpen }: BoardViewProps): React.JS
                           aria-expanded={isLaneExpanded}
                         >
                           <span className="lane-expander-chev lane-expander-chev--up">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
-                              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
+                            {ChevronIcon}
                           </span>
                           Show less
                         </button>
