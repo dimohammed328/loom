@@ -19,8 +19,8 @@ export const meta = {
 
 // ── Schema constants ─────────────────────────────────────────────────────────
 // EXECUTOR_SCHEMA  — story-executor (loom:story-executor) result
-// REVIEWER_SCHEMA  — code-reviewer result
 // VALIDATOR_SCHEMA — story-validator result
+// FIXER_SCHEMA     — story-fixer result
 // MERGE_SCHEMA     — finalize-merge agent result
 // PR_SCHEMA        — finalize-pr agent result
 
@@ -73,6 +73,14 @@ const VALIDATOR_SCHEMA = {
         },
       },
     },
+  },
+}
+
+const FIXER_SCHEMA = {
+  type: 'object',
+  required: ['summary'],
+  properties: {
+    summary: { type: 'string' },
   },
 }
 
