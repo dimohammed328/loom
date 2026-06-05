@@ -25,7 +25,7 @@ export const meta = {
 // ── Schema constants ─────────────────────────────────────────────────────────
 // EXECUTOR_SCHEMA  — story-executor (loom:story-executor) result
 // VALIDATOR_SCHEMA — story-validator result
-// FIXER_SCHEMA     — story-fixer result
+// FIXER_SCHEMA     — story-fixer and code-hygiene agent result
 // TRUNK_SCHEMA     — trunk-setup agent result
 // MERGE_SCHEMA     — merge agent result (story-merger, and finalize-merge)
 // READY_SCHEMA     — loom ready query result (scheduler refill)
@@ -70,6 +70,7 @@ const FIXER_SCHEMA = {
     summary: { type: 'string' },
   },
 }
+
 
 const TRUNK_SCHEMA = {
   type: 'object',
@@ -330,6 +331,16 @@ if (failed.size > 0) {
 }
 
 log('All stories merged into trunk.')
+
+// ── Hygiene pass ─────────────────────────────────────────────────────────────
+
+// Run code-hygiene over the merged trunk branch before epic validation.
+// Hygiene edits land on the trunk and are then gated by epic-validator.
+log(`Running code-hygiene pass over trunk before epic validation`)
+await agent(
+  `branch=${trunk.branch} worktree=${trunk.worktree} trunk=main`,
+  { label: 'code-hygiene', phase: 'Epic validation', agentType: 'loom:code-hygiene', schema: FIXER_SCHEMA }
+)
 
 // ── Epic validation ──────────────────────────────────────────────────────────
 
