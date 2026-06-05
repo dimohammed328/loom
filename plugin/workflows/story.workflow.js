@@ -94,9 +94,13 @@ const PR_SCHEMA = {
 
 // ── Inputs ───────────────────────────────────────────────────────────────────
 
-const storyQid = args.story_qid
+// args may arrive as an object or as a JSON-encoded string depending on the
+// invoking harness; normalize to an object before reading fields.
+const input = typeof args === 'string' ? JSON.parse(args) : (args ?? {})
+
+const storyQid = input.story_qid
 if (!storyQid) throw new Error('story_qid is required')
-const finalize = args.finalize ?? 'pr'
+const finalize = input.finalize ?? 'pr'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -144,7 +148,7 @@ async function prepare(qid, parentBranch) {
     // Review: code-reviewer checks hygiene.
     const review = await agent(
       `story_qid=${qid} branch=${executor.branch} trunk=${parentBranch} worktree=${executor.worktree}`,
-      { label: `reviewer:${qid}:${attempt}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEWER_SCHEMA }
+      { label: `reviewer:${qid}:${attempt}`, phase: 'Review', agentType: 'loom:code-reviewer', schema: REVIEWER_SCHEMA }
     )
     if (!review.clean) {
       for (const f of review.findings) {
@@ -158,7 +162,7 @@ async function prepare(qid, parentBranch) {
     // Validate: story-validator checks criteria and tests.
     const validate = await agent(
       `story_qid=${qid} branch=${executor.branch} worktree=${executor.worktree}`,
-      { label: `validator:${qid}:${attempt}`, phase: 'Validate', agentType: 'story-validator', schema: VALIDATOR_SCHEMA }
+      { label: `validator:${qid}:${attempt}`, phase: 'Validate', agentType: 'loom:story-validator', schema: VALIDATOR_SCHEMA }
     )
     if (validate.result !== 'ok') {
       for (const c of validate.criteria.filter(c => !c.pass)) {
@@ -209,7 +213,7 @@ const attempts = result.attempts
 log('Running final story-validator before finalize')
 const finalValidation = await agent(
   `story_qid=${storyQid} branch=${executor.branch} worktree=${executor.worktree}`,
-  { label: 'final-validator', phase: 'Validate', agentType: 'story-validator', schema: VALIDATOR_SCHEMA }
+  { label: 'final-validator', phase: 'Validate', agentType: 'loom:story-validator', schema: VALIDATOR_SCHEMA }
 )
 if (finalValidation.result !== 'ok') {
   const unmet = finalValidation.criteria.filter(c => !c.pass).map(c => c.text).join('; ')
