@@ -1,0 +1,19 @@
+plugin/agents/code-hygiene.md
+  s_150c725324119d::t_3e160f94fc171c 83,86,90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "4a27e5aeb0b079312b5ee2a11c5b964c76c86511",
+  "prompts": {},
+  "sessions": {
+    "s_150c725324119d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b03dee5a-a4ec-42b2-bd20-727563a40244",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
