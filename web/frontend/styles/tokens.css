@@ -465,6 +465,19 @@ body {
   border: 1px solid var(--border);
 }
 
+/* Lane expander button */
+.lane-expander {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; color: var(--text-3); font-weight: 500;
+  background: none; border: none; cursor: pointer;
+  padding: 3px 4px; border-radius: var(--radius-sm);
+  align-self: flex-start;
+  transition: color .1s, background .1s;
+}
+.lane-expander:hover { color: var(--text); background: var(--surface-3, var(--border)); }
+.lane-expander-chev { display: inline-flex; transition: transform .12s; }
+.lane-expander-chev--up { transform: rotate(180deg); }
+
 /* Story cards */
 .kcard {
   background: var(--surface); border: 1px solid var(--border);

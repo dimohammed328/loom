@@ -154,12 +154,14 @@ export default function BoardView({ project, onOpen }: BoardViewProps): React.JS
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [expandedLanes, setExpandedLanes] = useState<Record<string, boolean>>({});
 
   // Fetch tree data when project changes.
   useEffect(() => {
     setLoading(true);
     setError(null);
     setCollapsed({});
+    setExpandedLanes({});
     getProjectTree(project.qid)
       .then((tree) => {
         setRows(boardModel(tree));
@@ -173,6 +175,11 @@ export default function BoardView({ project, onOpen }: BoardViewProps): React.JS
 
   const toggleCollapse = useCallback((epicQid: string) => {
     setCollapsed((prev) => ({ ...prev, [epicQid]: !prev[epicQid] }));
+  }, []);
+
+  const toggleLane = useCallback((epicQid: string, status: string) => {
+    const key = `${epicQid}:${status}`;
+    setExpandedLanes((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
   if (loading) {
@@ -263,15 +270,47 @@ export default function BoardView({ project, onOpen }: BoardViewProps): React.JS
               ) : (
                 BOARD_STATUSES.map((status) => {
                   const cells: StoryCell[] = row.statusColumns[status] ?? [];
+                  const laneKey = `${row.epicQid}:${status}`;
+                  const isLaneExpanded = !!expandedLanes[laneKey];
+                  const shown = visibleCells(cells, isLaneExpanded);
+                  const hiddenCount = cells.length - shown.length;
                   return (
                     <div className="kcol" key={status} role="group" aria-label={status}>
-                      {cells.map((story) => (
+                      {shown.map((story) => (
                         <StoryCard
                           key={story.qid}
                           story={story}
                           onOpen={onOpen}
                         />
                       ))}
+                      {hiddenCount > 0 && (
+                        <button
+                          className="lane-expander"
+                          onClick={() => toggleLane(row.epicQid, status)}
+                          aria-expanded={false}
+                        >
+                          <span className="lane-expander-chev">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
+                              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </span>
+                          Show {hiddenCount} more
+                        </button>
+                      )}
+                      {isLaneExpanded && cells.length > LANE_STORY_CAP && (
+                        <button
+                          className="lane-expander lane-expander--collapse"
+                          onClick={() => toggleLane(row.epicQid, status)}
+                          aria-expanded={true}
+                        >
+                          <span className="lane-expander-chev lane-expander-chev--up">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
+                              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </span>
+                          Show less
+                        </button>
+                      )}
                     </div>
                   );
                 })
