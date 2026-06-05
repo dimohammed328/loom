@@ -80,12 +80,14 @@ Keep each edit atomic and minimal — prefer many small edits over one large rew
 
 ### Step 4 — Commit the edits
 
-If you made any changes, commit them on the current branch:
+If you made any changes, stage **only the files you modified** (the ones you passed to `Edit` or `Write` in Step 3), then commit:
 
 ```bash
-cd <worktree> && git add -A
+cd <worktree> && git add <file1> <file2> ...
 cd <worktree> && git commit -m "chore: code hygiene (DRY/YAGNI/consistency/style)"
 ```
+
+Do **not** use `git add -A` or `git add .` — those would stage untracked artifacts, build outputs, and other files that must not be committed. Stage only the specific file paths you edited.
 
 If you made no changes, skip the commit.
 
