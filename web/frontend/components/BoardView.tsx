@@ -287,7 +287,7 @@ export default function BoardView({ project, onOpen }: BoardViewProps): React.JS
                         <button
                           className="lane-expander"
                           onClick={() => toggleLane(row.epicQid, status)}
-                          aria-expanded={false}
+                          aria-expanded={isLaneExpanded}
                         >
                           <span className="lane-expander-chev">
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -301,7 +301,7 @@ export default function BoardView({ project, onOpen }: BoardViewProps): React.JS
                         <button
                           className="lane-expander lane-expander--collapse"
                           onClick={() => toggleLane(row.epicQid, status)}
-                          aria-expanded={true}
+                          aria-expanded={isLaneExpanded}
                         >
                           <span className="lane-expander-chev lane-expander-chev--up">
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
