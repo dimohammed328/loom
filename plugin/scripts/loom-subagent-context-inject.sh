@@ -22,6 +22,10 @@ set -euo pipefail
 
 input=$(cat)
 agent_type=$(jq -r '.agent_type // ""' <<<"$input")
+# Claude Code dispatches plugin agents under their namespaced names
+# (e.g. "loom:story-executor"). Strip any "<plugin>:" prefix so the case
+# below matches whether the payload carries the bare or namespaced form.
+agent_type="${agent_type##*:}"
 
 case "$agent_type" in
   story-executor|story-integrator|epic-validator|codebase-researcher)
