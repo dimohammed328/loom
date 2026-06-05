@@ -21,6 +21,7 @@ export const meta = {
 // EXECUTOR_SCHEMA  — story-executor (loom:story-executor) result
 // VALIDATOR_SCHEMA — story-validator result
 // FIXER_SCHEMA     — story-fixer result
+// HYGIENE_SCHEMA   — code-hygiene agent result
 // MERGE_SCHEMA     — finalize-merge agent result
 // PR_SCHEMA        — finalize-pr agent result
 
@@ -58,6 +59,13 @@ const VALIDATOR_SCHEMA = {
 const FIXER_SCHEMA = {
   type: 'object',
   required: ['summary'],
+  properties: {
+    summary: { type: 'string' },
+  },
+}
+
+const HYGIENE_SCHEMA = {
+  type: 'object',
   properties: {
     summary: { type: 'string' },
   },
@@ -162,6 +170,16 @@ if (!result.ok) {
 
 const { executor } = result
 const attempts = result.attempts
+
+// ── Hygiene pass ─────────────────────────────────────────────────────────────
+
+// Run code-hygiene over the story branch before the final validation gate.
+// Hygiene edits land on the branch and are then verified by story-validator.
+log('Running code-hygiene pass before final validation')
+await agent(
+  `branch=${executor.branch} worktree=${executor.worktree}`,
+  { label: 'code-hygiene', phase: 'Validate', agentType: 'loom:code-hygiene', schema: HYGIENE_SCHEMA }
+)
 
 // ── Finalize ─────────────────────────────────────────────────────────────────
 
