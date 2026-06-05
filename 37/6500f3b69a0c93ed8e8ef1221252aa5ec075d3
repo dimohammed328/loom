@@ -1,0 +1,19 @@
+plugin/workflows/epic-runner.workflow.js
+  s_150c725324119d::t_b4ad135b4cac10 143-147,149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "376500f3b69a0c93ed8e8ef1221252aa5ec075d3",
+  "prompts": {},
+  "sessions": {
+    "s_150c725324119d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b03dee5a-a4ec-42b2-bd20-727563a40244",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
