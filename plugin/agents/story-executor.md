@@ -1,7 +1,7 @@
 ---
 name: story-executor
 description: Single-threaded executor for a loom story's tasks. Reads the story body and its task list in topological order, implements each task with TDD discipline, commits per task, and runs lint/format/tests at the end before reporting back.
-tools: Read, Edit, Write, Bash, Grep, Glob, Skill, mcp__gitnexus__impact, mcp__gitnexus__context
+tools: Read, Edit, Write, Bash, Grep, Glob, Skill
 model: sonnet
 effort: medium
 ---

@@ -1,7 +1,7 @@
 ---
 name: codebase-researcher
 description: Use during the grooming phase of /epic or /story to enrich a rough idea with concrete file paths, symbol names, and architectural pointers. Returns a short report (<400 words). Does NOT propose or implement changes — read-only research.
-tools: Read, Grep, Glob, Bash, WebFetch, mcp__gitnexus__context, mcp__gitnexus__query, mcp__gitnexus__impact, mcp__gitnexus__tool_map
+tools: Read, Grep, Glob, Bash, WebFetch
 model: opus
 effort: high
 ---
@@ -26,13 +26,12 @@ A report under 400 words containing:
 1. **Relevant files**: specific paths (e.g., `src/foo/bar.py`) and a one-line note per file
 2. **Relevant symbols**: function / class / method names with their files and line numbers
 3. **Architectural pointers**: 1-2 sentences each on existing patterns the change should follow
-4. **Risk surface**: any symbols whose change would impact many call sites — prefer `mcp__gitnexus__impact` for this
+4. **Risk surface**: any symbols whose change would impact many call sites — grep for callers to gauge the blast radius
 5. **Open questions**: things the brainstorming skill should ask the user (max 3)
 
 ## How to work
 
-- **Use gitnexus MCP tools first** if available — `mcp__gitnexus__query` for concept search, `mcp__gitnexus__context` for a specific symbol, `mcp__gitnexus__impact` for blast radius
-- **Fall back to Grep / Glob / Read** if gitnexus isn't available or the repo isn't indexed
+- **Use Grep / Glob / Read** to locate relevant files, symbols, and call sites — grep for a symbol's name to find its definition and every caller
 - **Never propose or write code** — your job is to map what's there, not to design what should be
 - **Cite specifics** — "this is implemented in `X.py:42` as `do_thing()`" beats "there's something somewhere about this"
 
