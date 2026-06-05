@@ -43,27 +43,6 @@ const EXECUTOR_SCHEMA = {
   },
 }
 
-const REVIEWER_SCHEMA = {
-  type: 'object',
-  required: ['clean', 'findings'],
-  properties: {
-    clean:    { type: 'boolean' },
-    findings: {
-      type: 'array',
-      items: {
-        type: 'object',
-        required: ['title', 'file', 'lines', 'detail'],
-        properties: {
-          title:  { type: 'string' },
-          file:   { type: 'string' },
-          lines:  { type: 'string' },
-          detail: { type: 'string' },
-        },
-      },
-    },
-  },
-}
-
 const VALIDATOR_SCHEMA = {
   type: 'object',
   required: ['result', 'criteria'],
@@ -159,19 +138,6 @@ if (!epicQid) throw new Error('epic_qid is required')
 const finalize = input.finalize ?? 'pr'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-// fileFixes(qid, fixes) — file a collated batch of fix-items ({title, body}) as
-// new loom tasks on the story via a SINGLE agent, so the re-dispatched executor
-// rediscovers them through `loom order` and resumes its worktree.
-async function fileFixes(qid, fixes) {
-  const createCmds = fixes
-    .map(f => `loom -y task create --title ${JSON.stringify(f.title)} --body ${JSON.stringify(f.body)} ${qid}`)
-    .join('\n')
-  await agent(
-    `Run each of these commands in order; confirm each exits 0:\n${createCmds}`,
-    { label: `file-fixes:${qid}`, phase: 'Execute', agentType: 'loom:story-executor' }
-  )
-}
 
 // prepare(qid, parentBranch) — build → review → validate convergence loop
 // (≤3 attempts). Each attempt collates fix-items from BOTH the review and
