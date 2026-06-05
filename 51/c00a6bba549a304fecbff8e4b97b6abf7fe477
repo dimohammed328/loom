@@ -1,0 +1,22 @@
+plugin/workflows/story.workflow.js
+  s_5748a167b4b5af::t_e29cc21c144106 97-101,103
+  s_5748a167b4b5af::t_ab1c1537a543fa 216
+  s_5748a167b4b5af::t_1d953407846bcb 165
+  s_5748a167b4b5af::t_fe756ec80d1432 151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "51c00a6bba549a304fecbff8e4b97b6abf7fe477",
+  "prompts": {},
+  "sessions": {
+    "s_5748a167b4b5af": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "219b9093-2f3e-4ba8-8d01-98f0019d8f8a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
