@@ -1,4 +1,4 @@
-// epic.workflow.js — DAG runner for a loom epic.
+// epic-runner.workflow.js — DAG runner for a loom epic.
 // Receives: args.epic_qid, args.finalize ('pr' | 'merge', default 'pr').
 //
 // Phases:
@@ -9,7 +9,7 @@
 //   Finalize                 — open a PR (default) or merge + push to main
 
 export const meta = {
-  name: 'epic',
+  name: 'epic-runner',
   description: 'DAG runner for a loom epic: trunk setup → streamed story convergence → epic validation → finalize',
   phases: [
     { title: 'Trunk',           detail: 'Fresh main and the epic trunk worktree' },

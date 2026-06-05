@@ -26,7 +26,7 @@ The user has invoked `/epic <description>`. The description is in `$ARGUMENTS`. 
 5. **Launch the epic workflow** by invoking:
    ```js
    Workflow({
-     scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/epic.workflow.js",
+     scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/epic-runner.workflow.js",
      args: { epic_qid: "<qid>", finalize: "<'pr' or 'merge'>" }
    })
    ```

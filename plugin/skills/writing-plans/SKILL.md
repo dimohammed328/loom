@@ -106,7 +106,7 @@ Once the user signs off on the materialized tree, launch the appropriate workflo
 **Epic mode:**
 ```js
 Workflow({
-  scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/epic.workflow.js",
+  scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/epic-runner.workflow.js",
   args: { epic_qid: "<qid>", finalize: "<'pr' or 'merge'>" }
 })
 ```
@@ -114,7 +114,7 @@ Workflow({
 **Story mode:**
 ```js
 Workflow({
-  scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/story.workflow.js",
+  scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/story-runner.workflow.js",
   args: { story_qid: "<qid>", finalize: "<'pr' or 'merge'>" }
 })
 ```

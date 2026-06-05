@@ -26,7 +26,7 @@ The user has invoked `/story <description>`. The description is in `$ARGUMENTS`.
 6. **Launch the story workflow** by invoking:
    ```js
    Workflow({
-     scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/story.workflow.js",
+     scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/story-runner.workflow.js",
      args: { story_qid: "<qid>", finalize: "<'pr' or 'merge'>" }
    })
    ```

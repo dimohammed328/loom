@@ -1,4 +1,4 @@
-// story.workflow.js — single-story runner for a loom story.
+// story-runner.workflow.js — single-story runner for a loom story.
 // Receives: args.story_qid, args.finalize ('pr' | 'merge', default 'pr').
 //
 // Phases:
@@ -7,7 +7,7 @@
 //                                 merge + push to main
 
 export const meta = {
-  name: 'story',
+  name: 'story-runner',
   description: 'Single-story runner: build → review → validate convergence loop, then finalize (open a PR by default, or merge + push to main when requested)',
   phases: [
     { title: 'Execute',  detail: 'story-executor builds the story branch' },
