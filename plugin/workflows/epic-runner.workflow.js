@@ -194,7 +194,7 @@ async function prepare(qid, parentBranch) {
     // Review: code-reviewer checks hygiene.
     const review = await agent(
       `story_qid=${qid} branch=${executor.branch} trunk=${parentBranch} worktree=${executor.worktree}`,
-      { label: `reviewer:${qid}:${attempt}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEWER_SCHEMA }
+      { label: `reviewer:${qid}:${attempt}`, phase: 'Review', agentType: 'loom:code-reviewer', schema: REVIEWER_SCHEMA }
     )
     if (!review.clean) {
       for (const f of review.findings) {
@@ -208,7 +208,7 @@ async function prepare(qid, parentBranch) {
     // Validate: story-validator checks criteria and tests.
     const validate = await agent(
       `story_qid=${qid} branch=${executor.branch} worktree=${executor.worktree}`,
-      { label: `validator:${qid}:${attempt}`, phase: 'Validate', agentType: 'story-validator', schema: VALIDATOR_SCHEMA }
+      { label: `validator:${qid}:${attempt}`, phase: 'Validate', agentType: 'loom:story-validator', schema: VALIDATOR_SCHEMA }
     )
     if (validate.result !== 'ok') {
       for (const c of validate.criteria.filter(c => !c.pass)) {
@@ -324,7 +324,7 @@ while (stories.length > 0 || inflight.size > 0) {
   const merge = await agent(
     `story_qid=${result.qid} branch=${result.executor.branch} target=${trunk.branch} ` +
     `target_worktree=${trunk.worktree} story_worktree=${result.executor.worktree}`,
-    { label: `merge:${result.qid}`, phase: 'Merge', agentType: 'story-merger', schema: MERGE_SCHEMA }
+    { label: `merge:${result.qid}`, phase: 'Merge', agentType: 'loom:story-merger', schema: MERGE_SCHEMA }
   )
 
   if (!merge.merged) {
