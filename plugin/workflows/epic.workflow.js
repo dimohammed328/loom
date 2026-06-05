@@ -1,44 +1,38 @@
 // epic.workflow.js — DAG runner for a loom epic.
-// Receives: args.epic_qid, args.project (optional), args.finalize ('pr'|'merge', default 'pr')
+// Receives: args.epic_qid, args.finalize ('pr' | 'merge', default 'pr').
 //
 // Phases:
-//   Trunk   — checkout fresh main, create epic trunk worktree
-//   Stories — streaming scheduler: prepare() → serial merge, up to 3 retries per story
-//   Validate — dispatch epic-validator
-//   Finalize — push + PR (default) or local merge+push
+//   Trunk                    — fresh main, create the epic trunk worktree
+//   Execute / Review / Validate — per-story convergence loop (prepare), streamed
+//   Merge                    — serial story-merger into the trunk
+//   Epic validation          — epic-validator over the fully-merged trunk
+//   Finalize                 — open a PR (default) or merge + push to main
 
 export const meta = {
   name: 'epic',
-  description: 'DAG runner for a loom epic: trunk setup → story scheduler → epic validation → finalize',
+  description: 'DAG runner for a loom epic: trunk setup → streamed story convergence → epic validation → finalize',
   phases: [
-    { title: 'Trunk',    detail: 'Checkout fresh main and create the epic trunk worktree' },
-    { title: 'Stories',  detail: 'Streaming scheduler — prepare each story then serial merge' },
-    { title: 'Validate', detail: 'Run epic-validator against the fully-merged trunk' },
-    { title: 'Finalize', detail: 'Push + open PR (default) or local merge+push to main' },
+    { title: 'Trunk',           detail: 'Fresh main and the epic trunk worktree' },
+    { title: 'Execute',         detail: 'story-executor builds each story branch' },
+    { title: 'Review',          detail: 'code-reviewer checks hygiene' },
+    { title: 'Validate',        detail: 'story-validator checks criteria and tests' },
+    { title: 'Merge',           detail: 'story-merger merges each converged story into the trunk' },
+    { title: 'Epic validation', detail: 'epic-validator over the fully-merged trunk' },
+    { title: 'Finalize',        detail: 'open a PR (default) or merge + push to main' },
   ],
 }
 
 // ── Schema constants ─────────────────────────────────────────────────────────
-// TRUNK_SCHEMA  — trunk-setup agent result
-// BUILD_SCHEMA  — story-executor (loom:story-executor) result
-// REVIEW_SCHEMA — code-reviewer result
-// VALIDATE_SCHEMA — story-validator result
-// MERGE_SCHEMA  — story-merger agent result (merge + complete + cleanup)
-// READY_SCHEMA  — loom ready query result (wave / refill)
-// EPIC_VAL_SCHEMA — loom:epic-validator result
-// FIN_SCHEMA    — finalize agent result (PR URL or merge note)
+// EXECUTOR_SCHEMA  — story-executor (loom:story-executor) result
+// REVIEWER_SCHEMA  — code-reviewer result
+// VALIDATOR_SCHEMA — story-validator result
+// TRUNK_SCHEMA     — trunk-setup agent result
+// MERGE_SCHEMA     — merge agent result (story-merger, and finalize-merge)
+// READY_SCHEMA     — loom ready query result (scheduler refill)
+// EPIC_VAL_SCHEMA  — loom:epic-validator result
+// PR_SCHEMA        — finalize-pr agent result
 
-const TRUNK_SCHEMA = {
-  type: 'object',
-  required: ['worktree', 'branch', 'main_sha'],
-  properties: {
-    worktree:  { type: 'string' },
-    branch:    { type: 'string' },
-    main_sha:  { type: 'string' },
-  },
-}
-
-const BUILD_SCHEMA = {
+const EXECUTOR_SCHEMA = {
   type: 'object',
   required: ['story_qid', 'branch', 'worktree'],
   properties: {
@@ -49,7 +43,7 @@ const BUILD_SCHEMA = {
   },
 }
 
-const REVIEW_SCHEMA = {
+const REVIEWER_SCHEMA = {
   type: 'object',
   required: ['clean', 'findings'],
   properties: {
@@ -70,7 +64,7 @@ const REVIEW_SCHEMA = {
   },
 }
 
-const VALIDATE_SCHEMA = {
+const VALIDATOR_SCHEMA = {
   type: 'object',
   required: ['result', 'criteria'],
   properties: {
@@ -90,9 +84,19 @@ const VALIDATE_SCHEMA = {
   },
 }
 
+const TRUNK_SCHEMA = {
+  type: 'object',
+  required: ['worktree', 'branch', 'main_sha'],
+  properties: {
+    worktree: { type: 'string' },
+    branch:   { type: 'string' },
+    main_sha: { type: 'string' },
+  },
+}
+
 const MERGE_SCHEMA = {
   type: 'object',
-  required: ['merged', 'merge_sha'],
+  required: ['merged'],
   properties: {
     merged:    { type: 'boolean' },
     merge_sha: { type: ['string', 'null'] },
@@ -128,25 +132,109 @@ const EPIC_VAL_SCHEMA = {
   },
 }
 
-const FIN_SCHEMA = {
+const PR_SCHEMA = {
   type: 'object',
   required: ['pr_url'],
-  properties: {
-    pr_url: { type: ['string', 'null'] },
-    note:   { type: 'string' },
-  },
+  properties: { pr_url: { type: ['string', 'null'] } },
 }
 
-// ── Phase 1: Trunk setup ──────────────────────────────────────────────────────
+// ── Inputs ───────────────────────────────────────────────────────────────────
 
-phase('Trunk')
+const epicQid = args.epic_qid
+if (!epicQid) throw new Error('epic_qid is required')
+const finalize = args.finalize ?? 'pr'
 
-const epicQid    = args.epic_qid
-const finalize   = args.finalize ?? 'pr'
-const trunkBranch = `loom/${epicQid}`
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+// fileFixes(qid, fixes) — file a collated batch of fix-items ({title, body}) as
+// new loom tasks on the story via a SINGLE agent, so the re-dispatched executor
+// rediscovers them through `loom order` and resumes its worktree.
+async function fileFixes(qid, fixes) {
+  const createCmds = fixes
+    .map(f => `loom -y task create --title ${JSON.stringify(f.title)} --body ${JSON.stringify(f.body)} ${qid}`)
+    .join('\n')
+  await agent(
+    `Run each of these commands in order; confirm each exits 0:\n${createCmds}`,
+    { label: `file-fixes:${qid}`, phase: 'Execute', agentType: 'loom:story-executor' }
+  )
+}
+
+// prepare(qid, parentBranch) — build → review → validate convergence loop
+// (≤3 attempts). Each attempt collates fix-items from BOTH the review and
+// validate steps as local objects and files them via a single agent before
+// re-dispatching the executor (which resumes its worktree and implements only
+// the newly-filed tasks). Steps are tagged via opts.phase (NOT phase()) so the
+// loop is safe to run concurrently. Returns { qid, executor, ok, open, attempts }:
+//   ok:       true if the story converged
+//   executor: the executor result on success, else null
+//   open:     array of unmet-item titles (non-empty only when ok=false)
+//   attempts: number of attempts made
+async function prepare(qid, parentBranch) {
+  const MAX_ATTEMPTS = 3
+  let attempt = 0
+  let open = []
+
+  while (attempt < MAX_ATTEMPTS) {
+    attempt++
+    log(`[${qid}] prepare attempt ${attempt}/${MAX_ATTEMPTS}`)
+
+    // Execute: story-executor builds the story branch.
+    const executor = await agent(
+      `story_qid=${qid} parent_branch=${parentBranch}`,
+      { label: `executor:${qid}:${attempt}`, phase: 'Execute', agentType: 'loom:story-executor', schema: EXECUTOR_SCHEMA }
+    )
+    log(`[${qid}] executor done: branch=${executor.branch}`)
+
+    const fixes = []  // [{ title, body }]
+
+    // Review: code-reviewer checks hygiene.
+    const review = await agent(
+      `story_qid=${qid} branch=${executor.branch} trunk=${parentBranch} worktree=${executor.worktree}`,
+      { label: `reviewer:${qid}:${attempt}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEWER_SCHEMA }
+    )
+    if (!review.clean) {
+      for (const f of review.findings) {
+        fixes.push({
+          title: `fix: ${f.title}`,
+          body: `${f.detail}\n\nLocation: ${f.file}:${f.lines}`,
+        })
+      }
+    }
+
+    // Validate: story-validator checks criteria and tests.
+    const validate = await agent(
+      `story_qid=${qid} branch=${executor.branch} worktree=${executor.worktree}`,
+      { label: `validator:${qid}:${attempt}`, phase: 'Validate', agentType: 'story-validator', schema: VALIDATOR_SCHEMA }
+    )
+    if (validate.result !== 'ok') {
+      for (const c of validate.criteria.filter(c => !c.pass)) {
+        fixes.push({
+          title: `fix: ${c.text}`,
+          body: `Validation criterion failed.\n\nCriterion: ${c.text}\n\nEvidence: ${c.evidence}`,
+        })
+      }
+    }
+
+    // Converged when neither step produced a fix-item.
+    if (fixes.length === 0) {
+      return { qid, executor, ok: true, open: [], attempts: attempt }
+    }
+
+    // File the collated fix-items so the next dispatch rediscovers them.
+    log(`[${qid}] filing ${fixes.length} fix-task(s) and retrying`)
+    await fileFixes(qid, fixes)
+    open = fixes.map(f => f.title)
+  }
+
+  log(`[${qid}] did not converge after ${MAX_ATTEMPTS} attempts`)
+  return { qid, executor: null, ok: false, open, attempts: MAX_ATTEMPTS }
+}
+
+// ── Trunk setup ──────────────────────────────────────────────────────────────
 
 log(`Setting up trunk for epic ${epicQid} (finalize=${finalize})`)
 
+const trunkBranch = `loom/${epicQid}`
 const trunkWorktree = `.claude/worktrees/${epicQid.replace(/:/g, '-')}`
 
 const trunk = await agent(
@@ -177,127 +265,49 @@ Steps:
 4. Confirm the worktree at ${trunkWorktree} is checked out on branch
    ${trunkBranch} (git -C ${trunkWorktree} rev-parse --abbrev-ref HEAD).
 Return the worktree path, branch name, and main_sha.`,
-  { label: 'trunk-setup', schema: TRUNK_SCHEMA }
+  { label: 'trunk-setup', phase: 'Trunk', schema: TRUNK_SCHEMA }
 )
 
 log(`Trunk worktree: ${trunk.worktree} on branch ${trunk.branch}`)
 
-// ── prepare(s): build → review → validate, up to 3 attempts ─────────────────
-// Returns { qid, build, ok, open }
-//   ok:   true if the story converged
-//   open: array of unmet-criterion strings (non-empty only when ok=false)
+// ── Story scheduler: streamed prepare() → serial merge ───────────────────────
 
-async function prepare(s) {
-  const MAX_ATTEMPTS = 3
-  let attempt = 0
-  let open = []
-
-  while (attempt < MAX_ATTEMPTS) {
-    attempt++
-    log(`[${s.qualified_id}] prepare attempt ${attempt}/${MAX_ATTEMPTS}`)
-
-    // ── Step A: story-executor (build) ───────────────────────────────────────
-    const build = await agent(
-      `story_qid=${s.qualified_id} parent_branch=${trunk.branch}`,
-      { label: `executor:${s.qualified_id}:${attempt}`, agentType: 'loom:story-executor', schema: BUILD_SCHEMA }
-    )
-
-    // Collect fix-items from BOTH the review and validate steps as local
-    // objects, then file them all in a single agent at the end of the
-    // iteration — one batched `loom task create` pass, not one agent per item.
-    const fixes = []  // [{ title, body }]
-
-    // ── Step B: code-reviewer ────────────────────────────────────────────────
-    const review = await agent(
-      `story_qid=${s.qualified_id} branch=${build.branch} trunk=${trunk.branch} worktree=${build.worktree}`,
-      { label: `reviewer:${s.qualified_id}:${attempt}`, agentType: 'code-reviewer', schema: REVIEW_SCHEMA }
-    )
-    if (!review.clean) {
-      for (const f of review.findings) {
-        fixes.push({
-          title: `fix: ${f.title}`,
-          body: `${f.detail}\n\nLocation: ${f.file}:${f.lines}`,
-        })
-      }
-    }
-
-    // ── Step C: story-validator ──────────────────────────────────────────────
-    const validate = await agent(
-      `story_qid=${s.qualified_id} branch=${build.branch} worktree=${build.worktree}`,
-      { label: `validator:${s.qualified_id}:${attempt}`, agentType: 'story-validator', schema: VALIDATE_SCHEMA }
-    )
-    if (validate.result !== 'ok') {
-      for (const c of validate.criteria.filter(c => !c.pass)) {
-        fixes.push({
-          title: `fix: ${c.text}`,
-          body: `Validation criterion failed.\n\nCriterion: ${c.text}\n\nEvidence: ${c.evidence}`,
-        })
-      }
-    }
-
-    // Converged when neither step produced a fix-item.
-    if (fixes.length === 0) {
-      return { qid: s.qualified_id, build, ok: true, open: [] }
-    }
-
-    // ── Step D: file all fix-items as loom tasks via ONE agent ───────────────
-    log(`[${s.qualified_id}] filing ${fixes.length} fix-task(s) and retrying`)
-    const createCmds = fixes
-      .map(f => `loom -y task create --title ${JSON.stringify(f.title)} --body ${JSON.stringify(f.body)} ${s.qualified_id}`)
-      .join('\n')
-    await agent(
-      `Run each of these commands in order; confirm each exits 0:\n${createCmds}`,
-      { label: `file-tasks:${s.qualified_id}:${attempt}`, agentType: 'loom:story-executor' }
-    )
-    open = fixes.map(f => f.title)
-  }
-
-  // Exhausted retries
-  log(`[${s.qualified_id}] did not converge after ${MAX_ATTEMPTS} attempts`)
-  return { qid: s.qualified_id, build: null, ok: false, open }
-}
-
-// ── Phase 2: Streaming scheduler + serial merge ───────────────────────────────
-
-phase('Stories')
-
-// refill() queries loom for stories that are ready (deps satisfied, not done)
+// refill() queries loom for stories that are ready (deps satisfied, not done).
 async function refill() {
   const result = await agent(
     `Run: loom ready ${epicQid} --type story --json
 Output the JSON array as the "stories" field.`,
-    { label: 'refill', schema: READY_SCHEMA }
+    { label: 'refill', phase: 'Execute', schema: READY_SCHEMA }
   )
   return result.stories ?? []
 }
 
-// inflight: Map<qid, Promise<{qid, build, ok, open}>>
-const inflight = new Map()
-// failed: Map<qid, string[]> — stories that did not converge or could not merge.
-// A failed story is NOT halted on; we record it and keep draining the rest of
-// the DAG. Its dependents never become ready (they depend on a not-done story),
-// so the subtree naturally stops. We skip relaunching anything already failed.
+const inflight = new Map()  // qid → Promise<prepare result>
+// failed: qid → string[] (open findings). A failed story is NOT halted on; we
+// record it and keep draining the rest of the DAG. Its dependents never become
+// ready (they depend on a not-done story), so the subtree naturally stops. We
+// skip relaunching anything already failed.
 const failed = new Map()
 
 let stories = await refill()
 
 while (stories.length > 0 || inflight.size > 0) {
-  // Launch prepare() for every new ready story not already in flight or failed
+  // Launch prepare() for every newly-ready story not already in flight or failed.
   for (const s of stories) {
     if (!inflight.has(s.qualified_id) && !failed.has(s.qualified_id)) {
       log(`Launching prepare for ${s.qualified_id}: ${s.title}`)
-      inflight.set(s.qualified_id, prepare(s))
+      inflight.set(s.qualified_id, prepare(s.qualified_id, trunk.branch))
     }
   }
 
   if (inflight.size === 0) break
 
-  // Wait for whichever prepare() finishes next
+  // Wait for whichever prepare() finishes next.
   const result = await Promise.race(inflight.values())
   inflight.delete(result.qid)
 
   if (!result.ok) {
-    // Story did not converge. Record it and keep going — other inflight stories
+    // Did not converge. Record it and keep going — other inflight stories
     // continue, and refill keeps the independent parts of the DAG moving.
     failed.set(result.qid, result.open)
     log(`Story ${result.qid} did not converge; continuing with the rest of the DAG.`)
@@ -305,12 +315,12 @@ while (stories.length > 0 || inflight.size > 0) {
     continue
   }
 
-  // Story converged — merge + complete + cleanup via the story-merger agent.
-  log(`Merging ${result.qid} (branch: ${result.build.branch}) into trunk`)
+  // Converged — merge + complete + cleanup via the story-merger agent.
+  log(`Merging ${result.qid} (branch: ${result.executor.branch}) into trunk`)
   const merge = await agent(
-    `story_qid=${result.qid} branch=${result.build.branch} target=${trunk.branch} ` +
-    `target_worktree=${trunk.worktree} story_worktree=${result.build.worktree}`,
-    { label: `merge:${result.qid}`, agentType: 'story-merger', schema: MERGE_SCHEMA }
+    `story_qid=${result.qid} branch=${result.executor.branch} target=${trunk.branch} ` +
+    `target_worktree=${trunk.worktree} story_worktree=${result.executor.worktree}`,
+    { label: `merge:${result.qid}`, phase: 'Merge', agentType: 'story-merger', schema: MERGE_SCHEMA }
   )
 
   if (!merge.merged) {
@@ -322,8 +332,6 @@ while (stories.length > 0 || inflight.size > 0) {
   }
 
   log(`Merged ${result.qid} at ${merge.merge_sha}.`)
-
-  // Refill with any newly-unblocked stories
   stories = await refill()
 }
 
@@ -340,15 +348,13 @@ if (failed.size > 0) {
 
 log('All stories merged into trunk.')
 
-// ── Phase 3: Epic validation ──────────────────────────────────────────────────
-
-phase('Validate')
+// ── Epic validation ──────────────────────────────────────────────────────────
 
 log(`Dispatching epic-validator for ${epicQid}`)
 
 const epicVal = await agent(
   `epic_qid=${epicQid} branch=${trunk.branch} worktree=${trunk.worktree}`,
-  { label: 'epic-validator', agentType: 'loom:epic-validator', schema: EPIC_VAL_SCHEMA }
+  { label: 'epic-validator', phase: 'Epic validation', agentType: 'loom:epic-validator', schema: EPIC_VAL_SCHEMA }
 )
 
 if (epicVal.result !== 'ok') {
@@ -363,64 +369,59 @@ if (epicVal.result !== 'ok') {
 
 log('Epic validation passed.')
 
-// Mark the epic done in loom
+// Mark the epic done in loom.
 await agent(
   `Run: loom complete ${epicQid}`,
-  { label: `complete-epic:${epicQid}`, agentType: 'loom:story-executor' }
+  { label: `complete-epic:${epicQid}`, phase: 'Epic validation', agentType: 'loom:story-executor' }
 )
 
-// ── Phase 4: Finalize ─────────────────────────────────────────────────────────
-
-phase('Finalize')
-
-let fin
+// ── Finalize ─────────────────────────────────────────────────────────────────
 
 if (finalize === 'merge') {
-  // Local merge + push into main (only when explicitly requested)
+  // Local merge + push into main (only when explicitly requested).
   log(`Merging ${trunk.branch} into main and pushing`)
-  fin = await agent(
+  const merge = await agent(
     `Finalize the epic by merging the trunk branch into main and pushing.
-Steps:
-1. cd to the repo root (not the trunk worktree).
-2. git checkout main && git pull --ff-only origin main
-3. git merge --no-ff ${trunk.branch} -m "Merge epic ${epicQid}: ${trunk.branch}"
-4. git push origin main
+Run from the repo root (NOT the trunk worktree):
+1. git checkout main && git fetch origin && git pull --ff-only origin main
+2. git merge --no-ff ${trunk.branch} -m "Merge epic ${epicQid}: ${trunk.branch}"
+
+If step 2 conflicts: resolve ONLY trivial, unambiguous conflicts (non-overlapping
+added lines, lockfile/index unions, whitespace). If a conflict touches real logic
+or there is ANY chance the correct resolution depends on intent, run
+"git merge --abort" and return { "merged": false, "conflict": "<files and why>" }
+— do NOT push.
+
+On a clean (or trivially-resolved) merge:
+3. git push origin main
+4. git rev-parse HEAD   (record as merge_sha)
 5. git branch -d ${trunk.branch}
 6. git worktree remove --force ${trunk.worktree}
-Return pr_url=null and a note confirming the push.`,
-    { label: 'finalize-merge', schema: FIN_SCHEMA }
+Return { "merged": true, "merge_sha": "<sha>" }.`,
+    { label: 'finalize-merge', phase: 'Finalize', schema: MERGE_SCHEMA }
   )
+  if (!merge.merged) {
+    return { result: 'failed', reason: `merge conflict: ${merge.conflict}` }
+  }
+  log(`Merged ${trunk.branch} into main at ${merge.merge_sha}.`)
+  return { result: 'ok', epic_qid: epicQid, branch: trunk.branch, merged_to: 'main' }
 } else {
-  // Default: push branch + open PR
+  // Default: push branch + open PR.
   log(`Pushing ${trunk.branch} and opening PR`)
-  fin = await agent(
+  const pr = await agent(
     `Finalize the epic by pushing the branch and opening a pull request.
-
-Steps:
 1. cd ${trunk.worktree}
 2. git push -u origin ${trunk.branch}
-3. Compose a coherent PR body. Do NOT just paste the epic body. Read the epic
-   for intent (loom show ${epicQid} --json), then read the actual diff to
-   describe what really shipped:
+3. Compose a coherent PR body — do NOT just paste the epic body. Read the epic for
+   intent (loom show ${epicQid} --json) and the diff for what shipped:
      git diff main...${trunk.branch} --stat
      git log main..${trunk.branch} --oneline
-   Write a Markdown body with: a one-paragraph summary of what this epic
-   delivers, a "## Changes" bullet list grounded in the diff/commits, and a
-   "## Validation" note on how it was verified. Keep it tight and accurate to
-   the diff — every claim must be supported by a change you actually see.
-4. Open the PR with your composed body (use a heredoc / --body-file to avoid
-   shell-quoting issues):
-     gh pr create --base main --head ${trunk.branch} --title "Epic ${epicQid}: <short summary>" --body-file <tmpfile>
-5. Return the PR URL as pr_url.`,
-    { label: 'finalize-pr', schema: FIN_SCHEMA }
+   Write a short Markdown body: a one-paragraph summary + a "## Changes" bullet
+   list grounded in the diff. Every claim must match a real change.
+4. gh pr create --base main --head ${trunk.branch} --title "Epic ${epicQid}: <short summary>" --body-file <tmpfile> and capture the URL
+Return { "pr_url": "<url>" }.`,
+    { label: 'finalize-pr', phase: 'Finalize', schema: PR_SCHEMA }
   )
-}
-
-log(`Finalized. PR URL: ${fin.pr_url ?? 'n/a (merged directly)'}`)
-
-return {
-  result: 'ok',
-  epic_qid: epicQid,
-  branch: trunk.branch,
-  pr_url: fin.pr_url,
+  log(`Finalized. PR URL: ${pr.pr_url ?? '(none)'}`)
+  return { result: 'ok', epic_qid: epicQid, branch: trunk.branch, pr_url: pr.pr_url }
 }
