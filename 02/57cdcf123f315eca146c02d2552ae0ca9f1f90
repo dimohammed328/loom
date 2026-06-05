@@ -1,0 +1,23 @@
+plugin/agents/story-executor.md
+  s_227be8f5dbea80::t_7ff024a27d5df9 4
+plugin/agents/codebase-researcher.md
+  s_227be8f5dbea80::t_aa40f39d87b3c3 34
+  s_227be8f5dbea80::t_6b255cfc946d54 29
+  s_227be8f5dbea80::t_87ac781db50f77 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "0257cdcf123f315eca146c02d2552ae0ca9f1f90",
+  "prompts": {},
+  "sessions": {
+    "s_227be8f5dbea80": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f789d556-f5cf-4d77-b284-911a799aa0b7",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
