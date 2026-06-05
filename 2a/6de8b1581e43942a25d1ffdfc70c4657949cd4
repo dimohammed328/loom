@@ -1,0 +1,21 @@
+web/frontend/components/BoardView.tsx
+  s_d2faa466e12a21::t_9a8ad88ff3c4f0 306
+  s_d2faa466e12a21::t_63e9ed002e31ec 84-90
+  s_d2faa466e12a21::t_628d0c66218b9a 313,318
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "2a6de8b1581e43942a25d1ffdfc70c4657949cd4",
+  "prompts": {},
+  "sessions": {
+    "s_d2faa466e12a21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08cdb9e5-bef6-49c1-ad9c-6f9baa4ff8a5",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
