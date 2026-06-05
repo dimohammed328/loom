@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { boardColumnHeaders, LANE_MIN_WIDTH, buildGridTemplate } from "./BoardView";
+import { boardColumnHeaders, LANE_MIN_WIDTH, LANE_STORY_CAP, buildGridTemplate, visibleCells } from "./BoardView";
 import type { EpicRow, StoryCell } from "../boardModel";
 import { BOARD_STATUSES } from "../boardModel";
 
@@ -85,5 +85,56 @@ describe("boardColumnHeaders", () => {
     const headers = boardColumnHeaders(rows);
     expect(headers.map((h) => h.status)).toEqual([...BOARD_STATUSES]);
     expect(headers.find((h) => h.status === "custom")).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LANE_STORY_CAP
+// ---------------------------------------------------------------------------
+
+describe('LANE_STORY_CAP', () => {
+  test('is 5', () => {
+    expect(LANE_STORY_CAP).toBe(5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// visibleCells
+// ---------------------------------------------------------------------------
+
+describe('visibleCells', () => {
+  const cells: StoryCell[] = Array.from({ length: 8 }, (_, i) => ({
+    qid: `p:aaa23:${i + 1}`,
+    title: `Story ${i + 1}`,
+    status: 'ready',
+    deps: [],
+    taskNodes: [],
+  }));
+
+  test('returns all cells when expanded', () => {
+    expect(visibleCells(cells, true)).toHaveLength(8);
+    expect(visibleCells(cells, true)).toEqual(cells);
+  });
+
+  test('returns at most LANE_STORY_CAP cells when collapsed', () => {
+    const result = visibleCells(cells, false);
+    expect(result).toHaveLength(LANE_STORY_CAP);
+    expect(result).toEqual(cells.slice(0, LANE_STORY_CAP));
+  });
+
+  test('returns all cells when collapsed but count <= cap', () => {
+    const few = cells.slice(0, 3);
+    expect(visibleCells(few, false)).toHaveLength(3);
+    expect(visibleCells(few, false)).toEqual(few);
+  });
+
+  test('returns all cells when expanded and count <= cap', () => {
+    const few = cells.slice(0, 5);
+    expect(visibleCells(few, true)).toHaveLength(5);
+    expect(visibleCells(few, true)).toEqual(few);
+  });
+
+  test('returns all cells when expanded and count > cap', () => {
+    expect(visibleCells(cells, true)).toEqual(cells);
   });
 });

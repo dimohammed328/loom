@@ -30,6 +30,9 @@ import StoryCard from "./StoryCard";
  *  screens >= ~900px wide without horizontal scroll. */
 export const LANE_MIN_WIDTH = 160;
 
+/** Maximum number of story cards shown per status lane before the expander is shown. */
+export const LANE_STORY_CAP = 5;
+
 /** Build the CSS grid-template-columns value for the board.
  *  Exported for tests so the floor-then-scroll contract is verifiable. */
 export function buildGridTemplate(laneCount: number): string {
@@ -37,12 +40,21 @@ export function buildGridTemplate(laneCount: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Pure helper (exported for tests)
+// Pure helpers (exported for tests)
 // ---------------------------------------------------------------------------
 
 export interface ColumnHeader {
   status: string;
   count: number;
+}
+
+/**
+ * Return the subset of cells to show in a lane.
+ * When expanded, all cells are returned. When collapsed, only the first
+ * LANE_STORY_CAP cells are returned (a no-op when the lane has <= cap cards).
+ */
+export function visibleCells(cells: StoryCell[], expanded: boolean): StoryCell[] {
+  return expanded ? cells : cells.slice(0, LANE_STORY_CAP);
 }
 
 /**
@@ -62,6 +74,19 @@ export function boardColumnHeaders(rows: EpicRow[]): ColumnHeader[] {
   }
 
   return BOARD_STATUSES.map((s) => ({ status: s, count: counts.get(s) ?? 0 }));
+}
+
+// ---------------------------------------------------------------------------
+// Shared UI elements
+// ---------------------------------------------------------------------------
+
+/** Chevron SVG reused by both the "Show N more" and "Show less" expander buttons. */
+function ChevronIcon(): React.JSX.Element {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -142,12 +167,14 @@ export default function BoardView({ project, onOpen }: BoardViewProps): React.JS
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [expandedLanes, setExpandedLanes] = useState<Record<string, boolean>>({});
 
   // Fetch tree data when project changes.
   useEffect(() => {
     setLoading(true);
     setError(null);
     setCollapsed({});
+    setExpandedLanes({});
     getProjectTree(project.qid)
       .then((tree) => {
         setRows(boardModel(tree));
@@ -161,6 +188,11 @@ export default function BoardView({ project, onOpen }: BoardViewProps): React.JS
 
   const toggleCollapse = useCallback((epicQid: string) => {
     setCollapsed((prev) => ({ ...prev, [epicQid]: !prev[epicQid] }));
+  }, []);
+
+  const toggleLane = useCallback((epicQid: string, status: string) => {
+    const key = `${epicQid}:${status}`;
+    setExpandedLanes((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
   if (loading) {
@@ -251,15 +283,43 @@ export default function BoardView({ project, onOpen }: BoardViewProps): React.JS
               ) : (
                 BOARD_STATUSES.map((status) => {
                   const cells: StoryCell[] = row.statusColumns[status] ?? [];
+                  const laneKey = `${row.epicQid}:${status}`;
+                  const isLaneExpanded = !!expandedLanes[laneKey];
+                  const shown = visibleCells(cells, isLaneExpanded);
+                  const hiddenCount = cells.length - shown.length;
                   return (
                     <div className="kcol" key={status} role="group" aria-label={status}>
-                      {cells.map((story) => (
+                      {shown.map((story) => (
                         <StoryCard
                           key={story.qid}
                           story={story}
                           onOpen={onOpen}
                         />
                       ))}
+                      {hiddenCount > 0 && (
+                        <button
+                          className="lane-expander"
+                          onClick={() => toggleLane(row.epicQid, status)}
+                          aria-expanded={isLaneExpanded}
+                        >
+                          <span className="lane-expander-chev">
+                            <ChevronIcon />
+                          </span>
+                          Show {hiddenCount} more
+                        </button>
+                      )}
+                      {isLaneExpanded && cells.length > LANE_STORY_CAP && (
+                        <button
+                          className="lane-expander"
+                          onClick={() => toggleLane(row.epicQid, status)}
+                          aria-expanded={isLaneExpanded}
+                        >
+                          <span className="lane-expander-chev lane-expander-chev--up">
+                            <ChevronIcon />
+                          </span>
+                          Show less
+                        </button>
+                      )}
                     </div>
                   );
                 })
