@@ -64,6 +64,15 @@ def test_namespaced_agent_type_injects(agent_type: str) -> None:
     assert "assignee SID:AID" in ctx
 
 
+@pytest.mark.parametrize("agent_type", TARGET_AGENTS)
+def test_output_declares_hook_event_name(agent_type: str) -> None:
+    """hookSpecificOutput MUST carry hookEventName; Claude Code silently
+    discards the injected context (no context reaches the subagent) when
+    it is absent."""
+    payload = json.loads(_run(agent_type))
+    assert payload["hookSpecificOutput"]["hookEventName"] == "SubagentStart"
+
+
 @pytest.mark.parametrize("agent_type", ["general-purpose", "loom:general-purpose", "Explore"])
 def test_non_target_agent_type_is_silent(agent_type: str) -> None:
     """Non-orchestration agents get no injection (silent exit 0)."""

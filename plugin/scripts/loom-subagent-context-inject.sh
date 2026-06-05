@@ -78,8 +78,11 @@ returned, expect N TaskCreate calls before any task work begins.
 EOF
 )
 
+# hookEventName is REQUIRED inside hookSpecificOutput — Claude Code
+# silently discards the output (no context injected) if it is missing.
 jq -n --arg ctx "$context" '{
   hookSpecificOutput: {
+    hookEventName: "SubagentStart",
     additionalContext: $ctx
   }
 }'
