@@ -24,3 +24,6 @@ htmlcov/
 
 # Per-developer Claude Code config
 .claude/
+
+# loom project-local workspace (binding + last-touched state; not content)
+.loom/
