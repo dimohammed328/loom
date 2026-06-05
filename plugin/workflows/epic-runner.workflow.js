@@ -86,11 +86,13 @@ const VALIDATOR_SCHEMA = {
 
 const TRUNK_SCHEMA = {
   type: 'object',
-  required: ['worktree', 'branch', 'main_sha'],
+  required: ['ok'],
   properties: {
-    worktree: { type: 'string' },
-    branch:   { type: 'string' },
-    main_sha: { type: 'string' },
+    ok:       { type: 'boolean' },
+    error:    { type: ['string', 'null'] },
+    worktree: { type: ['string', 'null'] },
+    branch:   { type: ['string', 'null'] },
+    main_sha: { type: ['string', 'null'] },
   },
 }
 
@@ -238,8 +240,12 @@ async function prepare(qid, parentBranch) {
 
 log(`Setting up trunk for epic ${epicQid} (finalize=${finalize})`)
 
-const trunkBranch = `loom/${epicQid}`
-const trunkWorktree = `.claude/worktrees/${epicQid.replace(/:/g, '-')}`
+// Git forbids colons in ref names, so the epic qid's colons must be
+// sanitized for BOTH the branch name and the worktree path (matching the
+// story-executor's slug convention of replacing ':' with '-').
+const trunkSlug = epicQid.replace(/:/g, '-')
+const trunkBranch = `loom/${trunkSlug}`
+const trunkWorktree = `.claude/worktrees/${trunkSlug}`
 
 const trunk = await agent(
   `You are setting up the epic trunk worktree for epic_qid="${epicQid}".
@@ -249,7 +255,7 @@ The target branch is "${trunkBranch}" and the target worktree path is
 Steps:
 1. Ensure main is up to date:
    git checkout main && git fetch origin && git pull --ff-only origin main
-   If git pull --ff-only fails, HALT — do not proceed.
+   If git pull --ff-only fails, STOP and return the failure result below.
 2. Record main_sha BEFORE creating the worktree: git rev-parse HEAD
 3. Reconcile any existing state, then create or reuse the trunk worktree.
    First inspect what already exists:
@@ -268,9 +274,25 @@ Steps:
       still present (rm -rf ${trunkWorktree}), then go to case (a) or (b).
 4. Confirm the worktree at ${trunkWorktree} is checked out on branch
    ${trunkBranch} (git -C ${trunkWorktree} rev-parse --abbrev-ref HEAD).
-Return the worktree path, branch name, and main_sha.`,
+
+On success, return { "ok": true, "worktree": "${trunkWorktree}",
+"branch": "${trunkBranch}", "main_sha": "<sha>" }.
+
+If ANY step fails — the fast-forward pull fails, a 'git worktree add'
+command errors, the branch ref is rejected, or the final checkout is not
+on ${trunkBranch} — do NOT improvise or stuff an error message into
+another field. Return { "ok": false, "error": "<concise reason>",
+"worktree": null, "branch": null, "main_sha": null } and stop.`,
   { label: 'trunk-setup', phase: 'Trunk', schema: TRUNK_SCHEMA }
 )
+
+if (!trunk.ok || !trunk.worktree || !trunk.branch) {
+  log(`Trunk setup FAILED — halting epic. ${trunk.error ?? '(no worktree created)'}`)
+  return {
+    result: 'failed',
+    reason: `trunk setup failed: ${trunk.error ?? 'no worktree created'}`,
+  }
+}
 
 log(`Trunk worktree: ${trunk.worktree} on branch ${trunk.branch}`)
 
