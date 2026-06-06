@@ -375,7 +375,6 @@ body {
   display: grid;
   row-gap: 0; column-gap: var(--gap);
   padding: 0 16px 48px;
-  min-width: max-content;
   align-items: start;
 }
 
