@@ -30,6 +30,10 @@ export function formatSseEvent(payload: Record<string, unknown>): string {
  * to the client. When the client disconnects the stream is cancelled and
  * `onCancel` is called so the caller can unsubscribe from the broadcaster.
  *
+ * An initial SSE comment line (`: keepalive`) is enqueued immediately so that
+ * Bun flushes the response headers to the client without waiting for the first
+ * real event.
+ *
  * @param onCancel  Called when the underlying ReadableStream is cancelled.
  * @param setup     Optional: called synchronously with a `send` function that
  *                  pushes a formatted SSE frame into the stream. The caller
@@ -39,12 +43,13 @@ export function createSseResponse(
   onCancel: () => void,
   setup?: (send: (payload: Record<string, unknown>) => void) => void,
 ): Response {
-  let controller: ReadableStreamDefaultController<Uint8Array> | null = null;
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
     start(ctrl) {
-      controller = ctrl;
+      // Flush an initial comment so Bun sends the response headers immediately.
+      ctrl.enqueue(encoder.encode(": keepalive\n\n"));
+
       const send = (payload: Record<string, unknown>) => {
         try {
           ctrl.enqueue(encoder.encode(formatSseEvent(payload)));
@@ -55,7 +60,6 @@ export function createSseResponse(
       if (setup) setup(send);
     },
     cancel() {
-      controller = null;
       onCancel();
     },
   });

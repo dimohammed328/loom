@@ -50,22 +50,24 @@ describe("GET /api/events", () => {
     const decoder = new TextDecoder();
 
     // Consume the initial keepalive comment so response headers have flushed
-    const { value: keepalive } = await reader.read();
-    const keepaliveText = decoder.decode(keepalive);
+    const first = await reader.read();
+    if (first.done) throw new Error("stream ended before keepalive");
+    const keepaliveText = decoder.decode(first.value);
     expect(keepaliveText).toStartWith(":");
 
     // Publish a message
     server.broadcaster.publish({ qid: "proj:abc:1", type: "task" });
 
-    const { value: eventChunk } = await new Promise<ReadableStreamReadResult<Uint8Array>>(
+    const second = await new Promise<{ done: boolean; value: Uint8Array | undefined }>(
       (resolve, reject) => {
         setTimeout(() => reject(new Error("read timeout")), 2000);
-        reader.read().then(resolve);
+        reader.read().then((r) => resolve({ done: r.done, value: r.value }));
       }
     );
     await reader.cancel();
 
-    const eventText = decoder.decode(eventChunk);
+    if (second.done) throw new Error("stream ended before event");
+    const eventText = decoder.decode(second.value);
     expect(eventText).toStartWith("data: ");
     expect(eventText).toEndWith("\n\n");
     // The data field should be valid JSON containing our qid

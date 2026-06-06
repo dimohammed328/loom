@@ -57,13 +57,24 @@ describe("createSseResponse", () => {
     expect(resp.headers.get("Connection")).toBe("keep-alive");
   });
 
+  test("first chunk is an SSE comment (keepalive flush)", async () => {
+    const resp = createSseResponse(() => {});
+    const reader = resp.body!.getReader();
+    const { value } = await reader.read();
+    const text = new TextDecoder().decode(value);
+    expect(text).toStartWith(":");
+    await reader.cancel();
+  });
+
   test("calls onCancel when stream is cancelled", async () => {
     let cancelled = false;
     const resp = createSseResponse(() => {
       cancelled = true;
     });
-    // Cancel the body reader
-    await resp.body!.cancel();
+    // Consume the initial keepalive comment
+    const reader = resp.body!.getReader();
+    await reader.read();
+    await reader.cancel();
     expect(cancelled).toBe(true);
   });
 });
