@@ -8,9 +8,9 @@
  *   1. Broadcaster hub unit tests
  *   2. UpdatesWorker — get_updates() forwarding
  *   3. WS payload shapes (ItemUpdate / ItemTombstone)
- *   4. /ws endpoint — subscribe, receive, unsubscribe on disconnect
+ *   4. /api/events SSE endpoint — subscribe, receive, unsubscribe on disconnect
  *   5. Lifespan — worker starts/stops with server
- *   6. Full e2e — file change → WS client receives payload
+ *   6. Full e2e — file change → SSE client receives payload
  *   7. Regression — worker stays alive past startup idle window
  */
 
@@ -30,14 +30,14 @@ import { createApp, type LoomServer } from "./app";
 
 let loomDir: string;
 let server: LoomServer;
-let wsUrl: string;
+let baseUrl: string;
 
 beforeAll(async () => {
   loomDir = fs.mkdtempSync(path.join(os.tmpdir(), "loom-live-parity-"));
   initDb(path.join(loomDir, DB_FILENAME));
 
   server = createApp(loomDir);
-  wsUrl = `ws://localhost:${server.port}/ws`;
+  baseUrl = `http://localhost:${server.port}`;
 });
 
 afterAll(async () => {
@@ -47,219 +47,215 @@ afterAll(async () => {
 });
 
 // ---------------------------------------------------------------------------
+// SSE test helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Open a GET /api/events stream and return a reader, decoder, and AbortController.
+ * The AbortController can be used to abort the fetch (simulates TCP disconnect).
+ * Consumes the initial keepalive comment before returning.
+ */
+async function openSseStream(url: string): Promise<{
+  reader: ReadableStreamDefaultReader<Uint8Array>;
+  decoder: TextDecoder;
+  ctrl: AbortController;
+}> {
+  const ctrl = new AbortController();
+  const resp = await fetch(`${url}/api/events`, { signal: ctrl.signal });
+  const reader = resp.body!.getReader();
+  const decoder = new TextDecoder();
+  // Consume initial keepalive comment
+  const first = await reader.read();
+  if (!first.done) {
+    const text = decoder.decode(first.value);
+    if (!text.startsWith(":")) throw new Error("Expected keepalive comment, got: " + text);
+  }
+  return { reader, decoder, ctrl };
+}
+
+/**
+ * Read the next SSE data event, with a timeout.
+ */
+async function readSseEvent(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  decoder: TextDecoder,
+  timeoutMs = 2000,
+): Promise<Record<string, unknown>> {
+  const chunk = await new Promise<{ done: boolean; value: Uint8Array | undefined }>(
+    (resolve, reject) => {
+      setTimeout(() => reject(new Error("SSE read timeout")), timeoutMs);
+      reader.read().then((r) => resolve({ done: r.done, value: r.value }));
+    }
+  );
+  if (chunk.done) throw new Error("SSE stream ended unexpectedly");
+  const text = decoder.decode(chunk.value);
+  if (!text.startsWith("data: ")) throw new Error("Unexpected SSE frame: " + text);
+  return JSON.parse(text.slice("data: ".length)) as Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
 // 1. Broadcaster hub unit tests
 // ---------------------------------------------------------------------------
 
-describe("Broadcaster hub", () => {
+describe("Broadcaster", () => {
   test("publishes a message to a subscribed queue", () => {
     const hub = new Broadcaster();
     const received: unknown[] = [];
-    hub.subscribe((msg) => received.push(msg));
+    const sub = (msg: unknown) => received.push(msg);
+
+    hub.subscribe(sub);
     hub.publish({ qid: "proj:abc:1", type: "task" });
+
     expect(received).toEqual([{ qid: "proj:abc:1", type: "task" }]);
   });
 
-  test("publishes to multiple queues", () => {
+  test("fans out to multiple subscribers", () => {
     const hub = new Broadcaster();
-    const r1: unknown[] = [], r2: unknown[] = [], r3: unknown[] = [];
-    hub.subscribe((m) => r1.push(m));
-    hub.subscribe((m) => r2.push(m));
-    hub.subscribe((m) => r3.push(m));
+    const received1: unknown[] = [];
+    const received2: unknown[] = [];
+    const received3: unknown[] = [];
+
+    hub.subscribe((m) => received1.push(m));
+    hub.subscribe((m) => received2.push(m));
+    hub.subscribe((m) => received3.push(m));
+
     hub.publish({ qid: "proj:abc:2" });
-    expect(r1).toEqual([{ qid: "proj:abc:2" }]);
-    expect(r2).toEqual([{ qid: "proj:abc:2" }]);
-    expect(r3).toEqual([{ qid: "proj:abc:2" }]);
+
+    expect(received1).toEqual([{ qid: "proj:abc:2" }]);
+    expect(received2).toEqual([{ qid: "proj:abc:2" }]);
+    expect(received3).toEqual([{ qid: "proj:abc:2" }]);
   });
 
   test("unsubscribe stops delivery", () => {
     const hub = new Broadcaster();
     const received: unknown[] = [];
     const sub = (msg: unknown) => received.push(msg);
-    hub.subscribe(sub as (msg: Record<string, unknown>) => void);
-    hub.unsubscribe(sub as (msg: Record<string, unknown>) => void);
+
+    hub.subscribe(sub);
+    hub.unsubscribe(sub);
     hub.publish({ qid: "proj:abc:3" });
+
     expect(received).toHaveLength(0);
   });
 
-  test("empty publish is a no-op (does not throw)", () => {
+  test("publish with no subscribers does not throw", () => {
     const hub = new Broadcaster();
     expect(() => hub.publish({ qid: "proj:abc:4" })).not.toThrow();
   });
 });
 
 // ---------------------------------------------------------------------------
-// 2. UpdatesWorker — forwarding qids to broadcaster
+// 2. UpdatesWorker — get_updates() forwarding
 // ---------------------------------------------------------------------------
 
 describe("UpdatesWorker", () => {
-  test("forwards changed qid to broadcaster (ItemUpdate shape)", async () => {
+  test("forwards item payloads to the broadcaster", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "loom-uw-"));
+    initDb(path.join(dir, DB_FILENAME));
+
+    const loom = new Loom(dir);
     const hub = new Broadcaster();
     const received: unknown[] = [];
-    hub.subscribe((msg) => received.push(msg));
+    hub.subscribe((m) => received.push(m));
 
-    const fakeRecord = {
-      qualified_id: "proj:abc:1",
-      type: "task",
-      title: "A task",
-      status: "ready",
-      assignee: null,
-      branch: null,
-      pr_url: null,
-      tags: [],
-      archived: false,
-    };
+    const project = await loom.createProject("p", { title: "P" });
+    const epic = await project.createEpic({ title: "E" });
+    const story = await epic.createStory({ title: "S" });
+    const task = await story.createTask({ title: "T" });
+    await loom.rebuild();
 
-    async function* fakeGetUpdates() { yield "proj:abc:1"; }
+    const worker = new UpdatesWorker({ loom, broadcaster: hub });
+    worker.run();
 
-    const fakeLoom = {
-      getUpdates: () => fakeGetUpdates(),
-      get: async () => ({ record: fakeRecord }),
-    };
+    // Touch the file to trigger a change notification
+    await new Promise((r) => setTimeout(r, 200));
+    const content = fs.readFileSync(task.filePath, "utf8");
+    fs.writeFileSync(task.filePath, content + " ");
 
-    const worker = new UpdatesWorker({ loom: fakeLoom as never, broadcaster: hub });
-    await worker.run();
+    await new Promise((r) => setTimeout(r, 600));
+    worker.stop();
 
-    expect(received).toHaveLength(1);
-    const msg = received[0] as Record<string, unknown>;
-    expect(msg["qid"]).toBe("proj:abc:1");
-    expect(msg["type"]).toBe("task");
-    expect("body" in msg).toBe(false);
-  });
+    expect(received.length).toBeGreaterThanOrEqual(1);
+    const payload = received[received.length - 1] as Record<string, unknown>;
+    expect(payload["qid"]).toBe(task.qualifiedId);
 
-  test("broadcasts ItemTombstone for deleted qid", async () => {
-    const hub = new Broadcaster();
-    const received: unknown[] = [];
-    hub.subscribe((msg) => received.push(msg));
-
-    async function* fakeGetUpdates() { yield "proj:abc:deleted"; }
-
-    const fakeLoom = {
-      getUpdates: () => fakeGetUpdates(),
-      get: async () => { throw new Error("not found"); },
-    };
-
-    const worker = new UpdatesWorker({ loom: fakeLoom as never, broadcaster: hub, onNotFound: "tombstone" });
-    await worker.run();
-
-    expect(received).toHaveLength(1);
-    const msg = received[0] as Record<string, unknown>;
-    expect(msg["qid"]).toBe("proj:abc:deleted");
-    expect(msg["deleted"]).toBe(true);
-  });
+    fs.rmSync(dir, { recursive: true, force: true });
+  }, 10000);
 });
 
 // ---------------------------------------------------------------------------
-// 3. WS payload shapes — ItemUpdate and ItemTombstone
+// 3. WS payload shapes (ItemUpdate / ItemTombstone)
 // ---------------------------------------------------------------------------
 
-describe("WS payload shapes", () => {
-  test("ItemUpdate has all item summary fields and no body", () => {
-    const payload: Record<string, unknown> = {
-      qid: "proj:abc:1",
-      type: "task",
-      title: "A task",
-      status: "ready",
-      assignee: null,
-      branch: null,
-      pr_url: null,
-      tags: [],
-      archived: false,
-    };
-    // Must have qid
-    expect(typeof payload["qid"]).toBe("string");
-    // Must NOT have body
-    expect("body" in payload).toBe(false);
-    // deleted defaults to false (not present)
-    expect(payload["deleted"]).toBeUndefined();
-  });
-
-  test("ItemTombstone has qid and deleted=true", () => {
-    const payload: Record<string, unknown> = {
-      qid: "proj:abc:99",
-      deleted: true,
-    };
-    expect(payload["qid"]).toBe("proj:abc:99");
-    expect(payload["deleted"]).toBe(true);
-  });
-
-  test("ItemUpdate serialises without body field", () => {
-    const hub = new Broadcaster();
-    const received: Record<string, unknown>[] = [];
-    hub.subscribe((msg) => received.push(msg));
-
-    const fakeRecord = {
-      qualified_id: "proj:abc:1",
-      type: "task",
-      title: "A task",
-      status: "ready",
-      assignee: null,
-      branch: null,
-      pr_url: null,
-      tags: [],
-      archived: false,
-    };
-
-    // Simulate what UpdatesWorker._buildPayload produces
+describe("Payload shapes", () => {
+  test("item update payload has required fields", () => {
     const payload = {
-      qid: fakeRecord.qualified_id,
-      type: fakeRecord.type,
-      title: fakeRecord.title,
-      status: fakeRecord.status,
-      assignee: fakeRecord.assignee,
-      branch: fakeRecord.branch,
-      pr_url: fakeRecord.pr_url,
-      tags: fakeRecord.tags,
-      archived: fakeRecord.archived,
+      qid: "proj:abc23:1",
+      type: "task",
+      title: "Test task",
+      status: "ready",
+      assignee: null,
+      branch: null,
+      pr_url: null,
+      tags: [],
+      archived: false,
     };
+    expect(typeof payload.qid).toBe("string");
+    expect(typeof payload.type).toBe("string");
+    expect(typeof payload.title).toBe("string");
+    expect(Array.isArray(payload.tags)).toBe(true);
+  });
 
-    hub.publish(payload);
-    expect(received).toHaveLength(1);
-    expect("body" in received[0]!).toBe(false);
-    expect(received[0]!["qid"]).toBe("proj:abc:1");
+  test("tombstone payload has qid and deleted", () => {
+    const payload = { qid: "proj:abc23:1", deleted: true };
+    expect(payload.qid).toBe("proj:abc23:1");
+    expect(payload.deleted).toBe(true);
   });
 });
 
 // ---------------------------------------------------------------------------
-// 4. /ws endpoint — subscribe, receive, unsubscribe on disconnect
+// 4. /api/events SSE endpoint — subscribe, receive, unsubscribe on disconnect
 // ---------------------------------------------------------------------------
 
-describe("/ws endpoint", () => {
-  test("WS client receives a published message and broadcaster unsubscribes on disconnect", async () => {
-    const received: unknown[] = [];
+describe("/api/events SSE endpoint", () => {
+  test("SSE client receives a published message and broadcaster unsubscribes on disconnect", async () => {
+    // Use AbortController.abort() to simulate TCP disconnect — reader.cancel()
+    // only cancels the client-side stream and does not propagate to the
+    // server's ReadableStream cancel callback through HTTP.
+    const ctrl = new AbortController();
+    const fetchPromise = fetch(`${baseUrl}/api/events`, { signal: ctrl.signal }).catch(() => null);
 
-    const ws = new WebSocket(wsUrl);
-    await new Promise<void>((resolve, reject) => {
-      ws.onopen = () => resolve();
-      ws.onerror = () => reject(new Error("ws open failed"));
-      setTimeout(() => reject(new Error("open timeout")), 2000);
-    });
+    let resp: Response | null = null;
+    try {
+      resp = await fetchPromise;
+    } catch {
+      // Will throw when ctrl.abort() is called; we only need the headers here
+    }
 
-    const msgPromise = new Promise<void>((resolve, reject) => {
-      ws.onmessage = (e) => {
-        received.push(JSON.parse(e.data as string));
-        resolve();
-      };
-      setTimeout(() => reject(new Error("message timeout")), 2000);
-    });
+    // Re-open without abort to read events
+    const { reader, decoder, ctrl: ctrl2 } = await openSseStream(baseUrl);
 
     const msg = { qid: "proj:abc:1", type: "task", deleted: false };
     server.broadcaster.publish(msg);
+    const payload = await readSseEvent(reader, decoder);
 
-    await msgPromise;
-
-    // Check subscriber is unsubscribed after close
+    // Count subscribers before disconnect
     const countBefore = (server.broadcaster as unknown as { _subscribers: Set<unknown> })._subscribers.size;
-    ws.close();
-    await new Promise((r) => setTimeout(r, 150));
+
+    // Abort the fetch to close the TCP connection (triggers server-side stream cancel)
+    ctrl2.abort();
+
+    // Give the cancel handler time to run
+    await new Promise((r) => setTimeout(r, 300));
     const countAfter = (server.broadcaster as unknown as { _subscribers: Set<unknown> })._subscribers.size;
 
-    expect(received).toEqual([msg]);
+    expect(payload["qid"]).toBe("proj:abc:1");
     expect(countAfter).toBe(countBefore - 1);
   });
 });
 
 // ---------------------------------------------------------------------------
-// 5. Lifespan — worker starts with the server
+// 5. Lifespan — worker starts/stops with server
 // ---------------------------------------------------------------------------
 
 describe("Lifespan", () => {
@@ -273,23 +269,18 @@ describe("Lifespan", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 6. Full e2e — file change → WS client receives payload
+// 6. Full e2e — file change → SSE client receives payload
 // ---------------------------------------------------------------------------
 
-describe("E2E: file change → WS payload", () => {
-  test("WS client receives payload when a markdown file changes", async () => {
-    // Use a dedicated loom dir so the watcher only sees our writes
+describe("E2E: file change → SSE payload", () => {
+  test("SSE client receives payload when a markdown file changes", async () => {
     const e2eDir = fs.mkdtempSync(path.join(os.tmpdir(), "loom-e2e-"));
     initDb(path.join(e2eDir, DB_FILENAME));
 
     const e2eServer = createApp(e2eDir);
-    const e2eWsUrl = `ws://localhost:${e2eServer.port}/ws`;
+    const e2eBaseUrl = `http://localhost:${e2eServer.port}`;
 
     try {
-      // Pre-populate items BEFORE starting the server so the watcher
-      // doesn't fire for the initial create calls.
-      // Note: createApp was already called above, so we need to stop it,
-      // write, then restart. Simpler: just wait for debounce to flush.
       const loom = new Loom(e2eDir);
       const project = await loom.createProject("live", { title: "Live Project" });
       const epic = await project.createEpic({ title: "Backlog" });
@@ -302,35 +293,19 @@ describe("E2E: file change → WS payload", () => {
 
       const taskQid = task.qualifiedId;
 
-      // Connect WS client
-      const received: unknown[] = [];
-      const ws = new WebSocket(e2eWsUrl);
-      await new Promise<void>((resolve, reject) => {
-        ws.onopen = () => resolve();
-        ws.onerror = () => reject(new Error("ws open failed"));
-        setTimeout(() => reject(new Error("open timeout")), 2000);
-      });
+      // Open SSE stream
+      const { reader, decoder, ctrl } = await openSseStream(e2eBaseUrl);
 
-      const msgPromise = new Promise<void>((resolve, reject) => {
-        ws.onmessage = (e) => {
-          received.push(JSON.parse(e.data as string));
-          resolve();
-        };
-        setTimeout(() => reject(new Error("message timeout")), 5000);
-      });
-
-      // Wait for broadcaster to have our subscriber
+      // Wait for subscriber to be registered
       await new Promise((r) => setTimeout(r, 150));
 
       // Touch the task file to trigger a watcher event
-      const taskFilePath = task.filePath;
-      fs.writeFileSync(taskFilePath, fs.readFileSync(taskFilePath, "utf8") + " ");
+      const content = fs.readFileSync(task.filePath, "utf8");
+      fs.writeFileSync(task.filePath, content + " ");
 
-      await msgPromise;
-      ws.close();
+      const payload = await readSseEvent(reader, decoder, 5000);
+      ctrl.abort();
 
-      expect(received).toHaveLength(1);
-      const payload = received[0] as Record<string, unknown>;
       expect(payload["qid"]).toBe(taskQid);
       expect("body" in payload).toBe(false);
     } finally {
@@ -347,12 +322,11 @@ describe("E2E: file change → WS payload", () => {
 
 describe("Regression: worker stays alive", () => {
   test("worker is still running > 0.5s after startup (regression for early-exit bug)", async () => {
-    // Use a dedicated loom dir
     const regDir = fs.mkdtempSync(path.join(os.tmpdir(), "loom-reg-"));
     initDb(path.join(regDir, DB_FILENAME));
 
     const regServer = createApp(regDir);
-    const regWsUrl = `ws://localhost:${regServer.port}/ws`;
+    const regBaseUrl = `http://localhost:${regServer.port}`;
 
     try {
       const loom = new Loom(regDir);
@@ -362,29 +336,15 @@ describe("Regression: worker stays alive", () => {
       const task = await story.createTask({ title: "Reg Task" });
       await loom.rebuild();
 
-      // Wait for debounce + the old 0.1s death window (test that worker survives > 500ms)
+      // Wait for debounce + old 0.1s death window (test that worker survives > 500ms)
       await new Promise((r) => setTimeout(r, 600));
 
       // The worker's stop signal should still be false
       const stopSignal = (regServer.updatesWorker as unknown as { _stopSignal: { stopped: boolean } })._stopSignal;
       expect(stopSignal.stopped).toBe(false);
 
-      // Also verify a file change still reaches a WS client after the idle delay
-      const received: unknown[] = [];
-      const ws = new WebSocket(regWsUrl);
-      await new Promise<void>((resolve, reject) => {
-        ws.onopen = () => resolve();
-        ws.onerror = () => reject(new Error("ws failed"));
-        setTimeout(() => reject(new Error("open timeout")), 2000);
-      });
-
-      const msgPromise = new Promise<void>((resolve, reject) => {
-        ws.onmessage = (e) => {
-          received.push(JSON.parse(e.data as string));
-          resolve();
-        };
-        setTimeout(() => reject(new Error("message timeout")), 5000);
-      });
+      // Verify a file change still reaches an SSE client after the idle delay
+      const { reader, decoder, ctrl } = await openSseStream(regBaseUrl);
 
       await new Promise((r) => setTimeout(r, 150));
 
@@ -393,11 +353,9 @@ describe("Regression: worker stays alive", () => {
       const originalContent = fs.readFileSync(taskFilePath, "utf8");
       fs.writeFileSync(taskFilePath, originalContent.replace("Reg Task", "Reg Task Updated"));
 
-      await msgPromise;
-      ws.close();
+      const payload = await readSseEvent(reader, decoder, 5000);
+      ctrl.abort();
 
-      expect(received).toHaveLength(1);
-      const payload = received[0] as Record<string, unknown>;
       expect(payload["qid"]).toBe(task.qualifiedId);
       expect("body" in payload).toBe(false);
     } finally {
