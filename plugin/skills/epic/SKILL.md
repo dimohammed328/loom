@@ -23,14 +23,11 @@ The user has invoked `/epic <description>`. The description is in `$ARGUMENTS`. 
 
 4. **Hand off to `loom:writing-plans`** with the groomed draft. That skill materializes the epic, stories, tasks, and deps in loom via CLI; sets `assignee: ${CLAUDE_SESSION_ID}` on the epic and stories; writes bodies via `--body-file`.
 
-5. **Launch the epic workflow** by invoking:
-   ```js
-   Workflow({
-     scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/epic-runner.workflow.js",
-     args: { epic_qid: "<qid>", finalize: "<'pr' or 'merge'>" }
-   })
+5. **Hand off to `loom:writing-workflows`** by invoking:
    ```
-   Set `finalize` to `"merge"` only if the original `/epic` request explicitly asked to merge to main (e.g. "merge to main", "push to main", "no PR"); otherwise use `"pr"` (the default). The workflow creates the epic worktree, runs the story scheduler loop, runs final epic validation, and finalizes the branch. On failure, the workflow halts and surfaces the diagnostic — that ends your turn.
+   loom:writing-workflows mode=epic epic_qid=<qid> finalize=<'pr' or 'merge'>
+   ```
+   Set `finalize` to `"merge"` only if the original `/epic` request explicitly asked to merge to main (e.g. "merge to main", "push to main", "no PR"); otherwise use `"pr"` (the default). That skill generates a bespoke baked-DAG workflow script and launches it. The generated workflow creates the epic worktree, runs the story scheduler loop, runs final epic validation, and finalizes the branch. On failure, the workflow halts and surfaces the diagnostic — that ends your turn.
 
 ## Constraints
 

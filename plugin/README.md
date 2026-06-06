@@ -38,7 +38,8 @@ Run this from the root of the loom repository.
 | `loom:brainstorming` | `/brainstorming` | Groom a feature into a loom epic or story |
 | `loom:epic` | `/epic <description>` | Full epic: plan → parallel execution → PR |
 | `loom:story` | `/story <description>` | Single story: plan → execute → validate → PR |
-| `loom:writing-plans` | (internal) | Materialize groomed drafts as loom items; launches workflow |
+| `loom:writing-plans` | (internal) | Materialize groomed drafts as loom items; hands off to `loom:writing-workflows` |
+| `loom:writing-workflows` | (internal) | Generate bespoke baked-DAG workflow script and launch it |
 | `loom:using-loom-cli` | (internal) | Reference for correct loom CLI flags |
 | `loom:verification-before-completion` | (internal) | Require evidence before claiming work complete |
 | `loom:test-driven-development` | (internal) | TDD discipline for story executors |

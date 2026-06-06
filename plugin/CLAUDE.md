@@ -15,9 +15,18 @@ plugin/
 │   └── hooks.json           # Hook wiring (legacy; plugin.json is authoritative)
 ├── scripts/                 # Shell helpers invoked by hooks
 ├── skills/                  # Skill directories, each with a SKILL.md
+│   └── writing-workflows/   # Generates baked-DAG workflow scripts at plan time
+│       ├── SKILL.md         # Skill definition: generation procedure + invariants
+│       ├── templates/       # Source templates (epic-runner, story-runner)
+│       └── examples/        # Example generated workflows (for reference/testing)
 ├── README.md                # End-user install and usage guide
 └── CLAUDE.md                # This file
 ```
+
+Workflow scripts are **generated** by `loom:writing-workflows` into `.loom/workflows/`
+(gitignored) at plan time — there is no static `plugin/workflows/` directory.
+The `plugin/skills/writing-workflows/templates/` directory holds the source
+templates; `examples/` holds concrete filled instances for reference and `node --check`.
 
 ## Namespace
 

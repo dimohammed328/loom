@@ -101,25 +101,18 @@ Show both outputs to the user. Confirm the structure is what they approved. If t
 
 ### Step 5: Hand off
 
-Once the user signs off on the materialized tree, launch the appropriate workflow:
+Once the user signs off on the materialized tree, invoke `loom:writing-workflows`
+with the root qid and finalize flag. That skill generates a bespoke baked-DAG
+workflow script and launches it.
 
-**Epic mode:**
-```js
-Workflow({
-  scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/epic-runner.workflow.js",
-  args: { epic_qid: "<qid>", finalize: "<'pr' or 'merge'>" }
-})
-```
+**Epic mode:** pass `mode=epic`, `epic_qid=<qid>`, `finalize=<'pr' or 'merge'>`.
 
-**Story mode:**
-```js
-Workflow({
-  scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/story-runner.workflow.js",
-  args: { story_qid: "<qid>", finalize: "<'pr' or 'merge'>" }
-})
-```
+**Story mode:** pass `mode=story`, `story_qid=<qid>`, `finalize=<'pr' or 'merge'>`.
 
-Both workflows take the same `finalize` argument: `"pr"` (default) opens a pull request, `"merge"` merges into `main` and pushes. Set it to `"merge"` only when the original request explicitly asked to merge to main; otherwise use `"pr"`. The workflow handles worktree creation, execution, validation, and finalization.
+`finalize` defaults to `"pr"` (opens a pull request). Set it to `"merge"` only
+when the original request explicitly asked to merge to main (e.g. "merge to main",
+"push to main", "no PR"). The generated workflow handles worktree creation,
+execution, validation, and finalization.
 
 ## Constraints
 
