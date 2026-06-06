@@ -1,12 +1,12 @@
 /**
- * Bun.serve HTTP server with read-only GET endpoints and live-update WebSocket.
+ * Bun.serve HTTP server with read-only GET endpoints and SSE live-update stream.
  *
  * Mirrors the route structure of src/loom_web/app.py:
  *   GET /api/health                      → { status: 'ok' }
  *   GET /api/projects                    → ProjectSummary[]
  *   GET /api/projects/{project}/tree     → TreeResponse
  *   GET /api/items/{qid:path}            → ItemDetail
- *   WS  /ws                              → ItemUpdate / ItemTombstone stream
+ *   GET /api/events                      → SSE stream of ItemUpdate / ItemTombstone
  *   GET /*                               → React SPA (Bun fullstack HTML bundling)
  *
  * NotFound errors map to HTTP 404 with { detail: string }.
@@ -22,6 +22,7 @@ import { serializeProject, serializeTree, serializeItemDetail } from "./serializ
 import { NotFound } from "../lib/errors";
 import { Broadcaster, type Subscriber } from "./broadcaster";
 import { UpdatesWorker } from "./updates";
+import { createSseResponse } from "./sse";
 import indexHtml from "../frontend/index.html";
 
 // ---------------------------------------------------------------------------
@@ -32,11 +33,6 @@ import indexHtml from "../frontend/index.html";
 export interface LoomServer extends ReturnType<typeof Bun.serve> {
   broadcaster: Broadcaster;
   updatesWorker: UpdatesWorker;
-}
-
-/** Per-connection data stored in ws.data. */
-interface WsData {
-  subscriber: Subscriber;
 }
 
 // ---------------------------------------------------------------------------
@@ -71,32 +67,15 @@ export function createApp(
   const gateway = new LoomGateway(root);
   const broadcaster = new Broadcaster();
 
-  const bunServer = Bun.serve<WsData>({
+  const bunServer = Bun.serve({
     port,
-
-    // ---- WebSocket handlers -------------------------------------------------
-    websocket: {
-      open(ws) {
-        const sub: Subscriber = (msg) => {
-          ws.send(JSON.stringify(msg));
-        };
-        ws.data = { subscriber: sub };
-        broadcaster.subscribe(sub);
-      },
-      message(_ws, _message) {
-        // clients send nothing; ignore
-      },
-      close(ws) {
-        if (ws.data?.subscriber) {
-          broadcaster.unsubscribe(ws.data.subscriber);
-        }
-      },
-    },
+    // SSE connections are long-lived; disable the default idle timeout so Bun
+    // does not close open event streams before the client disconnects.
+    idleTimeout: 0,
 
     // ---- Static routes ------------------------------------------------------
-    // Bun evaluates routes before fetch. /api/* and /ws are handled inline;
-    // /* catches all remaining paths and returns the bundled React SPA
-    // (Bun bundles main.tsx → index.html on first request, with HMR in dev).
+    // Bun matches specific routes before wildcards, so /api/events takes
+    // priority over /*. Specific routes also take priority over fetch().
     routes: {
       // API routes — handled inline so they take priority over the SPA wildcard.
       "/api/health": (_req: Request) => jsonResponse({ status: "ok" }),
@@ -138,24 +117,31 @@ export function createApp(
         }
       },
 
-      // SPA fallback — all non-API, non-WS paths serve the bundled React app.
+      // SSE live-update stream — each GET registers a Broadcaster subscriber
+      // that forwards payloads as `data: <json>\n\n` frames. The subscriber
+      // is removed when the client disconnects (stream cancel).
+      "/api/events": (_req: Request) => {
+        let sub: Subscriber | null = null;
+        return createSseResponse(
+          () => {
+            if (sub) broadcaster.unsubscribe(sub);
+          },
+          (send) => {
+            sub = send;
+            broadcaster.subscribe(sub);
+          },
+        );
+      },
+
+      // SPA fallback — all non-API paths serve the bundled React app.
       // Bun's HTML import causes index.html + main.tsx to be bundled; in dev
       // mode (bun dev) this includes HMR.
       "/*": indexHtml,
     },
 
     // ---- HTTP fetch ---------------------------------------------------------
-    // Only handles WebSocket upgrade requests. All HTTP routes are handled via
-    // the `routes` object above. Bun does not support WS upgrades inside
-    // route handlers, so /ws must remain here.
-    fetch(req: Request, server): Response | Promise<Response> {
-      const url = new URL(req.url);
-      if (url.pathname === "/ws") {
-        const upgraded = server.upgrade(req, { data: { subscriber: null! } as WsData });
-        if (upgraded) return undefined as unknown as Response;
-        return new Response("WebSocket upgrade failed", { status: 400 });
-      }
-      // Fallback for unrouted requests (should not occur in practice).
+    // Fallback for any request not matched by a route (should not occur).
+    fetch(_req: Request): Response | Promise<Response> {
       return notFound("Not found");
     },
   });
