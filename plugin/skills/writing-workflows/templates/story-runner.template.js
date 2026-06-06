@@ -66,7 +66,6 @@ const FIXER_SCHEMA = {
   },
 }
 
-
 const MERGE_SCHEMA = {
   type: 'object',
   required: ['merged'],

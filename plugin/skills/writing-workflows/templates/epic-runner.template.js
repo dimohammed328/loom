@@ -70,7 +70,6 @@ const FIXER_SCHEMA = {
   },
 }
 
-
 const TRUNK_SCHEMA = {
   type: 'object',
   required: ['ok'],
@@ -113,8 +112,8 @@ const PR_SCHEMA = {
 
 const EPIC_QID = '__EPIC_QID__'
 const FINALIZE = '__FINALIZE__'
-// STORIES: array of { qualified_id, title, deps } objects in topological order.
-// deps is an array of qualified_ids that must be merged before this story launches.
+// STORIES: array of { qid, title, deps } objects in topological order.
+// deps is an array of qids that must be merged before this story launches.
 const STORIES = __STORIES_JSON__
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -247,11 +246,11 @@ const inflight = new Map()  // qid → Promise<prepare result>
 // Launch all stories whose deps are satisfied and that are not yet in flight or failed.
 function launchReady() {
   for (const s of STORIES) {
-    if (inflight.has(s.qualified_id) || merged.has(s.qualified_id) || failed.has(s.qualified_id)) continue
+    if (inflight.has(s.qid) || merged.has(s.qid) || failed.has(s.qid)) continue
     const depsOk = (s.deps ?? []).every(d => merged.has(d))
     if (!depsOk) continue
-    log(`Launching prepare for ${s.qualified_id}: ${s.title}`)
-    inflight.set(s.qualified_id, prepare(s.qualified_id, trunk.branch))
+    log(`Launching prepare for ${s.qid}: ${s.title}`)
+    inflight.set(s.qid, prepare(s.qid, trunk.branch))
   }
 }
 
