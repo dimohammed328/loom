@@ -173,3 +173,55 @@ Workflow({
 Pass `args: {}` — all plan-specific data is baked into the script; no runtime
 arguments are needed.
 
+## Launch & constraints
+
+### Launch call
+
+After writing the generated file, launch it:
+
+```js
+Workflow({
+  scriptPath: "/absolute/path/to/.loom/workflows/<slug>.workflow.js",
+  args: {}
+})
+```
+
+The `scriptPath` must be an **absolute** path. All plan-specific data is baked
+into the script; `args` is always an empty object.
+
+### Self-contained scripts
+
+Generated workflows must be **self-contained**: no `import` or `require` of
+external modules or repo files. All machinery is inlined from the template. This
+is required because `Workflow()` scripts execute in a fresh environment without
+access to the loom Python library or plugin helpers.
+
+### No runtime `loom` reads in the baked scheduler
+
+The generated epic workflow scheduler must not call `loom ready`, `loom show`,
+`loom dep list`, `loom order`, or any other loom CLI at execution time to decide
+which story to run next. Story ordering and dependency edges are baked into the
+`STORIES` literal at generation time. The scheduler only consults that literal
+and the in-memory `merged` set.
+
+Exception: story-executor subagents (dispatched by the generated script) are
+still expected to call `loom show`, `loom order`, and `loom update` to read
+their per-story task detail. This is out of scope for the generated workflow
+itself.
+
+### Agents still read loom
+
+Story-executor subagents continue to read loom items (`loom show`, `loom order
+<story_qid>`) to get task lists and validation criteria. The generated workflow
+does **not** bake task-level data into the scripts dispatched to story
+executors — that would couple the generated artifact to every downstream task
+change. Only the orchestrator-level data (story qids, titles, inter-story deps)
+is baked.
+
+### finalize values
+
+| Value | Effect |
+|-------|--------|
+| `"pr"` | Open a pull request from the epic/story branch (default) |
+| `"merge"` | Merge into `main` and push — use only when the user explicitly requests it |
+
