@@ -459,6 +459,7 @@ body {
 .kcol {
   border-radius: var(--radius); padding: 7px;
   min-height: 64px;
+  min-width: 0;
   display: flex; flex-direction: column; gap: var(--card-gap);
   background: var(--surface-2);
   border: 1px solid var(--border);
