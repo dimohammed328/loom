@@ -225,3 +225,85 @@ is baked.
 | `"pr"` | Open a pull request from the epic/story branch (default) |
 | `"merge"` | Merge into `main` and push — use only when the user explicitly requests it |
 
+## Worked example
+
+### Scenario
+
+An epic `myproject:abc2345` has three stories:
+
+- **S1** `myproject:abc2345:1` — "Bootstrap DB schema" (no deps)
+- **S2** `myproject:abc2345:2` — "Add API layer" (depends on S1)
+- **S3** `myproject:abc2345:3` — "Add UI layer" (depends on S1)
+
+S2 and S3 can run in parallel once S1 is done.
+
+### Step 2 output — assembled `STORIES` literal
+
+```json
+[
+  {
+    "qid":   "myproject:abc2345:1",
+    "title": "Bootstrap DB schema",
+    "deps":  []
+  },
+  {
+    "qid":   "myproject:abc2345:2",
+    "title": "Add API layer",
+    "deps":  ["myproject:abc2345:1"]
+  },
+  {
+    "qid":   "myproject:abc2345:3",
+    "title": "Add UI layer",
+    "deps":  ["myproject:abc2345:1"]
+  }
+]
+```
+
+### Before → after: baked-data block in the template
+
+**Before (template tokens):**
+
+```js
+const EPIC_QID  = '__EPIC_QID__';
+const FINALIZE  = '__FINALIZE__';
+const STORIES   = __STORIES_JSON__;
+```
+
+**After (filled values for this scenario):**
+
+```js
+const EPIC_QID  = 'myproject:abc2345';
+const FINALIZE  = 'pr';
+const STORIES   = [
+  {
+    qid:   'myproject:abc2345:1',
+    title: 'Bootstrap DB schema',
+    deps:  []
+  },
+  {
+    qid:   'myproject:abc2345:2',
+    title: 'Add API layer',
+    deps:  ['myproject:abc2345:1']
+  },
+  {
+    qid:   'myproject:abc2345:3',
+    title: 'Add UI layer',
+    deps:  ['myproject:abc2345:1']
+  }
+];
+```
+
+### Output path for this scenario
+
+```
+slug   = myproject-abc2345
+output = .loom/workflows/myproject-abc2345.workflow.js
+```
+
+The scheduler inside the generated script will:
+
+1. Dispatch S1 immediately (no deps).
+2. When S1 merges (enters `merged` set), S2 and S3 both become launchable;
+   dispatch them concurrently.
+3. When both S2 and S3 merge, run inter-story validation and finalize.
+
