@@ -7,6 +7,9 @@
  * Layout:
  *  - Left side: <ReactFlow> canvas with dagre-positioned story nodes + dep edges
  *  - Right side: <EpicPickerDrawer> to switch which epic is in scope
+ *
+ * Rows are derived from the store's itemsById so that SSE-delivered
+ * updates appear without a manual refresh.
  */
 
 import React, { useState, useCallback, useMemo, useEffect } from "react";
@@ -19,12 +22,13 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import type { ProjectSummary, ItemNode, TreeResponse } from "../api/client";
-import { getProjectTree } from "../api/client";
+import type { ItemNode } from "../api/client";
 import { dagLayout } from "../dagLayout";
 import { sortEpicsNewestFirst } from "../epicSort";
 import StoryNode from "./StoryNode";
 import EpicPickerDrawer from "./EpicPickerDrawer";
+import { useAppStore } from "../state/store";
+import type { ProjectSummary } from "../api/client";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -67,38 +71,32 @@ function storiesForEpic(items: ItemNode[], epicQid: string): ItemNode[] {
 // ---------------------------------------------------------------------------
 
 export default function DagView({ project, onOpen }: DagViewProps): React.JSX.Element {
-  const [tree, setTree] = useState<TreeResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { itemsById } = useAppStore();
   const [selectedEpicQid, setSelectedEpicQid] = useState<string | null>(null);
 
-  // Fetch project tree on mount / project change.
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    setTree(null);
-    setSelectedEpicQid(null);
+  // Derive items array from store.
+  const items = useMemo<ItemNode[]>(
+    () => (itemsById ? Object.values(itemsById) : []),
+    [itemsById],
+  );
 
-    getProjectTree(project.qid)
-      .then((t) => {
-        setTree(t);
-        // Auto-select the first epic.
-        const epics = extractEpics(t.items);
-        if (epics.length > 0) {
-          setSelectedEpicQid(epics[0].qid);
-        }
-      })
-      .catch((err: unknown) => {
-        setError(String(err));
-      })
-      .finally(() => setLoading(false));
+  const epics = useMemo(() => extractEpics(items), [items]);
+
+  // Auto-select the first epic when epics load or change.
+  useEffect(() => {
+    if (epics.length > 0 && !selectedEpicQid) {
+      setSelectedEpicQid(epics[0].qid);
+    }
+  }, [epics, selectedEpicQid]);
+
+  // Reset selected epic when project changes.
+  useEffect(() => {
+    setSelectedEpicQid(null);
   }, [project.qid]);
 
-  const epics = useMemo(() => (tree ? extractEpics(tree.items) : []), [tree]);
-
   const stories = useMemo(
-    () => (tree && selectedEpicQid ? storiesForEpic(tree.items, selectedEpicQid) : []),
-    [tree, selectedEpicQid],
+    () => (selectedEpicQid ? storiesForEpic(items, selectedEpicQid) : []),
+    [items, selectedEpicQid],
   );
 
   const { nodes, edges } = useMemo(() => dagLayout(stories), [stories]);
@@ -115,18 +113,10 @@ export default function DagView({ project, onOpen }: DagViewProps): React.JSX.El
   // Render
   // ---------------------------------------------------------------------------
 
-  if (loading) {
+  if (!itemsById) {
     return (
       <div className="view-scroll dag-loading">
         <span>Loading graph…</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="view-scroll dag-error">
-        <span>Failed to load graph: {error}</span>
       </div>
     );
   }
