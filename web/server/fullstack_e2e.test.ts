@@ -4,8 +4,8 @@
  * Covers the story S7 validation criteria:
  *   1. No static/ bundle committed — index.html entry uses Bun bundling, not
  *      a hand-built /static/main.js.
- *   2. bun dev / bun start serves the full app (API + WS + React UI) with HMR.
- *   3. api/client.ts and ws/client.ts work against the Bun server endpoints.
+ *   2. bun dev / bun start serves the full app (API + SSE + React UI) with HMR.
+ *   3. api/client.ts and sse/client.ts work against the Bun server endpoints.
  *   4. The served HTML is bundled at serve time (not a static artifact).
  */
 
@@ -24,7 +24,6 @@ import { createApp, type LoomServer } from "./app";
 let loomDir: string;
 let server: LoomServer;
 let baseUrl: string;
-let wsUrl: string;
 
 beforeAll(async () => {
   loomDir = fs.mkdtempSync(path.join(os.tmpdir(), "loom-fullstack-e2e-"));
@@ -39,7 +38,6 @@ beforeAll(async () => {
 
   server = createApp(loomDir);
   baseUrl = `http://localhost:${server.port}`;
-  wsUrl = `ws://localhost:${server.port}/ws`;
 });
 
 afterAll(async () => {
@@ -47,6 +45,44 @@ afterAll(async () => {
   await server.stop(true);
   fs.rmSync(loomDir, { recursive: true, force: true });
 });
+
+// ---------------------------------------------------------------------------
+// SSE helpers
+// ---------------------------------------------------------------------------
+
+async function openSseStream(url: string): Promise<{
+  reader: ReadableStreamDefaultReader<Uint8Array>;
+  decoder: TextDecoder;
+  ctrl: AbortController;
+}> {
+  const ctrl = new AbortController();
+  const resp = await fetch(`${url}/api/events`, { signal: ctrl.signal });
+  const reader = resp.body!.getReader();
+  const decoder = new TextDecoder();
+  // Consume initial keepalive comment
+  const first = await reader.read();
+  if (!first.done && !new TextDecoder().decode(first.value).startsWith(":")) {
+    throw new Error("Expected keepalive comment");
+  }
+  return { reader, decoder, ctrl };
+}
+
+async function readSseEvent(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  decoder: TextDecoder,
+  timeoutMs = 2000,
+): Promise<Record<string, unknown>> {
+  const chunk = await new Promise<{ done: boolean; value: Uint8Array | undefined }>(
+    (resolve, reject) => {
+      setTimeout(() => reject(new Error("SSE read timeout")), timeoutMs);
+      reader.read().then((r) => resolve({ done: r.done, value: r.value }));
+    }
+  );
+  if (chunk.done) throw new Error("SSE stream ended unexpectedly");
+  const text = decoder.decode(chunk.value);
+  if (!text.startsWith("data: ")) throw new Error("Unexpected SSE frame: " + text);
+  return JSON.parse(text.slice("data: ".length)) as Record<string, unknown>;
+}
 
 // ---------------------------------------------------------------------------
 // 1. No committed static bundle — HTML served from Bun bundling
@@ -119,7 +155,6 @@ describe("API endpoints coexist with SPA serving", () => {
   });
 
   test("GET /api/items/{qid} works with colon-delimited qid", async () => {
-    // Get a task qid from the tree (colons in qid test the /api/items/* route)
     const treeResp = await fetch(`${baseUrl}/api/projects/demo/tree`);
     const tree = await treeResp.json() as { items: { qid: string; type: string }[] };
     const task = tree.items.find((i) => i.type === "task");
@@ -133,38 +168,22 @@ describe("API endpoints coexist with SPA serving", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. WebSocket endpoint works alongside HTML serving
+// 3. SSE endpoint works alongside HTML serving
 // ---------------------------------------------------------------------------
 
-describe("WebSocket endpoint coexists with SPA serving", () => {
-  test("WS client connects to /ws and receives a manually published message", async () => {
-    const received: unknown[] = [];
-    const ws = new WebSocket(wsUrl);
+describe("SSE endpoint coexists with SPA serving", () => {
+  test("SSE client connects to /api/events and receives a manually published message", async () => {
+    const { reader, decoder, ctrl } = await openSseStream(baseUrl);
 
-    await new Promise<void>((resolve, reject) => {
-      ws.onopen = () => resolve();
-      ws.onerror = () => reject(new Error("ws open failed"));
-      setTimeout(() => reject(new Error("open timeout")), 2000);
-    });
-
-    const msgPromise = new Promise<void>((resolve, reject) => {
-      ws.onmessage = (e) => {
-        received.push(JSON.parse(e.data as string));
-        resolve();
-      };
-      setTimeout(() => reject(new Error("message timeout")), 2000);
-    });
-
+    const msgPromise = readSseEvent(reader, decoder, 2000);
     server.broadcaster.publish({ qid: "demo:test", type: "task" });
-    await msgPromise;
-    ws.close();
+    const received = await msgPromise;
+    ctrl.abort();
 
-    expect(received).toHaveLength(1);
-    expect((received[0] as Record<string, unknown>)["qid"]).toBe("demo:test");
+    expect(received["qid"]).toBe("demo:test");
   });
 
-  test("WS client receives real item-change payload after file edit", async () => {
-    // Build a fresh loom dir so only our writes trigger events
+  test("SSE client receives real item-change payload after file edit", async () => {
     const e2eDir = fs.mkdtempSync(path.join(os.tmpdir(), "loom-fs-e2e-"));
     initDb(path.join(e2eDir, DB_FILENAME));
     const e2eLoom = new Loom(e2eDir);
@@ -175,39 +194,24 @@ describe("WebSocket endpoint coexists with SPA serving", () => {
     await e2eLoom.rebuild();
 
     const e2eServer = createApp(e2eDir);
-    const e2eWsUrl = `ws://localhost:${e2eServer.port}/ws`;
+    const e2eBaseUrl = `http://localhost:${e2eServer.port}`;
 
     try {
       // Flush any startup noise
       await new Promise((r) => setTimeout(r, 300));
 
-      const received: unknown[] = [];
-      const ws = new WebSocket(e2eWsUrl);
-      await new Promise<void>((resolve, reject) => {
-        ws.onopen = () => resolve();
-        ws.onerror = () => reject(new Error("ws open failed"));
-        setTimeout(() => reject(new Error("open timeout")), 2000);
-      });
+      const { reader, decoder, ctrl } = await openSseStream(e2eBaseUrl);
 
-      const msgPromise = new Promise<void>((resolve, reject) => {
-        ws.onmessage = (e) => {
-          received.push(JSON.parse(e.data as string));
-          resolve();
-        };
-        setTimeout(() => reject(new Error("message timeout")), 5000);
-      });
-
+      // Wait for subscriber to register
       await new Promise((r) => setTimeout(r, 150));
 
-      // Edit the task file — triggers fs watcher → UpdatesWorker → Broadcaster → WS
+      // Edit the task file — triggers fs watcher → UpdatesWorker → Broadcaster → SSE
       const content = fs.readFileSync(task.filePath, "utf8");
       fs.writeFileSync(task.filePath, content + " ");
 
-      await msgPromise;
-      ws.close();
+      const payload = await readSseEvent(reader, decoder, 5000);
+      ctrl.abort();
 
-      expect(received).toHaveLength(1);
-      const payload = received[0] as Record<string, unknown>;
       expect(payload["qid"]).toBe(task.qualifiedId);
       // Item updates must NOT include body
       expect("body" in payload).toBe(false);
@@ -230,7 +234,6 @@ describe("No committed static bundle on disk", () => {
       "../../src/loom_web/static"
     );
     const mainJs = path.join(staticDir, "main.js");
-    // Either the dir doesn't exist or main.js is not present
     const exists = fs.existsSync(mainJs);
     expect(exists).toBe(false);
   });
