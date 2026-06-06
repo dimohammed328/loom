@@ -73,6 +73,7 @@ export function serializeTree(treeDict: { root: string; items: unknown[] }): Tre
         deps: (raw["deps"] as string[] | undefined) ?? [],
         children: (raw["children"] as string[] | undefined) ?? [],
         updated_at: (raw["updated_at"] as string | undefined) ?? "",
+        created_at: (raw["created_at"] as string | undefined) ?? "",
       }) satisfies ItemNode
   );
   return { root: treeDict.root, items: nodes };
