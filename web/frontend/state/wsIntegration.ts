@@ -4,7 +4,7 @@
  * Keeping these separate from the store lets us test them without React.
  */
 
-import type { WsPayload } from "../ws/client";
+import type { SsePayload as WsPayload } from "../sse/client";
 
 /**
  * Return true when the open modal should re-fetch its detail because a WS

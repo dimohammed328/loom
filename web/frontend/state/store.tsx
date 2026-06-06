@@ -15,7 +15,7 @@ import React, {
 } from "react";
 import type { ProjectSummary, ItemNode } from "../api/client";
 import { setItems as buildItemsMap, applyWsPayload as applyPayload, type ItemsMap } from "./itemsReducer";
-import type { WsPayload } from "../ws/client";
+import type { SsePayload as WsPayload } from "../sse/client";
 
 // ---------------------------------------------------------------------------
 // Types

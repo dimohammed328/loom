@@ -5,15 +5,15 @@ import BoardView from "./components/BoardView";
 import TableView from "./components/TableView";
 import DagView from "./components/DagView";
 import { ConnectedItemModal } from "./components/ItemModal";
-import { createWsClient } from "./ws/client";
-import type { WsPayload, WsClient } from "./ws/client";
+import { createSseClient } from "./sse/client";
+import type { SsePayload, SseClient } from "./sse/client";
 import { shouldRefetchModal } from "./state/wsIntegration";
 
 // ---------------------------------------------------------------------------
-// WS connector — lives inside AppProvider so it can access the store
+// SSE connector — lives inside AppProvider so it can access the store
 // ---------------------------------------------------------------------------
 
-function WsConnector(): null {
+function SseConnector(): null {
   const { applyWsPayload, openQid } = useAppStore();
 
   // Keep a stable ref to openQid so the onMessage callback can read the
@@ -31,14 +31,14 @@ function WsConnector(): null {
 
   // modalRefetchRef is set by ConnectedItemModal when it wants to be notified.
   // We expose it via a module-level ref below.
-  const modalRefetchRef = useRef<((payload: WsPayload) => void) | null>(null);
+  const modalRefetchRef = useRef<((payload: SsePayload) => void) | null>(null);
   // Publish the ref so ConnectedItemModal can register its callback.
   _modalRefetchRef = modalRefetchRef;
 
   useEffect(() => {
-    const client: WsClient = createWsClient({
-      url: "/ws",
-      onMessage: (payload: WsPayload) => {
+    const client: SseClient = createSseClient({
+      url: "/api/events",
+      onMessage: (payload: SsePayload) => {
         applyRef.current(payload);
         if (shouldRefetchModal(openQidRef.current, payload)) {
           modalRefetchRef.current?.(payload);
@@ -57,10 +57,10 @@ function WsConnector(): null {
  * callback without prop drilling.  This is an intentional escape hatch; the
  * alternative (another context) is heavier for a single callback.
  */
-let _modalRefetchRef: React.MutableRefObject<((payload: WsPayload) => void) | null> | null = null;
+let _modalRefetchRef: React.MutableRefObject<((payload: SsePayload) => void) | null> | null = null;
 
 export function registerModalRefetch(
-  cb: ((payload: WsPayload) => void) | null,
+  cb: ((payload: SsePayload) => void) | null,
 ): void {
   if (_modalRefetchRef) _modalRefetchRef.current = cb;
 }
@@ -116,7 +116,7 @@ function ViewRouter(): React.JSX.Element {
 export default function App(): React.JSX.Element {
   return (
     <AppProvider>
-      <WsConnector />
+      <SseConnector />
       <div className="app">
         <TopBar />
         <ViewRouter />
