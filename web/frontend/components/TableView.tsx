@@ -6,10 +6,12 @@
  * Per-row collapse state lives here. The component registers a
  * CollapseControl into the app store so TopBar can surface the
  * Expand/Collapse-all button while this view is mounted.
+ *
+ * Rows are derived from the store's itemsById so that SSE-delivered
+ * updates appear without a manual refresh.
  */
 
-import React, { useEffect, useState, useCallback } from "react";
-import { getProjectTree } from "../api/client";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import type { ProjectSummary } from "../api/client";
 import { tableModel, TABLE_COLUMNS } from "../tableModel";
 import type { TableRow as TableRowData } from "../tableModel";
@@ -30,31 +32,19 @@ export default function TableView({
   project,
   onOpen,
 }: TableViewProps): React.JSX.Element {
-  const { setCollapseControl } = useAppStore();
+  const { setCollapseControl, itemsById } = useAppStore();
 
-  const [allRows, setAllRows] = useState<TableRowData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [collapseState, setCollapseState] = useState<Record<string, boolean>>(
     {},
   );
 
-  // Fetch tree when project changes.
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    setCollapseState({});
-    getProjectTree(project.qid)
-      .then((tree) => {
-        const rows = tableModel(tree, {});
-        setAllRows(rows);
-        setLoading(false);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : String(err));
-        setLoading(false);
-      });
-  }, [project.qid]);
+  // Derive all rows from the store's itemsById — re-renders automatically
+  // on every SSE-delivered update.
+  const allRows = useMemo<TableRowData[]>(() => {
+    if (!itemsById) return [];
+    const items = Object.values(itemsById);
+    return tableModel({ root: project.qid, items }, {});
+  }, [itemsById, project.qid]);
 
   // Clear control on unmount.
   useEffect(() => {
@@ -84,26 +74,13 @@ export default function TableView({
     setCollapseControl({ isAllCollapsed, toggle: handleExpandCollapseAll });
   }, [allRows, collapseState, setCollapseControl, handleExpandCollapseAll]);
 
-  if (loading) {
+  if (!itemsById) {
     return (
       <div
         className="view-scroll"
         style={{ display: "grid", placeItems: "center", minHeight: 200 }}
       >
         <span style={{ color: "var(--text-3)", fontSize: 13 }}>Loading…</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div
-        className="view-scroll"
-        style={{ display: "grid", placeItems: "center", minHeight: 200 }}
-      >
-        <span style={{ color: "var(--st-blocked-fg)", fontSize: 13 }}>
-          {error}
-        </span>
       </div>
     );
   }
