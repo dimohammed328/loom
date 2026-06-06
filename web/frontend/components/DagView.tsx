@@ -22,6 +22,7 @@ import "@xyflow/react/dist/style.css";
 import type { ProjectSummary, ItemNode, TreeResponse } from "../api/client";
 import { getProjectTree } from "../api/client";
 import { dagLayout } from "../dagLayout";
+import { sortEpicsNewestFirst } from "../epicSort";
 import StoryNode from "./StoryNode";
 import EpicPickerDrawer from "./EpicPickerDrawer";
 
@@ -46,9 +47,11 @@ const NODE_TYPES: NodeTypes = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Extract all epic-type nodes from a flat item list. */
+/** Extract all epic-type nodes from a flat item list, sorted newest-first. */
 function extractEpics(items: ItemNode[]): ItemNode[] {
-  return items.filter((n) => n.type === "epic");
+  const byQid = new Map(items.map((n) => [n.qid, n]));
+  const epicQids = items.filter((n) => n.type === "epic").map((n) => n.qid);
+  return sortEpicsNewestFirst(epicQids, byQid).map((qid) => byQid.get(qid)!);
 }
 
 /** Extract all story-type nodes that are direct children of a given epic. */

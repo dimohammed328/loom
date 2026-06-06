@@ -35,6 +35,7 @@ export interface ItemNode {
   deps: string[];
   children: string[];
   updated_at?: string;
+  created_at?: string;
 }
 
 export interface TreeResponse {

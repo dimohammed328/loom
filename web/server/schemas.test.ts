@@ -105,10 +105,12 @@ describe("ItemNode shape", () => {
       deps: [],
       children: ["acme:abcdefg:1:1", "acme:abcdefg:1:2"],
       updated_at: "2024-01-01T00:00:00+00:00",
+      created_at: "2024-01-01T00:00:00+00:00",
     };
     expect(node.children).toHaveLength(2);
     expect(node.deps).toHaveLength(0);
     expect(node.updated_at).toBeTruthy();
+    expect(node.created_at).toBeTruthy();
   });
 });
 

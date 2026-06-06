@@ -208,6 +208,7 @@ export class Loom {
           pr_url: record.pr_url,
           assignee: record.assignee,
           updated_at: record.updated_at,
+          created_at: record.created_at,
           deps,
           children,
         };

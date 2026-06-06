@@ -11,6 +11,7 @@
 import type { TreeResponse, ItemNode } from "./api/client";
 import type { DistBarSegment } from "./components/distributionBarHelpers";
 import { distBarSegments } from "./components/distributionBarHelpers";
+import { sortEpicsNewestFirst } from "./epicSort";
 
 // ---------------------------------------------------------------------------
 // Public constants
@@ -90,8 +91,8 @@ export function tableModel(
 
   const rows: TableRow[] = [];
 
-  // Walk epics (depth 0).
-  for (const epicQid of root.children) {
+  // Walk epics (depth 0) — newest-first by created_at.
+  for (const epicQid of sortEpicsNewestFirst(root.children, byQid)) {
     const epicNode = byQid.get(epicQid);
     if (!epicNode || epicNode.type !== "epic") continue;
 
