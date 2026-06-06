@@ -89,3 +89,87 @@ loom -y complete loom-app:abc123:1
 loom complete -y loom-app:abc123:1
 ```
 
+## Generation procedure
+
+Generation happens **in the skill's main thread** (not inside a dispatched
+subagent). You read loom at this point; do not call `loom ready`, `loom dep list`,
+or `loom show` inside the generated script itself.
+
+### Step 1 — Gather structure from loom
+
+```bash
+# For epic mode: get all stories under the epic in dep order
+loom order --recursive --json <epic_qid>   # returns stories (type=story)
+
+# For each story, get its deps (inter-story edges only)
+loom dep list --json <story_qid>           # returns items the story depends on
+```
+
+Filter `loom order` output to `type === "story"`. For each story, filter
+`loom dep list` to dependencies that are themselves stories (qids within the
+same epic). This gives you the inter-story DAG.
+
+### Step 2 — Assemble the `STORIES` literal
+
+Build a JSON array following this shape exactly:
+
+```json
+[
+  { "qid": "proj:epicid:1", "title": "Story title", "deps": [] },
+  { "qid": "proj:epicid:2", "title": "Story 2",     "deps": ["proj:epicid:1"] },
+  { "qid": "proj:epicid:3", "title": "Story 3",     "deps": ["proj:epicid:1"] }
+]
+```
+
+- `qid` — the story's qualified id.
+- `title` — for human-readable logging inside the generated script.
+- `deps` — array of **story** qids this story depends on (empty array if none).
+
+### Step 3 — Fill placeholder tokens
+
+Templates live at:
+- `plugin/skills/writing-workflows/templates/epic-runner.template.js`
+- `plugin/skills/writing-workflows/templates/story-runner.template.js`
+
+**Epic template tokens** (replace literally, including surrounding quotes):
+
+| Token | Replace with |
+|-------|-------------|
+| `'__EPIC_QID__'` | `'<actual epic qid>'` |
+| `'__FINALIZE__'` | `'pr'` or `'merge'` |
+| `__STORIES_JSON__` | the JSON array from Step 2 (no surrounding quotes) |
+
+**Story template tokens:**
+
+| Token | Replace with |
+|-------|-------------|
+| `'__STORY_QID__'` | `'<actual story qid>'` |
+| `'__FINALIZE__'` | `'pr'` or `'merge'` |
+
+### Step 4 — Write to output path
+
+```
+slug = <qid with ':' replaced by '-'>
+output = .loom/workflows/<slug>.workflow.js
+```
+
+Create `.loom/workflows/` if it does not exist. `.loom/` is already gitignored,
+so the generated file never enters the repo.
+
+```bash
+mkdir -p .loom/workflows
+# write filled template to .loom/workflows/<slug>.workflow.js
+```
+
+### Step 5 — Launch
+
+```js
+Workflow({
+  scriptPath: "<absolute path to .loom/workflows/<slug>.workflow.js>",
+  args: {}
+})
+```
+
+Pass `args: {}` — all plan-specific data is baked into the script; no runtime
+arguments are needed.
+
