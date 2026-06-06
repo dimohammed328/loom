@@ -8,6 +8,32 @@ import { ConnectedItemModal } from "./components/ItemModal";
 import { createSseClient } from "./sse/client";
 import type { SsePayload, SseClient } from "./sse/client";
 import { shouldRefetchModal } from "./state/wsIntegration";
+import { getProjectTree } from "./api/client";
+
+// ---------------------------------------------------------------------------
+// ProjectLoader — seeds the store from an initial tree fetch
+//
+// Runs once per currentProject change. Calls setItemsFromTree so that
+// itemsById is populated before the views render. Also resets itemsById to
+// null on project switch (handled in setCurrentProject in the store).
+// ---------------------------------------------------------------------------
+
+function ProjectLoader(): null {
+  const { currentProject, setItemsFromTree } = useAppStore();
+
+  useEffect(() => {
+    if (!currentProject) return;
+    getProjectTree(currentProject.qid)
+      .then((tree) => {
+        setItemsFromTree(tree.items);
+      })
+      .catch((err: unknown) => {
+        console.error("ProjectLoader: failed to load tree:", err);
+      });
+  }, [currentProject, setItemsFromTree]);
+
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // SSE connector — lives inside AppProvider so it can access the store
@@ -116,6 +142,7 @@ function ViewRouter(): React.JSX.Element {
 export default function App(): React.JSX.Element {
   return (
     <AppProvider>
+      <ProjectLoader />
       <SseConnector />
       <div className="app">
         <TopBar />
