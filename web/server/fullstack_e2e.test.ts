@@ -118,6 +118,15 @@ describe("API endpoints coexist with SPA serving", () => {
     expect(data.items.length).toBeGreaterThan(0);
   });
 
+  test("GET /api/projects/demo/tree nodes include created_at", async () => {
+    const resp = await fetch(`${baseUrl}/api/projects/demo/tree`);
+    const data = await resp.json() as { root: string; items: { qid: string; created_at?: string }[] };
+    for (const node of data.items) {
+      expect(typeof node.created_at).toBe("string");
+      expect((node.created_at ?? "").length).toBeGreaterThan(0);
+    }
+  });
+
   test("GET /api/items/{qid} works with colon-delimited qid", async () => {
     // Get a task qid from the tree (colons in qid test the /api/items/* route)
     const treeResp = await fetch(`${baseUrl}/api/projects/demo/tree`);
