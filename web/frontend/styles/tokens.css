@@ -486,10 +486,15 @@ body {
   display: flex; flex-direction: column; gap: var(--card-gap);
   transition: box-shadow .12s, border-color .12s;
   text-align: left;
+  min-width: 0;
 }
 .kcard:hover { border-color: var(--border-strong); box-shadow: var(--pop-shadow); }
-.kcard .ktop { display: block; }
-.kcard .ktitle { font-weight: 550; font-size: 13.5px; line-height: 1.35; letter-spacing: -0.005em; }
+.kcard .ktop { display: block; min-width: 0; }
+.kcard .ktitle {
+  font-weight: 550; font-size: 13.5px; line-height: 1.35; letter-spacing: -0.005em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
 .kcard .kid { font-size: 10.5px; color: var(--text-3); }
 .kcard .ktags { display: flex; flex-wrap: wrap; gap: 5px; }
 .kcard .kbottom { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; }
