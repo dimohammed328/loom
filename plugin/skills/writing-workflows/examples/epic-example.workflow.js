@@ -245,72 +245,95 @@ if (!trunk.ok || !trunk.worktree || !trunk.branch) {
 
 log(`Trunk worktree: ${trunk.worktree} on branch ${trunk.branch}`)
 
-// ── Story scheduler: baked-DAG streamed prepare() → serial merge ─────────────
+// ── Story scheduler: baked-DAG promise pipeline → serial merge ───────────────
+//
+// Each story is a self-contained async "run" that (1) awaits its dependencies'
+// outcomes from a central store, (2) runs prepare() — concurrently with every
+// independent sibling — then (3) serializes its merge into the single shared
+// trunk worktree before recording its own outcome. Every story's run-promise is
+// registered in `runs` up front; STORIES is in topological order, so a
+// dependency's promise always exists in the store before its dependents await
+// it. agent() caps real concurrency internally, so registering them all at once
+// still respects the worker pool.
+//
+// outcome: qid → { ok, open? } (the central store). A non-ok story is NOT
+// halted on; its dependents observe the failure via the store and skip
+// themselves, so the dependent subtree drains naturally while independent
+// branches keep going.
+const outcome = new Map()   // qid → { ok: boolean, open?: string[] }
+const runs = new Map()      // qid → Promise<outcome>  (lets deps await each other)
 
-// merged: set of story qids that have been successfully merged into trunk.
-// failed: qid → string[] (open findings). A failed story is NOT halted on; we
-// record it and keep draining the rest of the DAG. Its dependents never launch
-// (they require a failed story's qid to appear in merged), so the subtree
-// naturally stops.
-const merged = new Set()
-const failed = new Map()
-const inflight = new Map()  // qid → Promise<prepare result>
+// Merge gate: a chained promise that serializes story-merger calls. prepare()
+// runs in parallel across stories, but every merge writes the one trunk
+// worktree — they must run strictly one at a time. Each queued merge waits for
+// the previous to settle (the gate is kept alive past failures).
+let mergeGate = Promise.resolve()
+function runSerialMerge(fn) {
+  const ran = mergeGate.then(fn, fn)
+  mergeGate = ran.then(() => {}, () => {})
+  return ran
+}
 
-// Launch all stories whose deps are satisfied and that are not yet in flight or failed.
-function launchReady() {
-  for (const s of STORIES) {
-    if (inflight.has(s.qid) || merged.has(s.qid) || failed.has(s.qid)) continue
-    const depsOk = (s.deps ?? []).every(d => merged.has(d))
-    if (!depsOk) continue
+function runStory(s) {
+  return (async () => {
+    const deps = s.deps ?? []
+
+    // 1. Wait for every dependency to finish; bail if any did not land.
+    const depOutcomes = await Promise.all(deps.map(d => runs.get(d)))
+    const blockerIdx = depOutcomes.findIndex(o => !o.ok)
+    if (blockerIdx !== -1) {
+      const blocker = deps[blockerIdx]
+      log(`Skipping ${s.qid}: upstream ${blocker} did not converge/merge.`)
+      const o = { ok: false, open: [`skipped: upstream ${blocker} did not land`] }
+      outcome.set(s.qid, o)
+      return o
+    }
+
+    // 2. Build the story branch (concurrent with independent siblings).
     log(`Launching prepare for ${s.qid}: ${s.title}`)
-    inflight.set(s.qid, prepare(s.qid, trunk.branch))
-  }
+    const result = await prepare(s.qid, trunk.branch)
+    if (!result.ok) {
+      log(`Story ${s.qid} did not converge; its dependents will skip.`)
+      const o = { ok: false, open: result.open }
+      outcome.set(s.qid, o)
+      return o
+    }
+
+    // 3. Merge serially into the trunk, then mark complete in the store.
+    log(`Merging ${s.qid} (branch: ${result.executor.branch}) into trunk`)
+    const merge = await runSerialMerge(() => agent(
+      `story_qid=${s.qid} branch=${result.executor.branch} target=${trunk.branch} ` +
+      `target_worktree=${trunk.worktree} story_worktree=${result.executor.worktree}`,
+      { label: `merge:${s.qid}`, phase: 'Merge', agentType: 'loom:story-merger', schema: MERGE_SCHEMA }
+    ))
+    if (!merge.merged) {
+      log(`Story ${s.qid} could not be merged trivially; its dependents will skip.`)
+      const o = { ok: false, open: [`merge conflict: ${merge.conflict}`] }
+      outcome.set(s.qid, o)
+      return o
+    }
+
+    log(`Merged ${s.qid} at ${merge.merge_sha}.`)
+    const o = { ok: true }
+    outcome.set(s.qid, o)
+    return o
+  })()
 }
 
-launchReady()
+// Register every story's run up front (topological order guarantees a dep's
+// promise is in the store before its dependents await it), then drive them all
+// to completion together.
+for (const s of STORIES) runs.set(s.qid, runStory(s))
+await Promise.all(STORIES.map(s => runs.get(s.qid)))
 
-while (inflight.size > 0) {
-  // Wait for whichever prepare() finishes next.
-  const result = await Promise.race(inflight.values())
-  inflight.delete(result.qid)
-
-  if (!result.ok) {
-    // Did not converge. Record it and keep going — other inflight stories
-    // continue, and launchReady keeps the independent parts of the DAG moving.
-    failed.set(result.qid, result.open)
-    log(`Story ${result.qid} did not converge; continuing with the rest of the DAG.`)
-    launchReady()
-    continue
-  }
-
-  // Converged — merge + complete + cleanup via the story-merger agent.
-  log(`Merging ${result.qid} (branch: ${result.executor.branch}) into trunk`)
-  const merge = await agent(
-    `story_qid=${result.qid} branch=${result.executor.branch} target=${trunk.branch} ` +
-    `target_worktree=${trunk.worktree} story_worktree=${result.executor.worktree}`,
-    { label: `merge:${result.qid}`, phase: 'Merge', agentType: 'loom:story-merger', schema: MERGE_SCHEMA }
-  )
-
-  if (!merge.merged) {
-    // Non-trivial conflict — record and keep going rather than halting.
-    failed.set(result.qid, [`merge conflict: ${merge.conflict}`])
-    log(`Story ${result.qid} could not be merged trivially; continuing with the rest of the DAG.`)
-    launchReady()
-    continue
-  }
-
-  log(`Merged ${result.qid} at ${merge.merge_sha}.`)
-  merged.add(result.qid)
-  launchReady()
-}
-
-if (failed.size > 0) {
-  const summary = [...failed.entries()]
-    .map(([q, fs]) => `${q}: ${fs.join(', ')}`)
+const failures = STORIES.filter(s => !(outcome.get(s.qid)?.ok))
+if (failures.length > 0) {
+  const summary = failures
+    .map(s => `${s.qid}: ${(outcome.get(s.qid)?.open ?? []).join(', ')}`)
     .join('\n')
   return {
     result: 'failed',
-    reason: `${failed.size} story/stories did not converge or merge; the rest of the DAG was drained.`,
+    reason: `${failures.length} story/stories did not converge or merge; the rest of the DAG was drained.`,
     open_findings: summary,
   }
 }

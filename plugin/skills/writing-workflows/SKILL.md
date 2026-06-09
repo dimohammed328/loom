@@ -34,13 +34,20 @@ phases that don't apply (no trunk setup, no epic-level validation).
 
 1. **Trunk setup** *(epic only)* — create the epic's shared branch, push to
    remote.
-2. **Story convergence loop** — for each story in DAG-dependency order (deps
-   first):
-   a. Dispatch a `story-executor` subagent (branch forked from trunk).
-   b. Wait for the story-executor to return `branch` + `worktree`.
-   c. Merge the story branch into trunk; clean up the worktree.
-   d. Mark the story done in loom via `loom complete <story_qid>`.
-   e. Record the story in the `merged` set; unblock downstream stories.
+2. **Story convergence loop** — every story is launched as a self-contained
+   async "run" (registered in a central store keyed by qid); the DAG is driven
+   by data dependencies, not an explicit scheduler loop. Each run:
+   a. Awaits its dependencies' outcomes from the central store (`runs.get(dep)`);
+      if any dependency did not land, the run skips itself and records a failure.
+   b. Dispatches a `story-executor` subagent (branch forked from trunk) and
+      waits for `branch` + `worktree` — this runs concurrently with every
+      independent sibling.
+   c. Serializes its merge into the single shared trunk worktree through a merge
+      gate (a chained promise) — prepares are parallel, merges are strictly
+      one-at-a-time; cleans up the worktree.
+   d. Marks the story done in loom via `loom complete <story_qid>`.
+   e. Records its outcome (`{ ok: true }`) in the central store, which lets its
+      dependents proceed.
 3. **Inter-story validation** *(epic only)* — after all stories merge, run the
    epic-level validation criteria against trunk.
 4. **Finalize** — open a PR (`finalize="pr"`) or merge into main and push
@@ -56,9 +63,9 @@ data model.
 
 ### Only `done` satisfies a dependency
 
-The baked-DAG scheduler releases a story for dispatch when every qid listed in
-`deps` appears in the `merged` set. The `merged` set is populated only when a
-story branch is successfully merged and `loom complete` is called. Custom
+A story's run proceeds past step (a) only when every qid listed in `deps` has
+resolved to an `ok` outcome in the central store. That outcome is recorded only
+when a story branch is successfully merged and `loom complete` is called. Custom
 statuses (e.g. `completed`, `in_progress`) do **not** satisfy a dependency —
 only the literal `done` status written by `loom complete` does.
 
@@ -202,7 +209,7 @@ The generated epic workflow scheduler must not call `loom ready`, `loom show`,
 `loom dep list`, `loom order`, or any other loom CLI at execution time to decide
 which story to run next. Story ordering and dependency edges are baked into the
 `STORIES` literal at generation time. The scheduler only consults that literal
-and the in-memory `merged` set.
+and the in-memory central outcome store.
 
 Exception: story-executor subagents (dispatched by the generated script) are
 still expected to call `loom show`, `loom order`, and `loom update` to read
@@ -300,10 +307,13 @@ slug   = myproject-abc2345
 output = .loom/workflows/myproject-abc2345.workflow.js
 ```
 
-The scheduler inside the generated script will:
+All three story runs are registered up front; the data dependencies drive
+execution:
 
-1. Dispatch S1 immediately (no deps).
-2. When S1 merges (enters `merged` set), S2 and S3 both become launchable;
-   dispatch them concurrently.
-3. When both S2 and S3 merge, run inter-story validation and finalize.
+1. S1's run has no deps, so it dispatches immediately.
+2. S2's and S3's runs each `await` S1's outcome from the central store. When S1
+   merges and records `{ ok: true }`, both unblock and run their executors
+   concurrently (their merges still serialize through the merge gate).
+3. When both S2 and S3 have recorded `ok` outcomes, `Promise.all` over the runs
+   resolves; the script proceeds to inter-story validation and finalize.
 
