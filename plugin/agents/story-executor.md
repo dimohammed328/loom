@@ -104,7 +104,7 @@ git log --oneline -3                   # shows tip of work so far
 If the branch is anything other than `<BRANCH>`, STOP and report a
 diagnostic. Do NOT proceed.
 
-### Step 2 — Record ownership in loom
+### Step 2 — Record ownership and mark the story in progress
 
 Run the literal `loom update` command shown inside your injected
 `## Loom Workflow Context` block. The session and agent values in that
@@ -122,13 +122,28 @@ loom update <story-qid> assignee <real-session-id>:<real-agent-id>
 where `<real-session-id>` and `<real-agent-id>` are concrete UUID values
 injected by the SubagentStart hook — not templates for you to fill in.
 
+Then, immediately after recording the assignee, mark the **story itself**
+in progress so loom reflects that work has started the moment you pick it up:
+
+```bash
+loom update <story_qid> status in_progress
+```
+
+Use the `story_qid` from your prompt. This is mandatory and runs once per
+dispatch (idempotent on re-dispatch — running it again is harmless). Setting
+`in_progress` does **not** satisfy any dependency — only the literal `done`
+status does — so it is purely a progress signal. Do **not** call
+`loom complete` on the story: marking it `done` remains the workflow's job
+after a successful merge.
+
 ## Workflow
 
 > Before running any loom CLI command, invoke `loom:using-loom` to ensure the correct global flags and workspace are in scope.
 
-> **MANDATORY: You MUST drive loom task status directly.**
-> Before starting each task run `loom update <task-qid> status in_progress`.
-> After committing and verifying, run `loom complete <task-qid>`.
+> **MANDATORY: You MUST drive loom status directly.**
+> On pickup (step 2) run `loom update <story_qid> status in_progress` for the
+> story. Before starting each task run `loom update <task-qid> status
+> in_progress`; after committing and verifying, run `loom complete <task-qid>`.
 > There are NO hooks that mirror these calls for you — if you skip them,
 > loom will not reflect your progress and the workflow will see stale state.
 > Do NOT rely on `TaskCreate`, `TaskUpdate`, or any harness tool for loom
