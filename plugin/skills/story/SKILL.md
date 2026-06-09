@@ -23,14 +23,11 @@ The user has invoked `/story <description>`. The description is in `$ARGUMENTS`.
 
 5. **Hand off to `loom:writing-plans`** with the groomed draft. That skill creates the story under backlog and its tasks; sets `assignee: ${CLAUDE_SESSION_ID}` on the story.
 
-6. **Launch the story workflow** by invoking:
-   ```js
-   Workflow({
-     scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/story-runner.workflow.js",
-     args: { story_qid: "<qid>", finalize: "<'pr' or 'merge'>" }
-   })
+6. **Hand off to `loom:writing-workflows`** by invoking:
    ```
-   Set `finalize` to `"merge"` only if the original `/story` request explicitly asked to merge to main (e.g. "merge to main", "push to main", "no PR"); otherwise use `"pr"` (the default). The workflow dispatches one story-executor, runs review and validation, and finalizes the branch. On validation fail after 3 retries, the workflow halts and surfaces the diagnostic.
+   loom:writing-workflows mode=story story_qid=<qid> finalize=<'pr' or 'merge'>
+   ```
+   Set `finalize` to `"merge"` only if the original `/story` request explicitly asked to merge to main (e.g. "merge to main", "push to main", "no PR"); otherwise use `"pr"` (the default). That skill generates a bespoke baked-DAG workflow script and launches it. The generated workflow dispatches one story-executor, runs review and validation, and finalizes the branch. On validation fail after 3 retries, the workflow halts and surfaces the diagnostic.
 
 ## Constraints
 

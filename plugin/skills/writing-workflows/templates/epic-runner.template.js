@@ -1,22 +1,19 @@
-// epic-runner.workflow.js — DAG runner for a loom epic.
-// Receives: args.epic_qid, args.finalize ('pr' | 'merge', default 'pr').
+// epic-runner.template.js — template for the epic-runner workflow.
+// NOTE: This file is NOT directly runnable. The placeholder tokens
+// (__EPIC_QID__, __FINALIZE__, __STORIES_JSON__) must be filled before
+// execution. For `node --check` syntax validation, replace __STORIES_JSON__
+// with [] (the __X__ string tokens are already valid JS string literals).
 //
-// Phases:
-//   Trunk                       — fresh main, create the epic trunk worktree
-//   Execute / Validate / Fix    — per-story convergence loop (prepare), streamed
-//   Merge                       — serial story-merger into the trunk
-//   Epic validation             — epic-validator over the fully-merged trunk
-//   Finalize                    — open a PR (default) or merge + push to main
+// Originally derived from: plugin/workflows/epic-runner.workflow.js
+// Receives: EPIC_QID and FINALIZE are baked-in by the instantiation step;
+//   STORIES is the pre-computed baked-DAG list.
 
 export const meta = {
   name: 'epic-runner',
   description: 'DAG runner for a loom epic: trunk setup → streamed story convergence → epic validation → finalize',
   phases: [
     { title: 'Trunk',           detail: 'Fresh main and the epic trunk worktree' },
-    { title: 'Execute',         detail: 'story-executor builds each story branch' },
-    { title: 'Validate',        detail: 'story-validator checks criteria and tests' },
-    { title: 'Fix',             detail: 'story-fixer applies validator failures inline' },
-    { title: 'Merge',           detail: 'story-merger merges each converged story into the trunk' },
+    { title: 'Stories',         detail: 'Per story: build → validate → fix → merge into the trunk (independent stories run concurrently)' },
     { title: 'Epic validation', detail: 'epic-validator over the fully-merged trunk' },
     { title: 'Finalize',        detail: 'open a PR (default) or merge + push to main' },
   ],
@@ -28,7 +25,6 @@ export const meta = {
 // FIXER_SCHEMA     — story-fixer and code-hygiene agent result
 // TRUNK_SCHEMA     — trunk-setup agent result
 // MERGE_SCHEMA     — merge agent result (story-merger, and finalize-merge)
-// READY_SCHEMA     — loom ready query result (scheduler refill)
 // EPIC_VAL_SCHEMA  — loom:epic-validator result
 // PR_SCHEMA        — finalize-pr agent result
 
@@ -71,7 +67,6 @@ const FIXER_SCHEMA = {
   },
 }
 
-
 const TRUNK_SCHEMA = {
   type: 'object',
   required: ['ok'],
@@ -94,24 +89,6 @@ const MERGE_SCHEMA = {
   },
 }
 
-const READY_SCHEMA = {
-  type: 'object',
-  required: ['stories'],
-  properties: {
-    stories: {
-      type: 'array',
-      items: {
-        type: 'object',
-        required: ['qualified_id', 'title'],
-        properties: {
-          qualified_id: { type: 'string' },
-          title:        { type: 'string' },
-        },
-      },
-    },
-  },
-}
-
 const EPIC_VAL_SCHEMA = {
   type: 'object',
   required: ['result'],
@@ -128,15 +105,15 @@ const PR_SCHEMA = {
   properties: { pr_url: { type: ['string', 'null'] } },
 }
 
-// ── Inputs ───────────────────────────────────────────────────────────────────
+// ── Baked-in inputs (filled by instantiation) ─────────────────────────────────
 
-// args may arrive as an object or as a JSON-encoded string depending on the
-// invoking harness; normalize to an object before reading fields.
-const input = typeof args === 'string' ? JSON.parse(args) : (args ?? {})
-
-const epicQid = input.epic_qid
-if (!epicQid) throw new Error('epic_qid is required')
-const finalize = input.finalize ?? 'pr'
+const EPIC_QID = '__EPIC_QID__'
+const FINALIZE = '__FINALIZE__'
+// STORIES: array of { qid, title, deps } objects. `deps` is an array of qids
+// that must be merged before this story launches. Order within the array does
+// not matter — the scheduler instantiates every story up front and resolves
+// dependencies by qid, so STORIES need not be topologically sorted.
+const STORIES = __STORIES_JSON__
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -163,7 +140,7 @@ async function prepare(qid, parentBranch) {
       // Execute: story-executor builds the story branch.
       executor = await agent(
         `story_qid=${qid} parent_branch=${parentBranch}`,
-        { label: `executor:${qid}:${attempt}`, phase: 'Execute', agentType: 'loom:story-executor', schema: EXECUTOR_SCHEMA }
+        { label: `executor:${qid}:${attempt}`, phase: 'Stories', agentType: 'loom:story-executor', schema: EXECUTOR_SCHEMA }
       )
       log(`[${qid}] executor done: branch=${executor.branch}`)
     } else {
@@ -171,7 +148,7 @@ async function prepare(qid, parentBranch) {
       const failedLines = open.join('\n')
       await agent(
         `story_qid=${qid} branch=${executor.branch} worktree=${executor.worktree}\nfailed_criteria:\n${failedLines}`,
-        { label: `fixer:${qid}:${attempt}`, phase: 'Fix', agentType: 'loom:story-fixer', schema: FIXER_SCHEMA }
+        { label: `fixer:${qid}:${attempt}`, phase: 'Stories', agentType: 'loom:story-fixer', schema: FIXER_SCHEMA }
       )
       log(`[${qid}] fixer done (attempt ${attempt})`)
     }
@@ -179,7 +156,7 @@ async function prepare(qid, parentBranch) {
     // Validate: story-validator checks criteria and tests.
     const validate = await agent(
       `story_qid=${qid} branch=${executor.branch} worktree=${executor.worktree}`,
-      { label: `validator:${qid}:${attempt}`, phase: 'Validate', agentType: 'loom:story-validator', schema: VALIDATOR_SCHEMA }
+      { label: `validator:${qid}:${attempt}`, phase: 'Stories', agentType: 'loom:story-validator', schema: VALIDATOR_SCHEMA }
     )
 
     if (validate.result === 'ok') {
@@ -196,17 +173,17 @@ async function prepare(qid, parentBranch) {
 
 // ── Trunk setup ──────────────────────────────────────────────────────────────
 
-log(`Setting up trunk for epic ${epicQid} (finalize=${finalize})`)
+log(`Setting up trunk for epic ${EPIC_QID} (finalize=${FINALIZE})`)
 
 // Git forbids colons in ref names, so the epic qid's colons must be
 // sanitized for BOTH the branch name and the worktree path (matching the
 // story-executor's slug convention of replacing ':' with '-').
-const trunkSlug = epicQid.replace(/:/g, '-')
+const trunkSlug = EPIC_QID.replace(/:/g, '-')
 const trunkBranch = `loom/${trunkSlug}`
 const trunkWorktree = `.claude/worktrees/${trunkSlug}`
 
 const trunk = await agent(
-  `You are setting up the epic trunk worktree for epic_qid="${epicQid}".
+  `You are setting up the epic trunk worktree for epic_qid="${EPIC_QID}".
 The target branch is "${trunkBranch}" and the target worktree path is
 "${trunkWorktree}".
 
@@ -254,78 +231,106 @@ if (!trunk.ok || !trunk.worktree || !trunk.branch) {
 
 log(`Trunk worktree: ${trunk.worktree} on branch ${trunk.branch}`)
 
-// ── Story scheduler: streamed prepare() → serial merge ───────────────────────
+// ── Story scheduler: baked-DAG promise pipeline → serial merge ───────────────
+//
+// Every story is INSTANTIATED up front as a pending (not-done) promise in
+// `runs` — before any run-body executes. A run waits on its dependencies by
+// awaiting their promises from this fully-populated store, so a dependency
+// lookup always finds something to await regardless of the order of STORIES.
+// There is NO requirement that STORIES be topologically sorted: a story stays
+// "not done" until its own run settles it, and nothing it depends on can be
+// observed as `ok` before then. agent() caps real concurrency internally, so
+// starting every run at once still respects the worker pool.
+//
+// Each run then (1) awaits its dependencies' outcomes, (2) runs prepare() —
+// concurrently with every independent sibling — then (3) serializes its merge
+// into the single shared trunk worktree.
+//
+// outcome: qid → { ok, open? } (the central store). A non-ok story is NOT
+// halted on; its dependents observe the failure via the store and skip
+// themselves, so the dependent subtree drains naturally while independent
+// branches keep going.
+const outcome = new Map()   // qid → { ok: boolean, open?: string[] }
+const runs = new Map()      // qid → Promise<outcome>  (pending until the story settles)
+const settle = new Map()    // qid → resolve fn for that story's run promise
 
-// refill() queries loom for stories that are ready (deps satisfied, not done).
-async function refill() {
-  const result = await agent(
-    `Run: loom ready ${epicQid} --type story --json
-Output the JSON array as the "stories" field.`,
-    { label: 'refill', phase: 'Execute', schema: READY_SCHEMA }
-  )
-  return result.stories ?? []
+// Instantiate every story as pending up front. Nothing is "done", so no
+// dependent can proceed until the story it waits on is actually resolved below.
+for (const s of STORIES) {
+  runs.set(s.qid, new Promise(resolve => settle.set(s.qid, resolve)))
 }
 
-const inflight = new Map()  // qid → Promise<prepare result>
-// failed: qid → string[] (open findings). A failed story is NOT halted on; we
-// record it and keep draining the rest of the DAG. Its dependents never become
-// ready (they depend on a not-done story), so the subtree naturally stops. We
-// skip relaunching anything already failed.
-const failed = new Map()
+// Merge gate: a chained promise that serializes story-merger calls. prepare()
+// runs in parallel across stories, but every merge writes the one trunk
+// worktree — they must run strictly one at a time. Each queued merge waits for
+// the previous to settle (the gate is kept alive past failures).
+let mergeGate = Promise.resolve()
+function runSerialMerge(fn) {
+  const ran = mergeGate.then(fn, fn)
+  mergeGate = ran.then(() => {}, () => {})
+  return ran
+}
 
-let stories = await refill()
+async function runStory(s) {
+  const deps = s.deps ?? []
 
-while (stories.length > 0 || inflight.size > 0) {
-  // Launch prepare() for every newly-ready story not already in flight or failed.
-  for (const s of stories) {
-    if (!inflight.has(s.qualified_id) && !failed.has(s.qualified_id)) {
-      log(`Launching prepare for ${s.qualified_id}: ${s.title}`)
-      inflight.set(s.qualified_id, prepare(s.qualified_id, trunk.branch))
-    }
+  // 1. Wait for every dependency to finish; bail if any did not land.
+  const depOutcomes = await Promise.all(deps.map(d => runs.get(d)))
+  const blockerIdx = depOutcomes.findIndex(o => !o.ok)
+  if (blockerIdx !== -1) {
+    const blocker = deps[blockerIdx]
+    log(`Skipping ${s.qid}: upstream ${blocker} did not converge/merge.`)
+    return { ok: false, open: [`skipped: upstream ${blocker} did not land`] }
   }
 
-  if (inflight.size === 0) break
-
-  // Wait for whichever prepare() finishes next.
-  const result = await Promise.race(inflight.values())
-  inflight.delete(result.qid)
-
+  // 2. Build the story branch (concurrent with independent siblings).
+  log(`Launching prepare for ${s.qid}: ${s.title}`)
+  const result = await prepare(s.qid, trunk.branch)
   if (!result.ok) {
-    // Did not converge. Record it and keep going — other inflight stories
-    // continue, and refill keeps the independent parts of the DAG moving.
-    failed.set(result.qid, result.open)
-    log(`Story ${result.qid} did not converge; continuing with the rest of the DAG.`)
-    stories = await refill()
-    continue
+    log(`Story ${s.qid} did not converge; its dependents will skip.`)
+    return { ok: false, open: result.open }
   }
 
-  // Converged — merge + complete + cleanup via the story-merger agent.
-  log(`Merging ${result.qid} (branch: ${result.executor.branch}) into trunk`)
-  const merge = await agent(
-    `story_qid=${result.qid} branch=${result.executor.branch} target=${trunk.branch} ` +
+  // 3. Merge serially into the trunk.
+  log(`Merging ${s.qid} (branch: ${result.executor.branch}) into trunk`)
+  const merge = await runSerialMerge(() => agent(
+    `story_qid=${s.qid} branch=${result.executor.branch} target=${trunk.branch} ` +
     `target_worktree=${trunk.worktree} story_worktree=${result.executor.worktree}`,
-    { label: `merge:${result.qid}`, phase: 'Merge', agentType: 'loom:story-merger', schema: MERGE_SCHEMA }
-  )
-
+    { label: `merge:${s.qid}`, phase: 'Stories', agentType: 'loom:story-merger', schema: MERGE_SCHEMA }
+  ))
   if (!merge.merged) {
-    // Non-trivial conflict — record and keep going rather than halting.
-    failed.set(result.qid, [`merge conflict: ${merge.conflict}`])
-    log(`Story ${result.qid} could not be merged trivially; continuing with the rest of the DAG.`)
-    stories = await refill()
-    continue
+    log(`Story ${s.qid} could not be merged trivially; its dependents will skip.`)
+    return { ok: false, open: [`merge conflict: ${merge.conflict}`] }
   }
 
-  log(`Merged ${result.qid} at ${merge.merge_sha}.`)
-  stories = await refill()
+  log(`Merged ${s.qid} at ${merge.merge_sha}.`)
+  return { ok: true }
 }
 
-if (failed.size > 0) {
-  const summary = [...failed.entries()]
-    .map(([q, fs]) => `${q}: ${fs.join(', ')}`)
+// Start every story's run against the fully-instantiated store. Record each
+// outcome and resolve its pending promise so dependents can proceed. The error
+// handler guarantees the promise always settles (an unexpected throw becomes a
+// recorded failure) so a sibling's bug can never deadlock the whole DAG.
+for (const s of STORIES) {
+  runStory(s).then(
+    o => { outcome.set(s.qid, o); settle.get(s.qid)(o) },
+    err => {
+      const o = { ok: false, open: [`run error: ${err?.message ?? String(err)}`] }
+      outcome.set(s.qid, o)
+      settle.get(s.qid)(o)
+    }
+  )
+}
+await Promise.all(runs.values())
+
+const failures = STORIES.filter(s => !(outcome.get(s.qid)?.ok))
+if (failures.length > 0) {
+  const summary = failures
+    .map(s => `${s.qid}: ${(outcome.get(s.qid)?.open ?? []).join(', ')}`)
     .join('\n')
   return {
     result: 'failed',
-    reason: `${failed.size} story/stories did not converge or merge; the rest of the DAG was drained.`,
+    reason: `${failures.length} story/stories did not converge or merge; the rest of the DAG was drained.`,
     open_findings: summary,
   }
 }
@@ -344,10 +349,10 @@ await agent(
 
 // ── Epic validation ──────────────────────────────────────────────────────────
 
-log(`Dispatching epic-validator for ${epicQid}`)
+log(`Dispatching epic-validator for ${EPIC_QID}`)
 
 const epicVal = await agent(
-  `epic_qid=${epicQid} branch=${trunk.branch} worktree=${trunk.worktree}`,
+  `epic_qid=${EPIC_QID} branch=${trunk.branch} worktree=${trunk.worktree}`,
   { label: 'epic-validator', phase: 'Epic validation', agentType: 'loom:epic-validator', schema: EPIC_VAL_SCHEMA }
 )
 
@@ -365,20 +370,20 @@ log('Epic validation passed.')
 
 // Mark the epic done in loom.
 await agent(
-  `Run: loom complete ${epicQid}`,
-  { label: `complete-epic:${epicQid}`, phase: 'Epic validation', agentType: 'loom:story-executor' }
+  `Run: loom complete ${EPIC_QID}`,
+  { label: `complete-epic:${EPIC_QID}`, phase: 'Epic validation', agentType: 'loom:story-executor' }
 )
 
 // ── Finalize ─────────────────────────────────────────────────────────────────
 
-if (finalize === 'merge') {
+if (FINALIZE === 'merge') {
   // Local merge + push into main (only when explicitly requested).
   log(`Merging ${trunk.branch} into main and pushing`)
   const merge = await agent(
     `Finalize the epic by merging the trunk branch into main and pushing.
 Run from the repo root (NOT the trunk worktree):
 1. git checkout main && git fetch origin && git pull --ff-only origin main
-2. git merge --no-ff ${trunk.branch} -m "Merge epic ${epicQid}: ${trunk.branch}"
+2. git merge --no-ff ${trunk.branch} -m "Merge epic ${EPIC_QID}: ${trunk.branch}"
 
 If step 2 conflicts: resolve ONLY trivial, unambiguous conflicts (non-overlapping
 added lines, lockfile/index unions, whitespace). If a conflict touches real logic
@@ -398,7 +403,7 @@ Return { "merged": true, "merge_sha": "<sha>" }.`,
     return { result: 'failed', reason: `merge conflict: ${merge.conflict}` }
   }
   log(`Merged ${trunk.branch} into main at ${merge.merge_sha}.`)
-  return { result: 'ok', epic_qid: epicQid, branch: trunk.branch, merged_to: 'main' }
+  return { result: 'ok', epic_qid: EPIC_QID, branch: trunk.branch, merged_to: 'main' }
 } else {
   // Default: push branch + open PR.
   log(`Pushing ${trunk.branch} and opening PR`)
@@ -407,15 +412,15 @@ Return { "merged": true, "merge_sha": "<sha>" }.`,
 1. cd ${trunk.worktree}
 2. git push -u origin ${trunk.branch}
 3. Compose a coherent PR body — do NOT just paste the epic body. Read the epic for
-   intent (loom show ${epicQid} --json) and the diff for what shipped:
+   intent (loom show ${EPIC_QID} --json) and the diff for what shipped:
      git diff main...${trunk.branch} --stat
      git log main..${trunk.branch} --oneline
    Write a short Markdown body: a one-paragraph summary + a "## Changes" bullet
    list grounded in the diff. Every claim must match a real change.
-4. gh pr create --base main --head ${trunk.branch} --title "Epic ${epicQid}: <short summary>" --body-file <tmpfile> and capture the URL
+4. gh pr create --base main --head ${trunk.branch} --title "Epic ${EPIC_QID}: <short summary>" --body-file <tmpfile> and capture the URL
 Return { "pr_url": "<url>" }.`,
     { label: 'finalize-pr', phase: 'Finalize', schema: PR_SCHEMA }
   )
   log(`Finalized. PR URL: ${pr.pr_url ?? '(none)'}`)
-  return { result: 'ok', epic_qid: epicQid, branch: trunk.branch, pr_url: pr.pr_url }
+  return { result: 'ok', epic_qid: EPIC_QID, branch: trunk.branch, pr_url: pr.pr_url }
 }
