@@ -13,10 +13,7 @@ export const meta = {
   description: 'DAG runner for a loom epic: trunk setup → streamed story convergence → epic validation → finalize',
   phases: [
     { title: 'Trunk',           detail: 'Fresh main and the epic trunk worktree' },
-    { title: 'Execute',         detail: 'story-executor builds each story branch' },
-    { title: 'Validate',        detail: 'story-validator checks criteria and tests' },
-    { title: 'Fix',             detail: 'story-fixer applies validator failures inline' },
-    { title: 'Merge',           detail: 'story-merger merges each converged story into the trunk' },
+    { title: 'Stories',         detail: 'Per story: build → validate → fix → merge into the trunk (independent stories run concurrently)' },
     { title: 'Epic validation', detail: 'epic-validator over the fully-merged trunk' },
     { title: 'Finalize',        detail: 'open a PR (default) or merge + push to main' },
   ],
@@ -141,7 +138,7 @@ async function prepare(qid, parentBranch) {
       // Execute: story-executor builds the story branch.
       executor = await agent(
         `story_qid=${qid} parent_branch=${parentBranch}`,
-        { label: `executor:${qid}:${attempt}`, phase: 'Execute', agentType: 'loom:story-executor', schema: EXECUTOR_SCHEMA }
+        { label: `executor:${qid}:${attempt}`, phase: 'Stories', agentType: 'loom:story-executor', schema: EXECUTOR_SCHEMA }
       )
       log(`[${qid}] executor done: branch=${executor.branch}`)
     } else {
@@ -149,7 +146,7 @@ async function prepare(qid, parentBranch) {
       const failedLines = open.join('\n')
       await agent(
         `story_qid=${qid} branch=${executor.branch} worktree=${executor.worktree}\nfailed_criteria:\n${failedLines}`,
-        { label: `fixer:${qid}:${attempt}`, phase: 'Fix', agentType: 'loom:story-fixer', schema: FIXER_SCHEMA }
+        { label: `fixer:${qid}:${attempt}`, phase: 'Stories', agentType: 'loom:story-fixer', schema: FIXER_SCHEMA }
       )
       log(`[${qid}] fixer done (attempt ${attempt})`)
     }
@@ -157,7 +154,7 @@ async function prepare(qid, parentBranch) {
     // Validate: story-validator checks criteria and tests.
     const validate = await agent(
       `story_qid=${qid} branch=${executor.branch} worktree=${executor.worktree}`,
-      { label: `validator:${qid}:${attempt}`, phase: 'Validate', agentType: 'loom:story-validator', schema: VALIDATOR_SCHEMA }
+      { label: `validator:${qid}:${attempt}`, phase: 'Stories', agentType: 'loom:story-validator', schema: VALIDATOR_SCHEMA }
     )
 
     if (validate.result === 'ok') {
@@ -291,7 +288,7 @@ function runStory(s) {
     const merge = await runSerialMerge(() => agent(
       `story_qid=${s.qid} branch=${result.executor.branch} target=${trunk.branch} ` +
       `target_worktree=${trunk.worktree} story_worktree=${result.executor.worktree}`,
-      { label: `merge:${s.qid}`, phase: 'Merge', agentType: 'loom:story-merger', schema: MERGE_SCHEMA }
+      { label: `merge:${s.qid}`, phase: 'Stories', agentType: 'loom:story-merger', schema: MERGE_SCHEMA }
     ))
     if (!merge.merged) {
       log(`Story ${s.qid} could not be merged trivially; its dependents will skip.`)
