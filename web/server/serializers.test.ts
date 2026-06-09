@@ -135,6 +135,15 @@ describe("serializeTree", () => {
     const taskWithDep = tasks.find((t) => t.deps.length > 0);
     expect(taskWithDep).toBeDefined();
   });
+
+  test("each serialized node includes created_at", () => {
+    const treeDict = loom.tree("acme");
+    const response = serializeTree(treeDict);
+    for (const node of response.items) {
+      expect(typeof node.created_at).toBe("string");
+      expect(node.created_at.length).toBeGreaterThan(0);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

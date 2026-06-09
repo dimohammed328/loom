@@ -10,17 +10,18 @@
  *   - EpicRowHeader (sticky left)
  *   - One kcol per status column containing StoryCards
  *
- * The component owns the collapse map and fetches tree data from the API.
+ * The component derives its rows from the store's itemsById so that
+ * SSE-delivered updates appear without a manual refresh.
  */
 
-import React, { useEffect, useState, useCallback } from "react";
-import { getProjectTree } from "../api/client";
+import React, { useState, useCallback, useMemo } from "react";
 import type { ProjectSummary } from "../api/client";
 import { boardModel, BOARD_STATUSES } from "../boardModel";
 import type { EpicRow, StoryCell } from "../boardModel";
 import { statusColor } from "../status";
 import EpicRowHeader from "./EpicRowHeader";
 import StoryCard from "./StoryCard";
+import { useAppStore } from "../state/store";
 
 // ---------------------------------------------------------------------------
 // Layout constants (exported for tests)
@@ -163,28 +164,17 @@ export interface BoardViewProps {
 }
 
 export default function BoardView({ project, onOpen }: BoardViewProps): React.JSX.Element {
-  const [rows, setRows] = useState<EpicRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { itemsById } = useAppStore();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [expandedLanes, setExpandedLanes] = useState<Record<string, boolean>>({});
 
-  // Fetch tree data when project changes.
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    setCollapsed({});
-    setExpandedLanes({});
-    getProjectTree(project.qid)
-      .then((tree) => {
-        setRows(boardModel(tree));
-        setLoading(false);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : String(err));
-        setLoading(false);
-      });
-  }, [project.qid]);
+  // Derive board rows from the store's itemsById — re-renders automatically
+  // on every SSE-delivered update.
+  const rows = useMemo<EpicRow[]>(() => {
+    if (!itemsById) return [];
+    const items = Object.values(itemsById);
+    return boardModel({ root: project.qid, items });
+  }, [itemsById, project.qid]);
 
   const toggleCollapse = useCallback((epicQid: string) => {
     setCollapsed((prev) => ({ ...prev, [epicQid]: !prev[epicQid] }));
@@ -195,18 +185,10 @@ export default function BoardView({ project, onOpen }: BoardViewProps): React.JS
     setExpandedLanes((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
-  if (loading) {
+  if (!itemsById) {
     return (
       <div className="view-scroll" style={{ display: "grid", placeItems: "center", minHeight: 200 }}>
         <span style={{ color: "var(--text-3)", fontSize: 13 }}>Loading…</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="view-scroll" style={{ display: "grid", placeItems: "center", minHeight: 200 }}>
-        <span style={{ color: "var(--st-blocked-fg)", fontSize: 13 }}>{error}</span>
       </div>
     );
   }

@@ -14,6 +14,7 @@ function makeNode(
   status: string | null,
   children: string[] = [],
   updatedAt = "2024-01-01T00:00:00Z",
+  createdAt?: string,
 ): ItemNode {
   return {
     qid,
@@ -26,6 +27,7 @@ function makeNode(
     deps: [],
     children,
     updated_at: updatedAt,
+    created_at: createdAt,
   };
 }
 
@@ -296,5 +298,18 @@ describe("tableModel", () => {
     expect(qids).toContain("p:aaa23");
     expect(qids).toContain("p:aaa23:1");
     expect(qids).toHaveLength(2);
+  });
+
+  test("top-level epics are ordered newest-first by created_at", () => {
+    const proj = makeNode("p", "project", "P", null, ["p:aaa23", "p:bbb23"]);
+    const e1 = makeNode("p:aaa23", "epic", "Older", null, [], "2024-01-01T00:00:00Z", "2024-01-01T00:00:00Z");
+    const e2 = makeNode("p:bbb23", "epic", "Newer", null, [], "2024-06-01T00:00:00Z", "2024-06-01T00:00:00Z");
+    const tree: TreeResponse = { root: "p", items: [proj, e1, e2] };
+    const rows = tableModel(tree, {});
+    const epicRows = rows.filter((r) => r.type === "epic");
+    expect(epicRows).toHaveLength(2);
+    // Newer epic (e2) should come first
+    expect(epicRows[0].qid).toBe("p:bbb23");
+    expect(epicRows[1].qid).toBe("p:aaa23");
   });
 });

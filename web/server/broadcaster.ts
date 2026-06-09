@@ -6,7 +6,9 @@
  *
  * Mirrors src/loom_web/broadcaster.py but adapted for Bun's single-threaded
  * event model: instead of asyncio.Queue per subscriber, each subscriber is
- * a plain callback (typically a WebSocket send function).
+ * a plain callback. Originally used for WebSocket sends; now used for SSE
+ * stream writes — the callback receives the payload object and the transport
+ * layer decides how to serialize and send it.
  */
 
 export type Subscriber = (message: Record<string, unknown>) => void;

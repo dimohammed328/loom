@@ -5,7 +5,7 @@
  */
 
 import type { ItemNode } from "../api/client";
-import type { WsPayload } from "../ws/client";
+import type { SsePayload as WsPayload } from "../sse/client";
 
 /** Flat map of items keyed by qid. */
 export type ItemsMap = Record<string, ItemNode>;

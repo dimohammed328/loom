@@ -7,6 +7,7 @@
  */
 
 import type { TreeResponse, ItemNode } from "./api/client";
+import { sortEpicsNewestFirst } from "./epicSort";
 
 // ---------------------------------------------------------------------------
 // Public constants
@@ -77,7 +78,7 @@ export function boardModel(tree: TreeResponse): EpicRow[] {
 
   const rows: EpicRow[] = [];
 
-  for (const epicQid of root.children) {
+  for (const epicQid of sortEpicsNewestFirst(root.children, byQid)) {
     const epicNode = byQid.get(epicQid);
     if (!epicNode || epicNode.type !== "epic") continue;
 

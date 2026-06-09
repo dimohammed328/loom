@@ -9,7 +9,7 @@
 import { describe, expect, test } from "bun:test";
 import { setItems, applyWsPayload } from "./itemsReducer";
 import type { ItemNode } from "../api/client";
-import type { WsPayload } from "../ws/client";
+import type { SsePayload as WsPayload } from "../sse/client";
 
 // ---------------------------------------------------------------------------
 // Fixtures

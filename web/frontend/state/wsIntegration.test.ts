@@ -11,7 +11,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { shouldRefetchModal } from "./wsIntegration";
-import type { WsPayload } from "../ws/client";
+import type { SsePayload as WsPayload } from "../sse/client";
 
 // ---------------------------------------------------------------------------
 // shouldRefetchModal

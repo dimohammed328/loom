@@ -197,6 +197,17 @@ describe("Loom.tree", () => {
     const loom = new Loom(root);
     expect(() => loom.tree("nonexistent")).toThrow(NotFound);
   });
+
+  test("each tree node includes created_at", async () => {
+    const root = makeTmpDir();
+    const { loom, project } = await buildLoomWithProject(root);
+    await project.createEpic({ title: "E" });
+    const tree = loom.tree("p");
+    for (const item of tree.items as any[]) {
+      expect(typeof item.created_at).toBe("string");
+      expect(item.created_at.length).toBeGreaterThan(0);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
