@@ -1,0 +1,29 @@
+plugin/skills/writing-workflows/templates/epic-runner.template.js
+  s_480589bb047d53::t_e97dd936f2335e 141
+  s_480589bb047d53::t_f945a696312397 157
+  s_480589bb047d53::t_0dca31a003bdc3 291
+  s_480589bb047d53::t_c535cc7182b256 149
+  s_480589bb047d53::t_a6882ad44d3a2e 16
+plugin/skills/writing-workflows/examples/epic-example.workflow.js
+  s_480589bb047d53::t_62b2f8e2b53cc7 304
+  s_480589bb047d53::t_7d79f43f7c6ab2 12
+  s_480589bb047d53::t_56d83ca8790459 154
+  s_480589bb047d53::t_3e076d3ad4185e 162
+  s_480589bb047d53::t_820d3ab7a45873 170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "a5aadd5a78f09e7d994ed3217231c0ef14b40c5c",
+  "prompts": {},
+  "sessions": {
+    "s_480589bb047d53": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f2fe34c2-70ec-4bca-9415-231ab42924a8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
