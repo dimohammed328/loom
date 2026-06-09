@@ -109,8 +109,10 @@ const PR_SCHEMA = {
 
 const EPIC_QID = '__EPIC_QID__'
 const FINALIZE = '__FINALIZE__'
-// STORIES: array of { qid, title, deps } objects in topological order.
-// deps is an array of qids that must be merged before this story launches.
+// STORIES: array of { qid, title, deps } objects. `deps` is an array of qids
+// that must be merged before this story launches. Order within the array does
+// not matter — the scheduler instantiates every story up front and resolves
+// dependencies by qid, so STORIES need not be topologically sorted.
 const STORIES = __STORIES_JSON__
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -231,21 +233,32 @@ log(`Trunk worktree: ${trunk.worktree} on branch ${trunk.branch}`)
 
 // ── Story scheduler: baked-DAG promise pipeline → serial merge ───────────────
 //
-// Each story is a self-contained async "run" that (1) awaits its dependencies'
-// outcomes from a central store, (2) runs prepare() — concurrently with every
-// independent sibling — then (3) serializes its merge into the single shared
-// trunk worktree before recording its own outcome. Every story's run-promise is
-// registered in `runs` up front; STORIES is in topological order, so a
-// dependency's promise always exists in the store before its dependents await
-// it. agent() caps real concurrency internally, so registering them all at once
-// still respects the worker pool.
+// Every story is INSTANTIATED up front as a pending (not-done) promise in
+// `runs` — before any run-body executes. A run waits on its dependencies by
+// awaiting their promises from this fully-populated store, so a dependency
+// lookup always finds something to await regardless of the order of STORIES.
+// There is NO requirement that STORIES be topologically sorted: a story stays
+// "not done" until its own run settles it, and nothing it depends on can be
+// observed as `ok` before then. agent() caps real concurrency internally, so
+// starting every run at once still respects the worker pool.
+//
+// Each run then (1) awaits its dependencies' outcomes, (2) runs prepare() —
+// concurrently with every independent sibling — then (3) serializes its merge
+// into the single shared trunk worktree.
 //
 // outcome: qid → { ok, open? } (the central store). A non-ok story is NOT
 // halted on; its dependents observe the failure via the store and skip
 // themselves, so the dependent subtree drains naturally while independent
 // branches keep going.
 const outcome = new Map()   // qid → { ok: boolean, open?: string[] }
-const runs = new Map()      // qid → Promise<outcome>  (lets deps await each other)
+const runs = new Map()      // qid → Promise<outcome>  (pending until the story settles)
+const settle = new Map()    // qid → resolve fn for that story's run promise
+
+// Instantiate every story as pending up front. Nothing is "done", so no
+// dependent can proceed until the story it waits on is actually resolved below.
+for (const s of STORIES) {
+  runs.set(s.qid, new Promise(resolve => settle.set(s.qid, resolve)))
+}
 
 // Merge gate: a chained promise that serializes story-merger calls. prepare()
 // runs in parallel across stories, but every merge writes the one trunk
@@ -258,57 +271,57 @@ function runSerialMerge(fn) {
   return ran
 }
 
-function runStory(s) {
-  return (async () => {
-    const deps = s.deps ?? []
+async function runStory(s) {
+  const deps = s.deps ?? []
 
-    // 1. Wait for every dependency to finish; bail if any did not land.
-    const depOutcomes = await Promise.all(deps.map(d => runs.get(d)))
-    const blockerIdx = depOutcomes.findIndex(o => !o.ok)
-    if (blockerIdx !== -1) {
-      const blocker = deps[blockerIdx]
-      log(`Skipping ${s.qid}: upstream ${blocker} did not converge/merge.`)
-      const o = { ok: false, open: [`skipped: upstream ${blocker} did not land`] }
-      outcome.set(s.qid, o)
-      return o
-    }
+  // 1. Wait for every dependency to finish; bail if any did not land.
+  const depOutcomes = await Promise.all(deps.map(d => runs.get(d)))
+  const blockerIdx = depOutcomes.findIndex(o => !o.ok)
+  if (blockerIdx !== -1) {
+    const blocker = deps[blockerIdx]
+    log(`Skipping ${s.qid}: upstream ${blocker} did not converge/merge.`)
+    return { ok: false, open: [`skipped: upstream ${blocker} did not land`] }
+  }
 
-    // 2. Build the story branch (concurrent with independent siblings).
-    log(`Launching prepare for ${s.qid}: ${s.title}`)
-    const result = await prepare(s.qid, trunk.branch)
-    if (!result.ok) {
-      log(`Story ${s.qid} did not converge; its dependents will skip.`)
-      const o = { ok: false, open: result.open }
-      outcome.set(s.qid, o)
-      return o
-    }
+  // 2. Build the story branch (concurrent with independent siblings).
+  log(`Launching prepare for ${s.qid}: ${s.title}`)
+  const result = await prepare(s.qid, trunk.branch)
+  if (!result.ok) {
+    log(`Story ${s.qid} did not converge; its dependents will skip.`)
+    return { ok: false, open: result.open }
+  }
 
-    // 3. Merge serially into the trunk, then mark complete in the store.
-    log(`Merging ${s.qid} (branch: ${result.executor.branch}) into trunk`)
-    const merge = await runSerialMerge(() => agent(
-      `story_qid=${s.qid} branch=${result.executor.branch} target=${trunk.branch} ` +
-      `target_worktree=${trunk.worktree} story_worktree=${result.executor.worktree}`,
-      { label: `merge:${s.qid}`, phase: 'Stories', agentType: 'loom:story-merger', schema: MERGE_SCHEMA }
-    ))
-    if (!merge.merged) {
-      log(`Story ${s.qid} could not be merged trivially; its dependents will skip.`)
-      const o = { ok: false, open: [`merge conflict: ${merge.conflict}`] }
-      outcome.set(s.qid, o)
-      return o
-    }
+  // 3. Merge serially into the trunk.
+  log(`Merging ${s.qid} (branch: ${result.executor.branch}) into trunk`)
+  const merge = await runSerialMerge(() => agent(
+    `story_qid=${s.qid} branch=${result.executor.branch} target=${trunk.branch} ` +
+    `target_worktree=${trunk.worktree} story_worktree=${result.executor.worktree}`,
+    { label: `merge:${s.qid}`, phase: 'Stories', agentType: 'loom:story-merger', schema: MERGE_SCHEMA }
+  ))
+  if (!merge.merged) {
+    log(`Story ${s.qid} could not be merged trivially; its dependents will skip.`)
+    return { ok: false, open: [`merge conflict: ${merge.conflict}`] }
+  }
 
-    log(`Merged ${s.qid} at ${merge.merge_sha}.`)
-    const o = { ok: true }
-    outcome.set(s.qid, o)
-    return o
-  })()
+  log(`Merged ${s.qid} at ${merge.merge_sha}.`)
+  return { ok: true }
 }
 
-// Register every story's run up front (topological order guarantees a dep's
-// promise is in the store before its dependents await it), then drive them all
-// to completion together.
-for (const s of STORIES) runs.set(s.qid, runStory(s))
-await Promise.all(STORIES.map(s => runs.get(s.qid)))
+// Start every story's run against the fully-instantiated store. Record each
+// outcome and resolve its pending promise so dependents can proceed. The error
+// handler guarantees the promise always settles (an unexpected throw becomes a
+// recorded failure) so a sibling's bug can never deadlock the whole DAG.
+for (const s of STORIES) {
+  runStory(s).then(
+    o => { outcome.set(s.qid, o); settle.get(s.qid)(o) },
+    err => {
+      const o = { ok: false, open: [`run error: ${err?.message ?? String(err)}`] }
+      outcome.set(s.qid, o)
+      settle.get(s.qid)(o)
+    }
+  )
+}
+await Promise.all(runs.values())
 
 const failures = STORIES.filter(s => !(outcome.get(s.qid)?.ok))
 if (failures.length > 0) {

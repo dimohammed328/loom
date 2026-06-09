@@ -69,12 +69,14 @@ when a story branch is successfully merged and `loom complete` is called. Custom
 statuses (e.g. `completed`, `in_progress`) do **not** satisfy a dependency —
 only the literal `done` status written by `loom complete` does.
 
-### DAG order derives from inter-story deps
+### DAG edges live in `deps`, not array order
 
-The `STORIES` literal encodes the topological order as explicit `deps` arrays
-(not a flat sequence). The scheduler must respect this structure — do not
-sort stories alphabetically or by creation order. The dependency graph produced
-during loom planning is authoritative.
+The `STORIES` literal encodes the dependency graph as explicit `deps` arrays
+(qids), **not** as the array's order. The scheduler instantiates every story
+as a pending promise up front and resolves dependencies by qid, so the order of
+entries in `STORIES` is irrelevant — it need not be topologically sorted. What
+matters is that each story's `deps` array exactly mirrors the inter-story
+dependency edges produced during loom planning, which are authoritative.
 
 ### Status writes via `loom complete`
 
