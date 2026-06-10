@@ -71,11 +71,10 @@ For **story mode**:
 
 ```bash
 # Story lives under <project>:backlog
-STORY=$(loom story create "<project>:backlog" --title "<title>" --body-file <tmp>/story.md)
-loom update "$STORY" assignee "${CLAUDE_SESSION_ID}"
+STORY=$(loom -y story create "<project>:backlog" --title "<title>" --body-file <tmp>/story.md --assignee "${CLAUDE_SESSION_ID}")
 # Every story MUST have at least one task — a story with no tasks cannot be executed.
 for each task in the draft:
-  loom task create "$STORY" --title "<task title>" --body-file <tmp>/task-N.md
+  loom -y task create "$STORY" --title "<task title>" --body-file <tmp>/task-N.md
 ```
 
 ### Step 3: Add dependencies
