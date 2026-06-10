@@ -1,0 +1,22 @@
+plugin/agents/story-executor.md
+  s_06801866809c99::t_dabd12e6a1f806 280-281
+tests/test_plugin_docs_current.py
+  s_06801866809c99::t_403d965f129afb 73-74,77-79
+  s_06801866809c99::t_81cc243300789a 65-72,75-76,80-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "88b5f8f721d3507578f906ac5847d8717b2b8844",
+  "prompts": {},
+  "sessions": {
+    "s_06801866809c99": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1fd19a9e-dc2a-4289-bacb-0ca2c6f66137",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
