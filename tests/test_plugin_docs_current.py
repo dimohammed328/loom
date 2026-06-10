@@ -76,7 +76,9 @@ def test_story_executor_donts_forbid_harness_config_self_modification() -> None:
     assert donts_start != -1, "story-executor.md must have a 'What you must NOT do' section"
     # Find the next ## heading after the donts section
     next_section = content.find("\n## ", donts_start + 1)
-    donts_section = content[donts_start:next_section] if next_section != -1 else content[donts_start:]
+    donts_section = (
+        content[donts_start:next_section] if next_section != -1 else content[donts_start:]
+    )
     assert "settings.json" in donts_section or "harness config" in donts_section, (
         "The 'What you must NOT do' section must explicitly forbid modifying "
         ".claude/settings.json or harness config files"
@@ -94,11 +96,12 @@ def test_writing_workflows_notes_enter_worktree_before_spawn() -> None:
     """
     writing_workflows_skill = PLUGIN_ROOT / "skills" / "writing-workflows" / "SKILL.md"
     content = writing_workflows_skill.read_text()
-    assert "EnterWorktree" in content or "enter" in content.lower() and "worktree" in content.lower(), (
-        "writing-workflows/SKILL.md must note the EnterWorktree-before-spawn structural fix"
-    )
+    assert "EnterWorktree" in content or (
+        "enter" in content.lower() and "worktree" in content.lower()
+    ), "writing-workflows/SKILL.md must note the EnterWorktree-before-spawn structural fix"
     assert "spawn" in content.lower() or "dispatch" in content.lower(), (
-        "writing-workflows/SKILL.md must mention spawning/dispatching executors in relation to the worktree entry"
+        "writing-workflows/SKILL.md must mention spawning/dispatching executors "
+        "in relation to the worktree entry"
     )
     assert "isolation" in content.lower() or "bgIsolation" in content, (
         "writing-workflows/SKILL.md must connect worktree entry to isolation inheritance"
