@@ -80,7 +80,7 @@ for each task in the draft:
 ### Step 3: Add dependencies
 
 ```bash
-loom dep add <source-qid> --on <target-qid>
+loom -y dep add <source-qid> --on <target-qid>
 ```
 
 Loom rejects cycles automatically (exit code 4). If you hit a cycle, the groom phase produced a malformed plan — surface the cycle to the user and stop.
