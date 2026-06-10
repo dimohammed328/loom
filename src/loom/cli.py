@@ -589,6 +589,10 @@ def epic_create(
             help="Path to a markdown file used as the body. Mutually exclusive with --body.",
         ),
     ] = None,
+    assignee: Annotated[
+        str | None,
+        typer.Option("--assignee", help="Assignee for the new epic."),
+    ] = None,
     root: RootOption = None,
 ) -> None:
     """Create a new epic under <project>.
@@ -624,6 +628,8 @@ def epic_create(
     except LoomError as e:
         _die_from(e)
         return
+    if assignee:
+        epic.set_assignee(assignee)
     _record_touch(epic.qualified_id)
     typer.echo(epic.qualified_id)
     typer.echo(f"created {epic.qualified_id}", err=True)
