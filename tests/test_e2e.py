@@ -359,6 +359,74 @@ def test_cli_e2e_create_chain(tmp_path: Path) -> None:
     assert r.exit_code == 0
 
 
+def test_cli_e2e_create_with_assignee(tmp_path: Path) -> None:
+    """epic create --assignee and story create --assignee set frontmatter in one call."""
+    root = tmp_path / "loom"
+    runner.invoke(app, ["init", "--root", str(root)])
+    runner.invoke(
+        app,
+        [
+            "project",
+            "create",
+            "myproj",
+            "--title",
+            "MyProj",
+            "--repo",
+            "https://github.com/acme/myproj",
+            "--root",
+            str(root),
+        ],
+    )
+
+    # Epic create with assignee
+    r = runner.invoke(
+        app,
+        ["epic", "create", "myproj", "--title", "Auth", "--assignee", "alice", "--root", str(root)],
+    )
+    assert r.exit_code == 0, r.output
+    epic_qid = r.stdout.strip()
+
+    # Story create with assignee
+    r = runner.invoke(
+        app,
+        [
+            "story",
+            "create",
+            epic_qid,
+            "--title",
+            "Backend",
+            "--assignee",
+            "bob",
+            "--root",
+            str(root),
+        ],
+    )
+    assert r.exit_code == 0, r.output
+    story_qid = r.stdout.strip()
+
+    # Verify via loom show --json (CLI surface)
+    r = runner.invoke(app, ["show", epic_qid, "--json", "--root", str(root)])
+    assert r.exit_code == 0, r.output
+    epic_data = json.loads(r.output)
+    assert epic_data["frontmatter"]["assignee"] == "alice"
+
+    r = runner.invoke(app, ["show", story_qid, "--json", "--root", str(root)])
+    assert r.exit_code == 0, r.output
+    story_data = json.loads(r.output)
+    assert story_data["frontmatter"]["assignee"] == "bob"
+
+    # Stdout must still be the bare qid only (no extra lines)
+    assert "\n" not in epic_qid
+    assert "\n" not in story_qid
+
+    # task create --assignee must be rejected
+    r_task = runner.invoke(
+        app,
+        ["task", "create", story_qid, "--title", "Wire", "--assignee", "carol", "--root", str(root)],
+    )
+    assert r_task.exit_code != 0
+
+
 # ---------------------------------------------------------------------------
 # Phase 4: full dependency / ready / close lifecycle through both surfaces.
 # ---------------------------------------------------------------------------
