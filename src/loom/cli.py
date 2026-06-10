@@ -750,7 +750,8 @@ def task_create(
         _die_from(e)
         return
     _record_touch(task.qualified_id)
-    typer.echo(f"created {task.qualified_id}")
+    typer.echo(task.qualified_id)
+    typer.echo(f"created {task.qualified_id}", err=True)
 
 
 # ---------------------------------------------------------------------------
