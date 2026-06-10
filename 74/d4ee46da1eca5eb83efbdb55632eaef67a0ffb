@@ -1,0 +1,21 @@
+plugin/skills/using-loom-cli/SKILL.md
+  s_06801866809c99::t_9711bbdbdad46c 136-138
+  s_06801866809c99::t_924ef4dcf31053 40-42
+  s_06801866809c99::t_4c1bde288b7afd 73-75,87,95,105-107,119,127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "74d4ee46da1eca5eb83efbdb55632eaef67a0ffb",
+  "prompts": {},
+  "sessions": {
+    "s_06801866809c99": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1fd19a9e-dc2a-4289-bacb-0ca2c6f66137",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
