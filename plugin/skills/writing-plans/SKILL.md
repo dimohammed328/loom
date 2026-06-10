@@ -55,6 +55,8 @@ In a temp directory (`mktemp -d`), write one markdown file per loom item to be c
 
 ### Step 2: Create the loom items
 
+> **stdout contract:** Every `loom epic|story|task|project create` command prints the bare qid of the newly created item on **stdout** and a human-readable `created <qid>` note on **stderr**. Capture with `QID=$(loom -y <type> create …)` — stderr does not interfere.
+
 For **epic mode**:
 
 ```bash
