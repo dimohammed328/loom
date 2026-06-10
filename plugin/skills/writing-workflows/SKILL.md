@@ -182,6 +182,33 @@ Workflow({
 Pass `args: {}` — all plan-specific data is baked into the script; no runtime
 arguments are needed.
 
+## Structural note: EnterWorktree-before-spawn
+
+Generated epic workflows must enter the shared trunk worktree **before**
+dispatching any story-executor subagent. This is the EnterWorktree-before-spawn
+pattern and it is required for correct bgIsolation behavior.
+
+When a harness session enters a worktree (via `EnterWorktree`), the session's
+isolation context is set for that directory. Subagents spawned from within that
+context inherit the isolation and can use `Edit`/`Write` tools without hitting
+the bgIsolation guard. Subagents spawned **before** the trunk worktree is entered
+have no isolation context and will hit the guard on their first file write.
+
+**Correct order in the generated script:**
+
+1. Create the epic's shared trunk branch and worktree (`git worktree add`).
+2. Enter the trunk worktree (`EnterWorktree` or `cd` to the trunk path).
+3. Then dispatch story-executor subagents.
+
+**Wrong order (do not generate this):**
+
+- Dispatch story-executors from the repo root before entering the trunk worktree.
+
+This is a documentation note for workflow authors; the generated template already
+follows the correct order. If you are modifying a template, verify that
+`EnterWorktree` (or equivalent worktree entry) precedes all `SubagentExecute`
+/ subagent dispatch calls.
+
 ## Launch & constraints
 
 ### Launch call
