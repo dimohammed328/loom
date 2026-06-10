@@ -62,6 +62,27 @@ def test_story_executor_isolation_guard_fallback() -> None:
     )
 
 
+def test_story_executor_donts_forbid_harness_config_self_modification() -> None:
+    """The 'What you must NOT do' list must explicitly forbid harness-config self-modification.
+
+    Executors attempted to write .claude/settings.json to disable the bgIsolation
+    guard. This must be called out in the canonical don'ts list, not just in the
+    fallback section, so it is visible at a glance.
+    """
+    content = STORY_EXECUTOR_MD.read_text()
+    # Find the "What you must NOT do" section and extract only its bullet list
+    # (stop at the next top-level ## heading)
+    donts_start = content.find("## What you must NOT do")
+    assert donts_start != -1, "story-executor.md must have a 'What you must NOT do' section"
+    # Find the next ## heading after the donts section
+    next_section = content.find("\n## ", donts_start + 1)
+    donts_section = content[donts_start:next_section] if next_section != -1 else content[donts_start:]
+    assert "settings.json" in donts_section or "harness config" in donts_section, (
+        "The 'What you must NOT do' section must explicitly forbid modifying "
+        ".claude/settings.json or harness config files"
+    )
+
+
 def test_plugin_readme_no_task_hook_reference() -> None:
     """plugin/README.md must not mention Task lifecycle hooks (TaskCreated/TaskCompleted)."""
     content = PLUGIN_README.read_text()

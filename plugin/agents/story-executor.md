@@ -277,6 +277,8 @@ clean up after the merge.
 - Do NOT merge your branch.
 - Do NOT skip tasks or fold them together — one commit per `loom order` task.
 - Do NOT modify files outside your worktree.
+- Do NOT modify `.claude/settings.json` or any other harness config file —
+  self-modification of harness configuration is forbidden and will be denied.
 - You MUST call `loom update <task-qid> status in_progress` and
   `loom complete <task-qid>` directly — no hooks mirror these for you.
 
