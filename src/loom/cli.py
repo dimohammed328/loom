@@ -651,6 +651,10 @@ def story_create(
             help="Path to a markdown file used as the body. Mutually exclusive with --body.",
         ),
     ] = None,
+    assignee: Annotated[
+        str | None,
+        typer.Option("--assignee", help="Assignee for the new story."),
+    ] = None,
     root: RootOption = None,
 ) -> None:
     """Create a new story under <epic-qid>.
@@ -706,6 +710,8 @@ def story_create(
     except LoomError as e:
         _die_from(e)
         return
+    if assignee:
+        story.set_assignee(assignee)
     _record_touch(story.qualified_id)
     typer.echo(story.qualified_id)
     typer.echo(f"created {story.qualified_id}", err=True)

@@ -315,6 +315,40 @@ def test_task_create_bare_qid_on_stdout(loom_dir: Path) -> None:
     assert "created " + qid in r.stderr
 
 
+def test_story_create_with_assignee_sets_frontmatter(loom_dir: Path) -> None:
+    """story create --assignee sets assignee in frontmatter; stdout is still bare qid."""
+    runner.invoke(
+        app,
+        ["project", "create", "acme", "--title", "Acme", "--repo", "x", "--root", str(loom_dir)],
+    )
+    re = runner.invoke(
+        app, ["epic", "create", "acme", "--title", "Auth", "--root", str(loom_dir)]
+    )
+    epic_qid = re.stdout.strip()
+    r = runner.invoke(
+        app,
+        [
+            "story",
+            "create",
+            epic_qid,
+            "--title",
+            "Backend",
+            "--assignee",
+            "bob",
+            "--root",
+            str(loom_dir),
+        ],
+    )
+    assert r.exit_code == 0, r.output
+    qid = r.stdout.strip()
+    assert qid.startswith(epic_qid + ":")
+    from loom.api import Loom
+
+    loom = Loom(loom_dir)
+    story = loom.get(qid)
+    assert story.assignee == "bob"
+
+
 def test_epic_create_with_assignee_sets_frontmatter(loom_dir: Path) -> None:
     """epic create --assignee sets assignee in frontmatter; stdout is still bare qid."""
     runner.invoke(
