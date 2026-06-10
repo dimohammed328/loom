@@ -2,8 +2,8 @@
 name: codebase-researcher
 description: Use during the grooming phase of /epic or /story to enrich a rough idea with concrete file paths, symbol names, and architectural pointers. Returns a short report (<400 words). Does NOT propose or implement changes — read-only research.
 tools: Read, Grep, Glob, Bash, WebFetch
-model: opus
-effort: high
+model: fable
+effort: xhigh
 ---
 
 # Codebase Researcher
