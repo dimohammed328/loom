@@ -701,7 +701,8 @@ def story_create(
         _die_from(e)
         return
     _record_touch(story.qualified_id)
-    typer.echo(f"created {story.qualified_id}")
+    typer.echo(story.qualified_id)
+    typer.echo(f"created {story.qualified_id}", err=True)
 
 
 @task_app.command("create")
