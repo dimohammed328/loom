@@ -58,15 +58,13 @@ In a temp directory (`mktemp -d`), write one markdown file per loom item to be c
 For **epic mode**:
 
 ```bash
-EPIC=$(loom epic create <project-qid> --title "<title>" --body-file <tmp>/epic.md)
-loom update "$EPIC" assignee "${CLAUDE_SESSION_ID}"
+EPIC=$(loom -y epic create <project-qid> --title "<title>" --body-file <tmp>/epic.md --assignee "${CLAUDE_SESSION_ID}")
 
 for each story in the draft:
-  STORY=$(loom story create "$EPIC" --title "<story title>" --body-file <tmp>/story-N.md)
-  loom update "$STORY" assignee "${CLAUDE_SESSION_ID}"
+  STORY=$(loom -y story create "$EPIC" --title "<story title>" --body-file <tmp>/story-N.md --assignee "${CLAUDE_SESSION_ID}")
   # Every story MUST have at least one task — a story with no tasks cannot be executed.
   for each task in the story:
-    loom task create "$STORY" --title "<task title>" --body-file <tmp>/task-N-M.md
+    loom -y task create "$STORY" --title "<task title>" --body-file <tmp>/task-N-M.md
 ```
 
 For **story mode**:
