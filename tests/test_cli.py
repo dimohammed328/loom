@@ -7,6 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from conftest import write_item
+from loom.api import Loom
 from loom.cli import app
 from loom.ids import QualifiedId
 from loom.rebuild import rebuild
@@ -340,8 +341,6 @@ def test_story_create_with_assignee_sets_frontmatter(loom_dir: Path) -> None:
     assert r.exit_code == 0, r.output
     qid = r.stdout.strip()
     assert qid.startswith(epic_qid + ":")
-    from loom.api import Loom
-
     loom = Loom(loom_dir)
     story = loom.get(qid)
     assert story.assignee == "bob"
@@ -371,8 +370,6 @@ def test_epic_create_with_assignee_sets_frontmatter(loom_dir: Path) -> None:
     qid = r.stdout.strip()
     assert qid.startswith("acme:")
     # Verify assignee in frontmatter via loom API
-    from loom.api import Loom
-
     loom = Loom(loom_dir)
     epic = loom.get(qid)
     assert epic.assignee == "alice"
