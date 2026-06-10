@@ -192,19 +192,19 @@ def _create_project_chain_via_cli(root: Path) -> tuple[str, str, str, str]:
         ],
     )
     assert r.exit_code == 0, r.output
-    assert "created acme" in r.output
+    assert r.stdout.strip() == "acme"
 
     r = runner.invoke(app, ["epic", "create", "acme", "--title", "Auth", "--root", str(root)])
     assert r.exit_code == 0, r.output
-    epic_qid = r.output.strip().removeprefix("created ").strip()
+    epic_qid = r.stdout.strip()
 
     r = runner.invoke(app, ["story", "create", epic_qid, "--title", "Backend", "--root", str(root)])
     assert r.exit_code == 0, r.output
-    story_qid = r.output.strip().removeprefix("created ").strip()
+    story_qid = r.stdout.strip()
 
     r = runner.invoke(app, ["task", "create", story_qid, "--title", "Wire", "--root", str(root)])
     assert r.exit_code == 0, r.output
-    task_qid = r.output.strip().removeprefix("created ").strip()
+    task_qid = r.stdout.strip()
 
     return "acme", epic_qid, story_qid, task_qid
 
@@ -433,7 +433,7 @@ def _build_two_tasks(loom_dir: Path) -> tuple[str, str]:
     story_qid = ":".join(t1.split(":")[:-1])
     r = runner.invoke(app, ["task", "create", story_qid, "--title", "T2", "--root", str(loom_dir)])
     assert r.exit_code == 0, r.output
-    t2 = r.output.strip().removeprefix("created ").strip()
+    t2 = r.stdout.strip()
     return t1, t2
 
 
