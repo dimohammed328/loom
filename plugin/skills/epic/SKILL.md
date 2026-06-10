@@ -27,13 +27,37 @@ The user has invoked `/epic <description>`. The description is in `$ARGUMENTS`. 
    ```
    loom:writing-workflows mode=epic epic_qid=<qid> finalize=<'pr' or 'merge'>
    ```
-   Set `finalize` to `"merge"` only if the original `/epic` request explicitly asked to merge to main (e.g. "merge to main", "push to main", "no PR"); otherwise use `"pr"` (the default). That skill generates a bespoke baked-DAG workflow script and launches it. The generated workflow creates the epic worktree, runs the story scheduler loop, runs final epic validation, and finalizes the branch. On failure, the workflow halts and surfaces the diagnostic — that ends your turn.
+   Set `finalize` to `"merge"` only if the original `/epic` request explicitly asked to merge to main (e.g. "merge to main", "push to main", "no PR"); otherwise use `"pr"` (the default). That skill generates a bespoke baked-DAG workflow script and launches it. The generated workflow creates the epic worktree, runs the story scheduler loop, runs final epic validation, and finalizes the branch. On any non-ok result, follow the **HALT PROTOCOL** below.
+
+## HALT PROTOCOL — BINDING
+
+> **EXTREMELY IMPORTANT.** When the workflow launched in step 5 returns a
+> result that is not `ok` (validation failed, merge conflict, cycle detected,
+> finalize error, or any other non-success outcome), the ONLY permitted
+> responses are:
+>
+> 1. Report the returned `reason`, validation criteria, and any open findings
+>    to the user **verbatim**, exactly as the workflow surfaced them.
+> 2. Offer to re-run or resume the workflow (the epic worktree and all story
+>    worktrees are reused; fix-tasks resume where validation left off).
+> 3. Route any real code or doc fix through a **new `/story`** or a
+>    **story-fixer re-dispatch** against the existing story worktree.
+>
+> **NEVER do any of the following after a non-ok result:**
+>
+> - Edit, Write, or commit files in the trunk, the epic worktree, or any
+>   story worktree directly from this skill.
+> - Run ad-hoc smoke or verify scripts to manually clear the finalize gate.
+> - Hand-run `gh pr create`, `git merge`, or `loom complete` to bypass the
+>   workflow.
+>
+> **Post-completion follow-ups are a new `/story`, never a hand-edit on the
+> epic branch.**
 
 ## Constraints
 
 - Never skip the groom phase even if the description is detailed — the research step always adds value.
 - Never execute code changes from this skill directly. All implementation happens inside story-executor subagents in story worktrees.
-- If the workflow halts at any step (cycle detected during planning, validation fails after retries, merge conflict requires human input), surface the diagnostic and stop. Do not retry or work around silently.
 
 ## What you do NOT do here
 
