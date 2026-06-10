@@ -264,6 +264,19 @@ def test_project_create_bare_qid_on_stdout(loom_dir: Path) -> None:
     assert "created acme" in r.stderr
 
 
+def test_epic_create_bare_qid_on_stdout(loom_dir: Path) -> None:
+    """epic create: stdout is exactly the qid; stderr carries the human message."""
+    runner.invoke(
+        app,
+        ["project", "create", "acme", "--title", "Acme", "--repo", "x", "--root", str(loom_dir)],
+    )
+    r = runner.invoke(app, ["epic", "create", "acme", "--title", "Auth", "--root", str(loom_dir)])
+    assert r.exit_code == 0, r.output
+    qid = r.stdout.strip()
+    assert qid.startswith("acme:")
+    assert "created " + qid in r.stderr
+
+
 # ---------------------------------------------------------------------------
 # show / set / archive / status shortcuts
 # ---------------------------------------------------------------------------

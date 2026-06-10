@@ -625,7 +625,8 @@ def epic_create(
         _die_from(e)
         return
     _record_touch(epic.qualified_id)
-    typer.echo(f"created {epic.qualified_id}")
+    typer.echo(epic.qualified_id)
+    typer.echo(f"created {epic.qualified_id}", err=True)
 
 
 @story_app.command("create")
