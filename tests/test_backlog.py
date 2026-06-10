@@ -105,7 +105,7 @@ def test_cli_story_create_defaults_to_backlog(loom_dir: Path) -> None:
         ["story", "create", "acme", "--title", "Fix login bug", "--root", str(loom_dir)],
     )
     assert r.exit_code == 0, r.output
-    assert "created acme:backlog:1" in r.output
+    assert r.stdout.strip() == "acme:backlog:1"
 
 
 def test_cli_story_create_legacy_project_lazy_creates_backlog(
@@ -132,7 +132,7 @@ def test_cli_story_create_legacy_project_lazy_creates_backlog(
     )
     assert r.exit_code == 0, r.output
     assert backlog_path.is_file()
-    assert "created legacy:backlog:1" in r.output
+    assert r.stdout.strip() == "legacy:backlog:1"
 
 
 def test_cli_story_create_explicit_epic_unchanged(loom_dir: Path) -> None:
@@ -145,7 +145,7 @@ def test_cli_story_create_explicit_epic_unchanged(loom_dir: Path) -> None:
         ["story", "create", e.qualified_id, "--title", "S", "--root", str(loom_dir)],
     )
     assert r.exit_code == 0, r.output
-    assert f"created {e.qualified_id}:1" in r.output
+    assert r.stdout.strip() == f"{e.qualified_id}:1"
 
 
 def test_cli_story_create_preselects_backlog_when_no_last_touched(

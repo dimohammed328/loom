@@ -46,7 +46,7 @@ def _setup_two_projects(root: Path) -> tuple[str, str]:
         app, ["epic", "create", "alpha", "--title", "Alpha Epic", "--root", str(root)]
     )
     assert r.exit_code == 0, r.output
-    alpha_epic = r.output.strip().removeprefix("created ").strip()
+    alpha_epic = r.stdout.strip()
 
     r = runner.invoke(
         app,
@@ -61,7 +61,7 @@ def _setup_two_projects(root: Path) -> tuple[str, str]:
         ],
     )
     assert r.exit_code == 0, r.output
-    alpha_story = r.output.strip().removeprefix("created ").strip()
+    alpha_story = r.stdout.strip()
 
     r = runner.invoke(
         app,
@@ -76,7 +76,7 @@ def _setup_two_projects(root: Path) -> tuple[str, str]:
         ],
     )
     assert r.exit_code == 0, r.output
-    alpha_task = r.output.strip().removeprefix("created ").strip()
+    alpha_task = r.stdout.strip()
 
     # Project beta
     r = runner.invoke(
@@ -97,7 +97,7 @@ def _setup_two_projects(root: Path) -> tuple[str, str]:
 
     r = runner.invoke(app, ["epic", "create", "beta", "--title", "Beta Epic", "--root", str(root)])
     assert r.exit_code == 0, r.output
-    beta_epic = r.output.strip().removeprefix("created ").strip()
+    beta_epic = r.stdout.strip()
 
     r = runner.invoke(
         app,
@@ -112,7 +112,7 @@ def _setup_two_projects(root: Path) -> tuple[str, str]:
         ],
     )
     assert r.exit_code == 0, r.output
-    beta_story = r.output.strip().removeprefix("created ").strip()
+    beta_story = r.stdout.strip()
 
     r = runner.invoke(
         app,
@@ -127,7 +127,7 @@ def _setup_two_projects(root: Path) -> tuple[str, str]:
         ],
     )
     assert r.exit_code == 0, r.output
-    beta_task = r.output.strip().removeprefix("created ").strip()
+    beta_task = r.stdout.strip()
 
     return alpha_task, beta_task
 

@@ -80,7 +80,7 @@ def test_epic_create_picks_project(
         ["epic", "create", "--title", "Picked", "--root", str(loom_dir)],
     )
     assert r.exit_code == 0, r.output
-    assert "created acme:" in r.output
+    assert r.stdout.strip().startswith("acme:")
 
 
 def test_epic_create_opens_editor_when_title_and_body_blank(
@@ -91,7 +91,7 @@ def test_epic_create_opens_editor_when_title_and_body_blank(
     monkeypatch.setattr(prompts, "prompt_editor_template", _fake_editor_template("From Editor"))
     r = runner.invoke(app, ["epic", "create", "--root", str(loom_dir)])
     assert r.exit_code == 0, r.output
-    qid = r.output.strip().removeprefix("created ").strip()
+    qid = r.stdout.strip()
     show = runner.invoke(app, ["show", qid, "--root", str(loom_dir)])
     assert "title: From Editor" in show.output
 
@@ -101,12 +101,12 @@ def test_story_create_picks_epic(
 ) -> None:
     _create_project(loom_dir)
     r = runner.invoke(app, ["epic", "create", "acme", "--title", "E", "--root", str(loom_dir)])
-    epic_qid = r.output.strip().removeprefix("created ").strip()
+    epic_qid = r.stdout.strip()
 
     monkeypatch.setattr(prompts, "pick_one", _fake_picker([epic_qid]))
     r = runner.invoke(app, ["story", "create", "--title", "S", "--root", str(loom_dir)])
     assert r.exit_code == 0, r.output
-    assert r.output.strip().startswith(f"created {epic_qid}:")
+    assert r.stdout.strip().startswith(epic_qid + ":")
 
 
 # ---------------------------------------------------------------------------
@@ -117,11 +117,11 @@ def test_story_create_picks_epic(
 def _make_chain(loom_dir: Path) -> tuple[str, str, str, str]:
     _create_project(loom_dir)
     r = runner.invoke(app, ["epic", "create", "acme", "--title", "E", "--root", str(loom_dir)])
-    epic = r.output.strip().removeprefix("created ").strip()
+    epic = r.stdout.strip()
     r = runner.invoke(app, ["story", "create", epic, "--title", "S", "--root", str(loom_dir)])
-    story = r.output.strip().removeprefix("created ").strip()
+    story = r.stdout.strip()
     r = runner.invoke(app, ["task", "create", story, "--title", "T", "--root", str(loom_dir)])
-    task = r.output.strip().removeprefix("created ").strip()
+    task = r.stdout.strip()
     return "acme", epic, story, task
 
 
@@ -180,7 +180,7 @@ def test_dep_add_prompts_for_source_and_target(
         ["task", "create", story_qid, "--title", "T2", "--root", str(loom_dir)],
     )
     assert r.exit_code == 0, r.output
-    task2 = r.output.strip().removeprefix("created ").strip()
+    task2 = r.stdout.strip()
 
     monkeypatch.setattr(prompts, "pick_one", _fake_picker([task, task2]))
     r = runner.invoke(app, ["dep", "add", "--root", str(loom_dir)])
