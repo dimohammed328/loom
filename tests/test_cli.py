@@ -243,6 +243,27 @@ def test_task_create_under_non_story_fails(loom_dir: Path) -> None:
     assert "is not a story" in r.output
 
 
+def test_project_create_bare_qid_on_stdout(loom_dir: Path) -> None:
+    """project create: stdout is exactly the qid; stderr carries the human message."""
+    r = runner.invoke(
+        app,
+        [
+            "project",
+            "create",
+            "acme",
+            "--title",
+            "Acme",
+            "--repo",
+            "https://github.com/acme/acme",
+            "--root",
+            str(loom_dir),
+        ],
+    )
+    assert r.exit_code == 0, r.output
+    assert r.stdout.strip() == "acme"
+    assert "created acme" in r.stderr
+
+
 # ---------------------------------------------------------------------------
 # show / set / archive / status shortcuts
 # ---------------------------------------------------------------------------

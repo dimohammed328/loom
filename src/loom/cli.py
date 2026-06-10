@@ -569,7 +569,8 @@ def project_create(
             f"now bound to {project.qualified_id}",
             err=True,
         )
-    typer.echo(f"created {project.qualified_id}")
+    typer.echo(project.qualified_id)
+    typer.echo(f"created {project.qualified_id}", err=True)
 
 
 @epic_app.command("create")
