@@ -29,8 +29,31 @@ The user has invoked `/story <description>`. The description is in `$ARGUMENTS`.
    ```
    Set `finalize` to `"merge"` only if the original `/story` request explicitly asked to merge to main (e.g. "merge to main", "push to main", "no PR"); otherwise use `"pr"` (the default). That skill generates a bespoke baked-DAG workflow script and launches it. The generated workflow dispatches one story-executor, runs review and validation, and finalizes the branch. On validation fail after 3 retries, the workflow halts and surfaces the diagnostic.
 
+## HALT PROTOCOL — BINDING
+
+> **EXTREMELY IMPORTANT.** When the workflow launched in step 6 returns a
+> result that is not `ok` (validation failed, merge conflict, finalize error,
+> or any other non-success outcome), the ONLY permitted responses are:
+>
+> 1. Report the returned `reason`, validation criteria, and any open findings
+>    to the user **verbatim**, exactly as the workflow surfaced them.
+> 2. Offer to re-run or resume the workflow (the story worktree is reused;
+>    fix-tasks resume where validation left off).
+> 3. Route any real code or doc fix through a **new `/story`** or a
+>    **story-fixer re-dispatch** against the existing story worktree.
+>
+> **NEVER do any of the following after a non-ok result:**
+>
+> - Edit, Write, or commit files in the trunk or the story worktree directly
+>   from this skill.
+> - Run ad-hoc smoke or verify scripts to manually clear the finalize gate.
+> - Hand-run `gh pr create`, `git merge`, or `loom complete` to bypass the
+>   workflow.
+>
+> **Post-completion follow-ups are a new `/story`, never a hand-edit on the
+> story branch.**
+
 ## Constraints
 
 - Never skip the groom phase even if the description is detailed — the research step always adds value.
 - Never execute code changes from this skill directly. All implementation happens inside the story-executor subagent in its worktree.
-- If the workflow halts at any step (validation fails after retries, merge conflict requires human input), surface the diagnostic and stop. Do not retry or work around silently.
