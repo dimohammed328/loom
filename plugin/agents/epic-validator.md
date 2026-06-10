@@ -37,6 +37,76 @@ The dispatching prompt contains:
    - Invoke via `Skill` tool with skill name `verify`.
    - The `verify` skill knows how to launch the project's app (CLI / server / TUI / Electron / browser) and observe behavior.
    - If `verify` reports failure or cannot launch the app, **fall back gracefully**: run the project's test suite, lint, and format. Note in your evidence that behavioral verification was unavailable.
+
+## Server Lifecycle
+
+When behavioral verification requires a long-lived server (HTTP, gRPC, or any
+process that keeps a port open), follow these rules **in every verify run**:
+
+### Start in the background — mandatory
+
+Any long-lived server MUST be started in the background so the subagent is
+never blocked waiting for it. Capture the PID immediately:
+
+```bash
+# Example — adapt to the project's actual start command
+./start-server.sh &
+SERVER_PID=$!
+```
+
+Or, if the Bash tool supports `run_in_background`, use that parameter and
+note the handle for later teardown.
+
+**Do NOT start a server as a foreground process.** A foreground server holds
+the shell session open indefinitely, which hangs the subagent and forces a
+manual kill. This is the root cause of the watchdog-triggered crashes logged
+in the June 2026 audit.
+
+### Readiness poll — bounded, mandatory
+
+After starting the server, poll for readiness with a **hard cap** on the
+number of attempts. Do not assume the server is immediately available, and
+do not poll indefinitely:
+
+```bash
+READY=false
+for i in $(seq 1 20); do
+  if curl -sf http://localhost:<PORT>/health >/dev/null 2>&1; then
+    READY=true
+    break
+  fi
+  sleep 1
+done
+```
+
+Adapt the health endpoint, port, and retry count to the project. 20 attempts
+with 1 s delay is the suggested default (20 s wall-clock budget). If the loop
+exhausts without success, proceed to the fallback (see below).
+
+### Teardown — guaranteed, mandatory
+
+Before the validator agent returns — whether behavioral verification succeeded,
+failed, or was skipped — kill the background server by its captured PID:
+
+```bash
+kill "$SERVER_PID" 2>/dev/null || true
+```
+
+This MUST run even on the failure path. Orphan processes on open ports require
+manual intervention; the audit identified leaked uvicorn processes on multiple
+ports as a direct consequence of missing teardown.
+
+### Wall-clock budget and fallback
+
+The total time spent launching the server, polling for readiness, and
+exercising the app MUST complete within a **5-minute wall-clock budget**.
+
+If the readiness poll exhausts its cap (the server never becomes ready):
+
+1. Kill the background server via the captured PID.
+2. Run the project's test suite, lint, and format as a substitute.
+3. Report `behavioral_verification: "failed"` in the result JSON and include
+   a note explaining that the server did not become ready within the budget.
 5. **For each criterion** in the epic body's checklist: confirm against the observed state (the verify run's output, the test results, file/symbol checks).
 6. Emit `validation_result` with the outcome. On failure, include a `summary` so the orchestrator and audit trail have a human-readable description of what failed:
    ```bash
@@ -96,3 +166,4 @@ The dispatching prompt contains:
 - **Do NOT modify the epic branch.** You are read-only verification at this stage.
 - **Do NOT call `loom complete`** on the epic. The orchestrator handles that.
 - **Do NOT propose fixes** if criteria fail. Just report. The orchestrator surfaces failures to the user for a manual decision (no auto-retry at epic level per spec §7).
+- **Do NOT block on a foreground process.** Never run a long-lived server without `&`, `run_in_background`, or an equivalent mechanism. Any server started in the foreground will hold the shell open, stall the agent, and may trigger a watchdog kill — leaking orphan processes that require manual cleanup.
