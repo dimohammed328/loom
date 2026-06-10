@@ -569,7 +569,8 @@ def project_create(
             f"now bound to {project.qualified_id}",
             err=True,
         )
-    typer.echo(f"created {project.qualified_id}")
+    typer.echo(project.qualified_id)
+    typer.echo(f"created {project.qualified_id}", err=True)
 
 
 @epic_app.command("create")
@@ -624,7 +625,8 @@ def epic_create(
         _die_from(e)
         return
     _record_touch(epic.qualified_id)
-    typer.echo(f"created {epic.qualified_id}")
+    typer.echo(epic.qualified_id)
+    typer.echo(f"created {epic.qualified_id}", err=True)
 
 
 @story_app.command("create")
@@ -699,7 +701,8 @@ def story_create(
         _die_from(e)
         return
     _record_touch(story.qualified_id)
-    typer.echo(f"created {story.qualified_id}")
+    typer.echo(story.qualified_id)
+    typer.echo(f"created {story.qualified_id}", err=True)
 
 
 @task_app.command("create")
@@ -747,7 +750,8 @@ def task_create(
         _die_from(e)
         return
     _record_touch(task.qualified_id)
-    typer.echo(f"created {task.qualified_id}")
+    typer.echo(task.qualified_id)
+    typer.echo(f"created {task.qualified_id}", err=True)
 
 
 # ---------------------------------------------------------------------------

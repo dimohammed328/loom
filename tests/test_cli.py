@@ -192,19 +192,19 @@ def _create_project_chain_via_cli(root: Path) -> tuple[str, str, str, str]:
         ],
     )
     assert r.exit_code == 0, r.output
-    assert "created acme" in r.output
+    assert r.stdout.strip() == "acme"
 
     r = runner.invoke(app, ["epic", "create", "acme", "--title", "Auth", "--root", str(root)])
     assert r.exit_code == 0, r.output
-    epic_qid = r.output.strip().removeprefix("created ").strip()
+    epic_qid = r.stdout.strip()
 
     r = runner.invoke(app, ["story", "create", epic_qid, "--title", "Backend", "--root", str(root)])
     assert r.exit_code == 0, r.output
-    story_qid = r.output.strip().removeprefix("created ").strip()
+    story_qid = r.stdout.strip()
 
     r = runner.invoke(app, ["task", "create", story_qid, "--title", "Wire", "--root", str(root)])
     assert r.exit_code == 0, r.output
-    task_qid = r.output.strip().removeprefix("created ").strip()
+    task_qid = r.stdout.strip()
 
     return "acme", epic_qid, story_qid, task_qid
 
@@ -241,6 +241,78 @@ def test_task_create_under_non_story_fails(loom_dir: Path) -> None:
     r = runner.invoke(app, ["task", "create", epic, "--title", "X", "--root", str(loom_dir)])
     assert r.exit_code != 0
     assert "is not a story" in r.output
+
+
+def test_project_create_bare_qid_on_stdout(loom_dir: Path) -> None:
+    """project create: stdout is exactly the qid; stderr carries the human message."""
+    r = runner.invoke(
+        app,
+        [
+            "project",
+            "create",
+            "acme",
+            "--title",
+            "Acme",
+            "--repo",
+            "https://github.com/acme/acme",
+            "--root",
+            str(loom_dir),
+        ],
+    )
+    assert r.exit_code == 0, r.output
+    assert r.stdout.strip() == "acme"
+    assert "created acme" in r.stderr
+
+
+def test_epic_create_bare_qid_on_stdout(loom_dir: Path) -> None:
+    """epic create: stdout is exactly the qid; stderr carries the human message."""
+    runner.invoke(
+        app,
+        ["project", "create", "acme", "--title", "Acme", "--repo", "x", "--root", str(loom_dir)],
+    )
+    r = runner.invoke(app, ["epic", "create", "acme", "--title", "Auth", "--root", str(loom_dir)])
+    assert r.exit_code == 0, r.output
+    qid = r.stdout.strip()
+    assert qid.startswith("acme:")
+    assert "created " + qid in r.stderr
+
+
+def test_story_create_bare_qid_on_stdout(loom_dir: Path) -> None:
+    """story create: stdout is exactly the qid; stderr carries the human message."""
+    runner.invoke(
+        app,
+        ["project", "create", "acme", "--title", "Acme", "--repo", "x", "--root", str(loom_dir)],
+    )
+    re = runner.invoke(app, ["epic", "create", "acme", "--title", "Auth", "--root", str(loom_dir)])
+    epic_qid = re.stdout.strip()
+    r = runner.invoke(
+        app, ["story", "create", epic_qid, "--title", "Backend", "--root", str(loom_dir)]
+    )
+    assert r.exit_code == 0, r.output
+    qid = r.stdout.strip()
+    assert qid.startswith(epic_qid + ":")
+    assert "created " + qid in r.stderr
+
+
+def test_task_create_bare_qid_on_stdout(loom_dir: Path) -> None:
+    """task create: stdout is exactly the qid; stderr carries the human message."""
+    runner.invoke(
+        app,
+        ["project", "create", "acme", "--title", "Acme", "--repo", "x", "--root", str(loom_dir)],
+    )
+    re = runner.invoke(app, ["epic", "create", "acme", "--title", "Auth", "--root", str(loom_dir)])
+    epic_qid = re.stdout.strip()
+    rs = runner.invoke(
+        app, ["story", "create", epic_qid, "--title", "Backend", "--root", str(loom_dir)]
+    )
+    story_qid = rs.stdout.strip()
+    r = runner.invoke(
+        app, ["task", "create", story_qid, "--title", "Wire", "--root", str(loom_dir)]
+    )
+    assert r.exit_code == 0, r.output
+    qid = r.stdout.strip()
+    assert qid.startswith(story_qid + ":")
+    assert "created " + qid in r.stderr
 
 
 # ---------------------------------------------------------------------------
@@ -361,7 +433,7 @@ def _build_two_tasks(loom_dir: Path) -> tuple[str, str]:
     story_qid = ":".join(t1.split(":")[:-1])
     r = runner.invoke(app, ["task", "create", story_qid, "--title", "T2", "--root", str(loom_dir)])
     assert r.exit_code == 0, r.output
-    t2 = r.output.strip().removeprefix("created ").strip()
+    t2 = r.stdout.strip()
     return t1, t2
 
 
