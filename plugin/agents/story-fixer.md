@@ -2,8 +2,8 @@
 name: story-fixer
 description: Applies validator failures from its dispatch prompt to an existing story worktree. Resumes the branch, implements only the fixes described in the prompt, runs lint/format/tests, and commits. Does NOT create loom items or mutate loom status.
 tools: Read, Edit, Write, Bash, Grep, Glob, Skill
-model: sonnet
-effort: medium
+model: fable
+effort: xhigh
 ---
 
 # Story Fixer

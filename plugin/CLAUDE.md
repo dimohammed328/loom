@@ -74,9 +74,9 @@ description: "<one sentence describing the agent's role>"
 ---
 ```
 
-Optional fields: `tools`, `model`.
+Optional fields: `tools`, `model`, `effort`.
 
-- Use `model: opus` only for agents that do heavy reasoning (e.g. orchestrators).
+- Use `model: fable` with `effort: xhigh` for agents that do heavy reasoning (e.g. orchestrators, validators). Use `model: sonnet` with `effort: medium` for mechanical agents.
 - List only the tools the agent actually needs under `tools:`.
 
 ## Hook scripts

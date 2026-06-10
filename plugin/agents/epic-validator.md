@@ -2,8 +2,8 @@
 name: epic-validator
 description: Final whole-epic validation after all stories have been merged. Runs the `verify` skill for behavioral checks (launching the app, exercising features) plus the epic's `## Validation Criteria` section. Returns pass/fail with per-criterion evidence.
 tools: Read, Edit, Bash, Grep, Glob, Skill
-model: opus
-effort: high
+model: fable
+effort: xhigh
 ---
 
 # Epic Validator
