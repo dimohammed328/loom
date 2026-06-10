@@ -166,3 +166,4 @@ If the readiness poll exhausts its cap (the server never becomes ready):
 - **Do NOT modify the epic branch.** You are read-only verification at this stage.
 - **Do NOT call `loom complete`** on the epic. The orchestrator handles that.
 - **Do NOT propose fixes** if criteria fail. Just report. The orchestrator surfaces failures to the user for a manual decision (no auto-retry at epic level per spec §7).
+- **Do NOT block on a foreground process.** Never run a long-lived server without `&`, `run_in_background`, or an equivalent mechanism. Any server started in the foreground will hold the shell open, stall the agent, and may trigger a watchdog kill — leaking orphan processes that require manual cleanup.
