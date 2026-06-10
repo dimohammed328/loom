@@ -83,6 +83,28 @@ def test_story_executor_donts_forbid_harness_config_self_modification() -> None:
     )
 
 
+def test_writing_workflows_notes_enter_worktree_before_spawn() -> None:
+    """plugin/skills/writing-workflows/SKILL.md must note the EnterWorktree-before-spawn fix.
+
+    Audit item WF-4: executors hit the bgIsolation guard because the workflow
+    spawns them before entering the shared trunk worktree. The structural fix is
+    to enter the worktree (EnterWorktree) before spawning executor subagents so
+    they inherit the session's isolation. This note belongs in the writing-workflows
+    skill so future workflow authors bake this pattern into generated scripts.
+    """
+    writing_workflows_skill = PLUGIN_ROOT / "skills" / "writing-workflows" / "SKILL.md"
+    content = writing_workflows_skill.read_text()
+    assert "EnterWorktree" in content or "enter" in content.lower() and "worktree" in content.lower(), (
+        "writing-workflows/SKILL.md must note the EnterWorktree-before-spawn structural fix"
+    )
+    assert "spawn" in content.lower() or "dispatch" in content.lower(), (
+        "writing-workflows/SKILL.md must mention spawning/dispatching executors in relation to the worktree entry"
+    )
+    assert "isolation" in content.lower() or "bgIsolation" in content, (
+        "writing-workflows/SKILL.md must connect worktree entry to isolation inheritance"
+    )
+
+
 def test_plugin_readme_no_task_hook_reference() -> None:
     """plugin/README.md must not mention Task lifecycle hooks (TaskCreated/TaskCompleted)."""
     content = PLUGIN_README.read_text()
