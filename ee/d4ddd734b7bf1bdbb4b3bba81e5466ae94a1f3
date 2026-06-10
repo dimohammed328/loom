@@ -1,0 +1,19 @@
+docs/session-audit-2026-06.md
+  s_9c49655831e6b5::t_1a1f0fa87f842c 1-227
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "eed4ddd734b7bf1bdbb4b3bba81e5466ae94a1f3",
+  "prompts": {},
+  "sessions": {
+    "s_9c49655831e6b5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb1ad456-229c-4aeb-9fef-d37c6a9c527c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
