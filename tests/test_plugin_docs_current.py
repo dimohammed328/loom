@@ -38,6 +38,30 @@ def test_story_executor_no_executing_plans_reference() -> None:
     )
 
 
+def test_story_executor_isolation_guard_fallback() -> None:
+    """story-executor.md must document the bgIsolation guard fallback.
+
+    When the harness bgIsolation guard blocks Edit/Write, the executor must fall
+    back to writing files via Bash heredocs inside the worktree, continue the
+    normal TDD+commit loop, and never return BLOCKED solely for this reason.
+    The doc must also explicitly forbid modifying .claude/settings.json or any
+    harness config.
+    """
+    content = STORY_EXECUTOR_MD.read_text()
+    assert "bgIsolation" in content or "isolation" in content.lower(), (
+        "story-executor.md must document the isolation-guard fallback"
+    )
+    assert "heredoc" in content.lower() or "cat >" in content or "<<'EOF'" in content, (
+        "story-executor.md must give a concrete heredoc fallback example"
+    )
+    assert ".claude/settings.json" in content, (
+        "story-executor.md must explicitly forbid modifying .claude/settings.json"
+    )
+    assert "BLOCKED" in content, (
+        "story-executor.md must forbid returning BLOCKED solely due to the isolation guard"
+    )
+
+
 def test_plugin_readme_no_task_hook_reference() -> None:
     """plugin/README.md must not mention Task lifecycle hooks (TaskCreated/TaskCompleted)."""
     content = PLUGIN_README.read_text()
