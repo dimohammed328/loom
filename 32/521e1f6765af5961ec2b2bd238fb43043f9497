@@ -1,0 +1,20 @@
+plugin/skills/writing-plans/SKILL.md
+  s_06801866809c99::t_64dd05dc048d11 98-99
+  s_06801866809c99::t_a68779fae9291e 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "32521e1f6765af5961ec2b2bd238fb43043f9497",
+  "prompts": {},
+  "sessions": {
+    "s_06801866809c99": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1fd19a9e-dc2a-4289-bacb-0ca2c6f66137",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
