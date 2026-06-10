@@ -422,7 +422,17 @@ def test_cli_e2e_create_with_assignee(tmp_path: Path) -> None:
     # task create --assignee must be rejected
     r_task = runner.invoke(
         app,
-        ["task", "create", story_qid, "--title", "Wire", "--assignee", "carol", "--root", str(root)],
+        [
+            "task",
+            "create",
+            story_qid,
+            "--title",
+            "Wire",
+            "--assignee",
+            "carol",
+            "--root",
+            str(root),
+        ],
     )
     assert r_task.exit_code != 0
 

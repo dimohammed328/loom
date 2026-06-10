@@ -321,9 +321,7 @@ def test_story_create_with_assignee_sets_frontmatter(loom_dir: Path) -> None:
         app,
         ["project", "create", "acme", "--title", "Acme", "--repo", "x", "--root", str(loom_dir)],
     )
-    re = runner.invoke(
-        app, ["epic", "create", "acme", "--title", "Auth", "--root", str(loom_dir)]
-    )
+    re = runner.invoke(app, ["epic", "create", "acme", "--title", "Auth", "--root", str(loom_dir)])
     epic_qid = re.stdout.strip()
     r = runner.invoke(
         app,
@@ -386,9 +384,7 @@ def test_task_create_rejects_assignee_option(loom_dir: Path) -> None:
         app,
         ["project", "create", "acme", "--title", "Acme", "--repo", "x", "--root", str(loom_dir)],
     )
-    re = runner.invoke(
-        app, ["epic", "create", "acme", "--title", "Auth", "--root", str(loom_dir)]
-    )
+    re = runner.invoke(app, ["epic", "create", "acme", "--title", "Auth", "--root", str(loom_dir)])
     epic_qid = re.stdout.strip()
     rs = runner.invoke(
         app, ["story", "create", epic_qid, "--title", "Backend", "--root", str(loom_dir)]
