@@ -1,0 +1,21 @@
+src/loom/cli.py
+  s_06801866809c99::t_34c763cac81511 753-754
+tests/test_cli.py
+  s_06801866809c99::t_5c42b1549e6a8b 297-317
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "edbd1d7b5d14f99f00d4498ddbf730c7152c09c7",
+  "prompts": {},
+  "sessions": {
+    "s_06801866809c99": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1fd19a9e-dc2a-4289-bacb-0ca2c6f66137",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
