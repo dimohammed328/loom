@@ -380,6 +380,38 @@ def test_epic_create_with_assignee_sets_frontmatter(loom_dir: Path) -> None:
     assert epic.assignee == "alice"
 
 
+def test_task_create_rejects_assignee_option(loom_dir: Path) -> None:
+    """task create --assignee exits non-zero (option does not exist)."""
+    runner.invoke(
+        app,
+        ["project", "create", "acme", "--title", "Acme", "--repo", "x", "--root", str(loom_dir)],
+    )
+    re = runner.invoke(
+        app, ["epic", "create", "acme", "--title", "Auth", "--root", str(loom_dir)]
+    )
+    epic_qid = re.stdout.strip()
+    rs = runner.invoke(
+        app, ["story", "create", epic_qid, "--title", "Backend", "--root", str(loom_dir)]
+    )
+    story_qid = rs.stdout.strip()
+    r = runner.invoke(
+        app,
+        [
+            "task",
+            "create",
+            story_qid,
+            "--title",
+            "Wire",
+            "--assignee",
+            "carol",
+            "--root",
+            str(loom_dir),
+        ],
+    )
+    assert r.exit_code != 0
+    assert "no such option" in r.output.lower() or "no such option" in (r.stderr or "").lower()
+
+
 # ---------------------------------------------------------------------------
 # show / set / archive / status shortcuts
 # ---------------------------------------------------------------------------
