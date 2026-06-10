@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: "Use after the brainstorming skill produces an approved groomed draft. Materializes the draft as loom items via `loom epic|story|task create --body-file`, adds dependencies via `loom dep add`, sets `assignee` on epics and stories. Hands off by launching the appropriate workflow (epic or story)."
+description: "Use after the brainstorming skill produces an approved groomed draft. Materializes the draft as loom items via `loom -y epic|story|task create --body-file`, adds dependencies via `loom -y dep add`, sets `assignee` on epics and stories. Hands off by launching the appropriate workflow (epic or story)."
 ---
 
 # Writing Plans — loom-backed materialization
@@ -95,8 +95,8 @@ loom tree <epic-qid or story-qid>
 ```
 
 Show both outputs to the user. Confirm the structure is what they approved. If they want changes:
-- Status / structure: `loom update`, `loom dep add/rm`, etc.
-- Bodies: `loom update <qid> body --body-file <new-file>`
+- Status / structure: `loom -y update`, `loom -y dep add/rm`, etc.
+- Bodies: `loom -y update <qid> body --body-file <new-file>`
 
 ### Step 5: Hand off
 
