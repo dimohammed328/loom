@@ -61,6 +61,52 @@ note the handle for later teardown.
 the shell session open indefinitely, which hangs the subagent and forces a
 manual kill. This is the root cause of the watchdog-triggered crashes logged
 in the June 2026 audit.
+
+### Readiness poll — bounded, mandatory
+
+After starting the server, poll for readiness with a **hard cap** on the
+number of attempts. Do not assume the server is immediately available, and
+do not poll indefinitely:
+
+```bash
+READY=false
+for i in $(seq 1 20); do
+  if curl -sf http://localhost:<PORT>/health >/dev/null 2>&1; then
+    READY=true
+    break
+  fi
+  sleep 1
+done
+```
+
+Adapt the health endpoint, port, and retry count to the project. 20 attempts
+with 1 s delay is the suggested default (20 s wall-clock budget). If the loop
+exhausts without success, proceed to the fallback (see below).
+
+### Teardown — guaranteed, mandatory
+
+Before the validator agent returns — whether behavioral verification succeeded,
+failed, or was skipped — kill the background server by its captured PID:
+
+```bash
+kill "$SERVER_PID" 2>/dev/null || true
+```
+
+This MUST run even on the failure path. Orphan processes on open ports require
+manual intervention; the audit identified leaked uvicorn processes on multiple
+ports as a direct consequence of missing teardown.
+
+### Wall-clock budget and fallback
+
+The total time spent launching the server, polling for readiness, and
+exercising the app MUST complete within a **5-minute wall-clock budget**.
+
+If the readiness poll exhausts its cap (the server never becomes ready):
+
+1. Kill the background server via the captured PID.
+2. Run the project's test suite, lint, and format as a substitute.
+3. Report `behavioral_verification: "failed"` in the result JSON and include
+   a note explaining that the server did not become ready within the budget.
 5. **For each criterion** in the epic body's checklist: confirm against the observed state (the verify run's output, the test results, file/symbol checks).
 6. Emit `validation_result` with the outcome. On failure, include a `summary` so the orchestrator and audit trail have a human-readable description of what failed:
    ```bash
