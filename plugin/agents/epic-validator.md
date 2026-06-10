@@ -37,6 +37,30 @@ The dispatching prompt contains:
    - Invoke via `Skill` tool with skill name `verify`.
    - The `verify` skill knows how to launch the project's app (CLI / server / TUI / Electron / browser) and observe behavior.
    - If `verify` reports failure or cannot launch the app, **fall back gracefully**: run the project's test suite, lint, and format. Note in your evidence that behavioral verification was unavailable.
+
+## Server Lifecycle
+
+When behavioral verification requires a long-lived server (HTTP, gRPC, or any
+process that keeps a port open), follow these rules **in every verify run**:
+
+### Start in the background — mandatory
+
+Any long-lived server MUST be started in the background so the subagent is
+never blocked waiting for it. Capture the PID immediately:
+
+```bash
+# Example — adapt to the project's actual start command
+./start-server.sh &
+SERVER_PID=$!
+```
+
+Or, if the Bash tool supports `run_in_background`, use that parameter and
+note the handle for later teardown.
+
+**Do NOT start a server as a foreground process.** A foreground server holds
+the shell session open indefinitely, which hangs the subagent and forces a
+manual kill. This is the root cause of the watchdog-triggered crashes logged
+in the June 2026 audit.
 5. **For each criterion** in the epic body's checklist: confirm against the observed state (the verify run's output, the test results, file/symbol checks).
 6. Emit `validation_result` with the outcome. On failure, include a `summary` so the orchestrator and audit trail have a human-readable description of what failed:
    ```bash
