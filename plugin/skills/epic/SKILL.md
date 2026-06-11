@@ -27,13 +27,53 @@ The user has invoked `/epic <description>`. The description is in `$ARGUMENTS`. 
    ```
    loom:writing-workflows mode=epic epic_qid=<qid> finalize=<'pr' or 'merge'>
    ```
-   Set `finalize` to `"merge"` only if the original `/epic` request explicitly asked to merge to main (e.g. "merge to main", "push to main", "no PR"); otherwise use `"pr"` (the default). That skill generates a bespoke baked-DAG workflow script and launches it. The generated workflow creates the epic worktree, runs the story scheduler loop, runs final epic validation, and finalizes the branch. On failure, the workflow halts and surfaces the diagnostic — that ends your turn.
+   `finalize` is derived mechanically from the original `/epic` request text — it is NEVER a question for the user. Use `"merge"` only when the request explicitly asked to merge (e.g. "merge to main", "push to main", "no PR"); in every other case — including when the request says nothing about merging — use `"pr"`. Do NOT ask the user to choose between PR and merge, in prose or via AskUserQuestion. Unsure means `"pr"`. That skill generates a bespoke baked-DAG workflow script and launches it. The generated workflow creates the epic worktree, runs the story scheduler loop, runs final epic validation, and finalizes the branch. When epic validation fails, the workflow is REQUIRED to fix what it can (fix passes on the trunk + re-validation) and reports the outcome in the result; see **Reporting the result**. On a `result: 'failed'`, follow the **HALT PROTOCOL** below.
+
+## Reporting the result
+
+The workflow result carries a `validation` object: `{passed, attempts, fixes, open_criteria, open_questions, notes}`.
+
+Fixing failed validation is REQUIRED behavior, not an option. When epic validation fails, the workflow must attempt to fix every criterion that has a reasonable solution (fix passes on the trunk + re-validation, ≤3 attempts). "Validation failed, here is what would fix it" is an unacceptable outcome — if the fix is known, it is applied. The only legitimate reason to leave a criterion open is an open question whose answer has ramifications outside the run's context (product intent, unstated requirements, external systems); those return in `validation.open_questions` with the options laid out.
+
+How the run ends when validation never passed depends on the finalize mode:
+- `finalize="pr"` (default): the run still finalizes — the PR opens with a "⚠ Epic validation" section disclosing the open criteria and the fixes applied. This arrives as `result: 'ok'` with `validation.passed: false` — a completed run with a disclosure duty, not a halt.
+- `finalize="merge"`: an unvalidated trunk is never merged, and no PR is opened in its place. The workflow returns `result: 'failed'` with the validation report attached — surface it in conversation (the HALT PROTOCOL applies).
+
+When `validation.passed` is false, your final message MUST report, in this order:
+1. That epic validation failed — state it plainly, first.
+2. What the fix passes changed (`validation.fixes`).
+3. The still-open criteria (`validation.open_criteria`) verbatim.
+4. Any `validation.open_questions` — present each with its options; these are the only items that may stop the work.
+
+## HALT PROTOCOL — BINDING
+
+> **EXTREMELY IMPORTANT.** When the workflow launched in step 5 returns
+> `result: 'failed'` (trunk setup failure, story non-convergence, merge
+> conflict, cycle detected, finalize error, or any other non-success
+> outcome), the ONLY permitted responses are:
+>
+> 1. Report the returned `reason`, validation criteria, and any open findings
+>    to the user **verbatim**, exactly as the workflow surfaced them.
+> 2. Offer to re-run or resume the workflow (the epic worktree and all story
+>    worktrees are reused; fix-tasks resume where validation left off).
+> 3. Route any real code or doc fix through a **new `/story`** or a
+>    **story-fixer re-dispatch** against the existing story worktree.
+>
+> **NEVER do any of the following after a non-ok result:**
+>
+> - Edit, Write, or commit files in the trunk, the epic worktree, or any
+>   story worktree directly from this skill.
+> - Run ad-hoc smoke or verify scripts to manually clear the finalize gate.
+> - Hand-run `gh pr create`, `git merge`, or `loom complete` to bypass the
+>   workflow.
+>
+> **Post-completion follow-ups are a new `/story`, never a hand-edit on the
+> epic branch.**
 
 ## Constraints
 
 - Never skip the groom phase even if the description is detailed — the research step always adds value.
 - Never execute code changes from this skill directly. All implementation happens inside story-executor subagents in story worktrees.
-- If the workflow halts at any step (cycle detected during planning, validation fails after retries, merge conflict requires human input), surface the diagnostic and stop. Do not retry or work around silently.
 
 ## What you do NOT do here
 

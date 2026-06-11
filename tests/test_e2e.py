@@ -335,15 +335,15 @@ def test_cli_e2e_create_chain(tmp_path: Path) -> None:
 
     r = runner.invoke(app, ["epic", "create", "myproj", "--title", "Auth", "--root", str(root)])
     assert r.exit_code == 0
-    epic_qid = r.output.strip().removeprefix("created ").strip()
+    epic_qid = r.stdout.strip()
 
     r = runner.invoke(app, ["story", "create", epic_qid, "--title", "Backend", "--root", str(root)])
     assert r.exit_code == 0
-    story_qid = r.output.strip().removeprefix("created ").strip()
+    story_qid = r.stdout.strip()
 
     r = runner.invoke(app, ["task", "create", story_qid, "--title", "Wire", "--root", str(root)])
     assert r.exit_code == 0
-    task_qid = r.output.strip().removeprefix("created ").strip()
+    task_qid = r.stdout.strip()
 
     r = runner.invoke(app, ["complete", task_qid, "--root", str(root)])
     assert r.exit_code == 0
@@ -357,6 +357,84 @@ def test_cli_e2e_create_chain(tmp_path: Path) -> None:
 
     r = runner.invoke(app, ["validate", "--root", str(root)])
     assert r.exit_code == 0
+
+
+def test_cli_e2e_create_with_assignee(tmp_path: Path) -> None:
+    """epic create --assignee and story create --assignee set frontmatter in one call."""
+    root = tmp_path / "loom"
+    runner.invoke(app, ["init", "--root", str(root)])
+    runner.invoke(
+        app,
+        [
+            "project",
+            "create",
+            "myproj",
+            "--title",
+            "MyProj",
+            "--repo",
+            "https://github.com/acme/myproj",
+            "--root",
+            str(root),
+        ],
+    )
+
+    # Epic create with assignee
+    r = runner.invoke(
+        app,
+        ["epic", "create", "myproj", "--title", "Auth", "--assignee", "alice", "--root", str(root)],
+    )
+    assert r.exit_code == 0, r.output
+    epic_qid = r.stdout.strip()
+
+    # Story create with assignee
+    r = runner.invoke(
+        app,
+        [
+            "story",
+            "create",
+            epic_qid,
+            "--title",
+            "Backend",
+            "--assignee",
+            "bob",
+            "--root",
+            str(root),
+        ],
+    )
+    assert r.exit_code == 0, r.output
+    story_qid = r.stdout.strip()
+
+    # Verify via loom show --json (CLI surface)
+    r = runner.invoke(app, ["show", epic_qid, "--json", "--root", str(root)])
+    assert r.exit_code == 0, r.output
+    epic_data = json.loads(r.output)
+    assert epic_data["frontmatter"]["assignee"] == "alice"
+
+    r = runner.invoke(app, ["show", story_qid, "--json", "--root", str(root)])
+    assert r.exit_code == 0, r.output
+    story_data = json.loads(r.output)
+    assert story_data["frontmatter"]["assignee"] == "bob"
+
+    # Stdout must still be the bare qid only (no extra lines)
+    assert "\n" not in epic_qid
+    assert "\n" not in story_qid
+
+    # task create --assignee must be rejected
+    r_task = runner.invoke(
+        app,
+        [
+            "task",
+            "create",
+            story_qid,
+            "--title",
+            "Wire",
+            "--assignee",
+            "carol",
+            "--root",
+            str(root),
+        ],
+    )
+    assert r_task.exit_code != 0
 
 
 # ---------------------------------------------------------------------------
@@ -417,13 +495,13 @@ def test_cli_e2e_dep_ready_close(tmp_path: Path) -> None:
         ],
     )
     r = runner.invoke(app, ["epic", "create", "acme", "--title", "E", "--root", str(root)])
-    epic = r.output.strip().removeprefix("created ").strip()
+    epic = r.stdout.strip()
     r = runner.invoke(app, ["story", "create", epic, "--title", "S", "--root", str(root)])
-    story = r.output.strip().removeprefix("created ").strip()
+    story = r.stdout.strip()
     r = runner.invoke(app, ["task", "create", story, "--title", "T1", "--root", str(root)])
-    t1 = r.output.strip().removeprefix("created ").strip()
+    t1 = r.stdout.strip()
     r = runner.invoke(app, ["task", "create", story, "--title", "T2", "--root", str(root)])
-    t2 = r.output.strip().removeprefix("created ").strip()
+    t2 = r.stdout.strip()
 
     runner.invoke(app, ["dep", "add", t2, "--on", t1, "--root", str(root)])
     r = runner.invoke(app, ["ready", "--type", "task", "--root", str(root)])

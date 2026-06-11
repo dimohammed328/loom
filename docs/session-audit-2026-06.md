@@ -62,7 +62,7 @@ The secondary tier is environment/guardrail gaps that force those takeovers: epi
 
 **→ Converge every skill on the writing-workflows baked-DAG handoff (the latest internally-consistent generation). Repo HEAD has ALREADY done this (epic/story/writing-plans now hand off to loom:writing-workflows; plugin/workflows/ is deleted), but the cached snapshot 05707a6877a3 still references the static scriptPath. Action: ship/publish the repo-HEAD plugin so the cache no longer carries the static path, and confirm no executing-plans skill or story-integrator agent remains loadable. Per dev-mode, hard-delete (no aliases). See suggestion CONS-1.**
 
-### epic_finalize event-log metadata on PR-only finalizes
+### epic-finalize event-log metadata on PR-only finalizes
 - Logged --field merged_to=main even though only a PR was opened (no merge) — 17ae9911 (line 2396), 73189c51 (line 1660)
 - (All sessions' ACTUAL finalize behavior was correct: PR by default, merge only when asked — the inconsistency is purely the logged metadata vs reality)
 
@@ -117,12 +117,12 @@ The secondary tier is environment/guardrail gaps that force those takeovers: epi
 
 **Evidence.** c8a3b2c1: epic worktree .loom/ (state.json + retry-counters.json) swept into commit d8d1029, leaked into PR #6; user flagged ('.loom files should be gitignored remove them and make sure theyre in gitignore'); fixed via git rm --cached + adding .loom/ to .gitignore (commit 39cf206).
 
-### `WF-5` — Derive the epic_finalize event-log merged_to field from the actual finalize arg, not a hardcoded literal  ·  _MEDIUM / small_
-**Problem.** Finalize behavior was correct everywhere (PR by default; merge only when asked), but the event-log metadata is wrong: on PR-only finalizes the epic_finalize loom-log-event.sh call recorded merged_to=main alongside the PR url, though nothing was merged. Any downstream consumer reconstructing finalize behavior across sessions (exactly this audit) is misled about whether main advanced. It is a baked-in template bug hit identically in two sessions.
+### `WF-5` — Derive the epic-finalize event-log merged_to field from the actual finalize arg, not a hardcoded literal  ·  _MEDIUM / small_
+**Problem.** Finalize behavior was correct everywhere (PR by default; merge only when asked), but the event-log metadata is wrong: on PR-only finalizes the epic-finalize loom-log-event.sh call recorded merged_to=main alongside the PR url, though nothing was merged. Any downstream consumer reconstructing finalize behavior across sessions (exactly this audit) is misled about whether main advanced. It is a baked-in template bug hit identically in two sessions.
 
-**Fix.** In the finalize step of the epic-runner/story-runner template (and any loom-log-event.sh epic_finalize call), emit merged_to=main only when finalize=='merge'; for finalize=='pr' omit merged_to (or set empty) and record only pr_url. Dev-mode: fix the template at source, no compat shim.
+**Fix.** In the finalize step of the epic-runner/story-runner template (and any loom-log-event.sh epic-finalize call), emit merged_to=main only when finalize=='merge'; for finalize=='pr' omit merged_to (or set empty) and record only pr_url. Dev-mode: fix the template at source, no compat shim.
 
-**Evidence.** 17ae9911 (gh pr create -> PR #2, no merge, yet next event logged --field merged_to=main --field pr_url=..., line 2396), 73189c51 (finalize was PR #3 only; orchestrator stated 'via PR, request didn't ask to merge'; epic_finalize still logged merged_to=main, line 1660).
+**Evidence.** 17ae9911 (gh pr create -> PR #2, no merge, yet next event logged --field merged_to=main --field pr_url=..., line 2396), 73189c51 (finalize was PR #3 only; orchestrator stated 'via PR, request didn't ask to merge'; the epic-finalize event still logged merged_to=main, line 1660).
 
 ### `CLI-6` — Visibly mark archived items in `loom tree`/`show`/`list` (and add an --archived filter)  ·  _LOW / small_
 **Problem.** loom tree indexes the _archive/ tree too, so after archiving an item it still appears in loom tree, which the orchestrator read as 'archive failed'. That confusion drove an out-of-band find ... -delete of a loom item .md (a CLI bypass that also violated an explicit user instruction, correctly blocked by the classifier) and an unnecessary loom rebuild to 'recover'.

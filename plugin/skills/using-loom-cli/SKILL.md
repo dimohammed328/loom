@@ -37,6 +37,9 @@ projects/epics/stories, and `<project>:<random>:<n>` for tasks.
 Create a new project. The current directory must be a git repo with an
 `origin` remote, or pass `--repo` explicitly.
 
+> **stdout contract:** Prints the bare qid of the created project on **stdout**;
+> prints `created <qid>` on **stderr**. Capture with `PROJ=$(loom -y project create …)`.
+
 ```
 Usage: loom project create [OPTIONS] NAME
 
@@ -67,6 +70,9 @@ loom -y project create --title "My Project" myproject
 
 Create a new epic under a project.
 
+> **stdout contract:** Prints the bare qid of the created epic on **stdout**;
+> prints `created <qid>` on **stderr**. Capture with `EPIC=$(loom -y epic create …)`.
+
 ```
 Usage: loom epic create [OPTIONS] [PROJECT]
 
@@ -78,6 +84,7 @@ Options:
   --body TEXT          Markdown body.
   --body-file PATH     Path to a markdown file used as the body.
                        Mutually exclusive with --body.
+  --assignee TEXT      Assignee for the new epic (e.g. session-id:agent-id).
   --root PATH          Override $LOOM_DIR for this invocation.
   --help               Show this message and exit.
 ```
@@ -85,7 +92,7 @@ Options:
 **Example:**
 
 ```bash
-loom -y epic create --title "Authentication Overhaul" myproject
+loom -y epic create --title "Authentication Overhaul" --assignee "${CLAUDE_SESSION_ID}" myproject
 ```
 
 ---
@@ -94,6 +101,9 @@ loom -y epic create --title "Authentication Overhaul" myproject
 
 Create a new story under an epic. Passing a bare project qid defaults to
 the project's `backlog` epic, creating it on the fly if needed.
+
+> **stdout contract:** Prints the bare qid of the created story on **stdout**;
+> prints `created <qid>` on **stderr**. Capture with `STORY=$(loom -y story create …)`.
 
 ```
 Usage: loom story create [OPTIONS] [EPIC_QID]
@@ -106,6 +116,7 @@ Options:
   --body TEXT          Markdown body.
   --body-file PATH     Path to a markdown file used as the body.
                        Mutually exclusive with --body.
+  --assignee TEXT      Assignee for the new story (e.g. session-id:agent-id).
   --root PATH          Override $LOOM_DIR for this invocation.
   --help               Show this message and exit.
 ```
@@ -113,7 +124,7 @@ Options:
 **Example:**
 
 ```bash
-loom -y story create --title "Add login endpoint" --body-file story.md myproject:abc123
+loom -y story create --title "Add login endpoint" --body-file story.md --assignee "${CLAUDE_SESSION_ID}" myproject:abc123
 ```
 
 ---
@@ -121,6 +132,9 @@ loom -y story create --title "Add login endpoint" --body-file story.md myproject
 ### `task create`
 
 Create a new task under a story.
+
+> **stdout contract:** Prints the bare qid of the created task on **stdout**;
+> prints `created <qid>` on **stderr**. Capture with `TASK=$(loom -y task create …)`.
 
 ```
 Usage: loom task create [OPTIONS] [STORY_QID]

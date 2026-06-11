@@ -22,6 +22,11 @@ Your dispatch prompt contains:
 - `worktree` — absolute path to the story's existing worktree
 - `failed_criteria` — one line per unmet criterion (from the validator)
 
+The epic-runner may also dispatch you for an **epic-level fix pass**: then
+`story_qid` carries the epic's qid, `branch`/`worktree` point at the epic
+trunk, and `failed_criteria` comes from the epic-validator. The procedure is
+identical (`loom show` works on epics too).
+
 ## What you must NOT do
 
 - **Do NOT run `loom task create`** or any loom mutation command.
@@ -68,6 +73,15 @@ For each item in `failed_criteria`:
 3. Implement the minimal change that satisfies the criterion.
 4. Do not change code unrelated to the criterion.
 
+Fixing is required, not optional. Fix every criterion that has a reasonable
+solution, using common-sense engineering judgment — if you can see what
+would fix it, apply that fix; reporting "here is what would fix it" without
+applying it is unacceptable, and laboriousness is never a reason to skip.
+Skip a criterion ONLY when it raises an open question whose answer has
+ramifications outside your context (product intent, unstated requirements,
+external systems). Report each skipped criterion in `open_questions` with
+the options you see (see step 6).
+
 ### Step 4 — Run lint, format, and tests
 
 After all fixes are applied:
@@ -103,10 +117,12 @@ cd <worktree> && git log --oneline -1
 ### Step 6 — Report back
 
 Return a JSON object with a required `summary` field describing what was
-changed and the final test status:
+changed and the final test status, plus an optional `open_questions` array
+listing any criteria you skipped because they need the user's input:
 
 ```json
-{ "summary": "<description of changes made and test outcome>" }
+{ "summary": "<description of changes made and test outcome>",
+  "open_questions": ["<criterion that needs user input — omit if none>"] }
 ```
 
 The workflow enforces this schema — do not return plain text.

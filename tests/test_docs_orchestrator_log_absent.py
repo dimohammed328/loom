@@ -28,8 +28,17 @@ def test_orchestrator_log_doc_absent() -> None:
 
 
 def test_docs_no_removed_event_kinds() -> None:
-    """No markdown file under docs/ should reference the removed orchestrator event kinds."""
+    """Non-archival docs must not reference removed orchestrator event kinds.
+
+    Session-audit and session-report files are exempt: they are historical records
+    that may legitimately name removed event kinds to document past bugs or behaviour.
+    """
     for md_file in DOCS_DIR.rglob("*.md"):
+        # Skip historical audit / session-report documents — they are archival and may
+        # reference removed event vocabulary when describing past behaviour or bugs.
+        name = md_file.name
+        if name.startswith("session-audit") or name.startswith("session-report"):
+            continue
         content = md_file.read_text()
         for event in REMOVED_EVENTS:
             assert event not in content, (

@@ -14,7 +14,7 @@ export const meta = {
   phases: [
     { title: 'Trunk',           detail: 'Fresh main and the epic trunk worktree' },
     { title: 'Stories',         detail: 'Per story: build → validate → fix → merge into the trunk (independent stories run concurrently)' },
-    { title: 'Epic validation', detail: 'epic-validator over the fully-merged trunk' },
+    { title: 'Epic validation', detail: 'epic-validator over the fully-merged trunk; failed criteria get fix passes and re-validation (≤3 attempts)' },
     { title: 'Finalize',        detail: 'open a PR (default) or merge + push to main' },
   ],
 }
@@ -63,7 +63,8 @@ const FIXER_SCHEMA = {
   type: 'object',
   required: ['summary'],
   properties: {
-    summary: { type: 'string' },
+    summary:        { type: 'string' },
+    open_questions: { type: 'array', items: { type: 'string' } },
   },
 }
 
@@ -347,34 +348,108 @@ await agent(
   { label: 'code-hygiene', phase: 'Epic validation', agentType: 'loom:code-hygiene', schema: FIXER_SCHEMA }
 )
 
-// ── Epic validation ──────────────────────────────────────────────────────────
+// ── Epic validation: validate → fix convergence loop ─────────────────────────
+//
+// A failed epic validation does NOT halt the run, and fixing is required,
+// not optional: every failed criterion with a reasonable solution is fixed
+// directly on the trunk by an epic-level fixer pass. Only open questions
+// whose answers have ramifications outside this run's context are carried
+// into the final result (validation.open_questions). In pr mode the run
+// still finalizes with the failure disclosed in the PR body; in merge mode
+// an unvalidated trunk is never merged and no PR is opened in its place —
+// the run returns failed with the validation report attached.
 
-log(`Dispatching epic-validator for ${EPIC_QID}`)
+const MAX_EPIC_VAL_ATTEMPTS = 3
+const epicFixes = []      // summary of each fix pass applied on the trunk
+const openQuestions = []  // criteria the fixer flagged as needing the user
+let epicVal = null
+let valAttempts = 0
 
-const epicVal = await agent(
-  `epic_qid=${EPIC_QID} branch=${trunk.branch} worktree=${trunk.worktree}`,
-  { label: 'epic-validator', phase: 'Epic validation', agentType: 'loom:epic-validator', schema: EPIC_VAL_SCHEMA }
-)
+while (valAttempts < MAX_EPIC_VAL_ATTEMPTS) {
+  valAttempts++
+  log(`Dispatching epic-validator for ${EPIC_QID} (attempt ${valAttempts}/${MAX_EPIC_VAL_ATTEMPTS})`)
+  epicVal = await agent(
+    `epic_qid=${EPIC_QID} branch=${trunk.branch} worktree=${trunk.worktree}`,
+    { label: `epic-validator:${valAttempts}`, phase: 'Epic validation', agentType: 'loom:epic-validator', schema: EPIC_VAL_SCHEMA }
+  )
+  if (!epicVal || epicVal.result === 'ok') break
 
-if (epicVal.result !== 'ok') {
-  log(`Epic validation FAILED. Notes: ${epicVal.notes ?? '(none)'}`)
-  return {
-    result: 'failed',
-    reason: 'epic-validator returned failed',
-    criteria: epicVal.criteria,
-    notes: epicVal.notes,
+  const open = (epicVal.criteria ?? [])
+    .filter(c => c && c.pass === false)
+    .map(c => `${c.text}${c.evidence ? ` — ${c.evidence}` : ''}`)
+  log(`Epic validation failed (attempt ${valAttempts}): ${open.length} unmet criterion(a). Notes: ${epicVal.notes ?? '(none)'}`)
+  if (valAttempts === MAX_EPIC_VAL_ATTEMPTS) break
+
+  const fix = await agent(
+    `story_qid=${EPIC_QID} branch=${trunk.branch} worktree=${trunk.worktree}
+failed_criteria:
+${open.join('\n')}
+${epicVal.notes ? `validator_notes: ${epicVal.notes}` : ''}
+This is an EPIC-level fix pass on the epic trunk worktree (story_qid above
+carries the epic's qid; read its body with loom show as usual). Fixing is
+required, not optional: fix every failed criterion that has a reasonable
+solution, using common-sense engineering judgment. If you can see what would
+fix a criterion, apply that fix — describing the fix instead of applying it
+is unacceptable, and laboriousness is never a reason to skip. Skip a
+criterion ONLY when it raises an open question whose answer has
+ramifications outside this run's context (product intent, unstated
+requirements, external systems); report each such criterion in
+"open_questions" with the options you see.`,
+    { label: `epic-fixer:${valAttempts}`, phase: 'Epic validation', agentType: 'loom:story-fixer', schema: FIXER_SCHEMA }
+  )
+  if (fix) {
+    epicFixes.push(`fix pass ${valAttempts}: ${fix.summary}`)
+    for (const q of fix.open_questions ?? []) {
+      if (!openQuestions.includes(q)) openQuestions.push(q)
+    }
   }
 }
 
-log('Epic validation passed.')
+const epicValPassed = !!epicVal && epicVal.result === 'ok'
+const openCriteria = epicValPassed
+  ? []
+  : (epicVal?.criteria ?? []).filter(c => c && c.pass === false).map(c => c.text)
 
-// Mark the epic done in loom.
-await agent(
-  `Run: loom complete ${EPIC_QID}`,
-  { label: `complete-epic:${EPIC_QID}`, phase: 'Epic validation', agentType: 'loom:story-executor' }
-)
+// Attached to every final result. When passed=false the orchestrator must
+// surface this verbatim: what failed, what the fix passes changed, and
+// what's still open.
+const validation = {
+  passed: epicValPassed,
+  attempts: valAttempts,
+  fixes: epicFixes,
+  open_criteria: openCriteria,
+  open_questions: openQuestions,
+  notes: epicVal?.notes ?? null,
+}
+
+if (epicValPassed) {
+  log(epicFixes.length
+    ? `Epic validation passed after ${valAttempts} attempt(s) (${epicFixes.length} fix pass(es) applied on the trunk).`
+    : 'Epic validation passed.')
+  // Mark the epic done in loom.
+  await agent(
+    `Run: loom complete ${EPIC_QID}`,
+    { label: `complete-epic:${EPIC_QID}`, phase: 'Epic validation', agentType: 'loom:story-executor' }
+  )
+} else {
+  log(`Epic validation did NOT pass after ${valAttempts} attempt(s); the epic stays incomplete in loom.`)
+}
 
 // ── Finalize ─────────────────────────────────────────────────────────────────
+
+// An unvalidated trunk is never merged, and merge mode opens no PR in its
+// place — the run returns failed and the orchestrator surfaces the
+// validation report in conversation.
+if (FINALIZE === 'merge' && !epicValPassed) {
+  log('finalize=merge was requested, but epic validation did not pass — leaving the trunk unmerged and opening no PR.')
+  return {
+    result: 'failed',
+    reason: 'epic validation did not pass; finalize=merge withheld (trunk left unmerged, no PR opened)',
+    branch: trunk.branch,
+    worktree: trunk.worktree,
+    validation,
+  }
+}
 
 if (FINALIZE === 'merge') {
   // Local merge + push into main (only when explicitly requested).
@@ -403,10 +478,17 @@ Return { "merged": true, "merge_sha": "<sha>" }.`,
     return { result: 'failed', reason: `merge conflict: ${merge.conflict}` }
   }
   log(`Merged ${trunk.branch} into main at ${merge.merge_sha}.`)
-  return { result: 'ok', epic_qid: EPIC_QID, branch: trunk.branch, merged_to: 'main' }
+  return { result: 'ok', epic_qid: EPIC_QID, branch: trunk.branch, merged_to: 'main', validation }
 } else {
   // Default: push branch + open PR.
   log(`Pushing ${trunk.branch} and opening PR`)
+  const valDisclosure = epicValPassed ? '' : `
+5. Epic validation did NOT pass for this trunk. Append a final
+   "## ⚠ Epic validation" section to the PR body stating that validation
+   failed, listing each open criterion below verbatim, and summarizing the
+   fix passes already applied:
+${openCriteria.map(c => `   - open: ${c}`).join('\n')}
+${epicFixes.map(f => `   - ${f}`).join('\n')}`
   const pr = await agent(
     `Finalize the epic by pushing the branch and opening a pull request.
 1. cd ${trunk.worktree}
@@ -418,9 +500,10 @@ Return { "merged": true, "merge_sha": "<sha>" }.`,
    Write a short Markdown body: a one-paragraph summary + a "## Changes" bullet
    list grounded in the diff. Every claim must match a real change.
 4. gh pr create --base main --head ${trunk.branch} --title "Epic ${EPIC_QID}: <short summary>" --body-file <tmpfile> and capture the URL
+${valDisclosure}
 Return { "pr_url": "<url>" }.`,
     { label: 'finalize-pr', phase: 'Finalize', schema: PR_SCHEMA }
   )
   log(`Finalized. PR URL: ${pr.pr_url ?? '(none)'}`)
-  return { result: 'ok', epic_qid: EPIC_QID, branch: trunk.branch, pr_url: pr.pr_url }
+  return { result: 'ok', epic_qid: EPIC_QID, branch: trunk.branch, pr_url: pr.pr_url, validation }
 }

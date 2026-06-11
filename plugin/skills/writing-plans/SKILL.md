@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: "Use after the brainstorming skill produces an approved groomed draft. Materializes the draft as loom items via `loom epic|story|task create --body-file`, adds dependencies via `loom dep add`, sets `assignee` on epics and stories. Hands off by launching the appropriate workflow (epic or story)."
+description: "Use after the brainstorming skill produces an approved groomed draft. Materializes the draft as loom items via `loom -y epic|story|task create --body-file`, adds dependencies via `loom -y dep add`, sets `assignee` on epics and stories. Hands off by launching the appropriate workflow (epic or story)."
 ---
 
 # Writing Plans — loom-backed materialization
@@ -55,35 +55,34 @@ In a temp directory (`mktemp -d`), write one markdown file per loom item to be c
 
 ### Step 2: Create the loom items
 
+> **stdout contract:** Every `loom epic|story|task|project create` command prints the bare qid of the newly created item on **stdout** and a human-readable `created <qid>` note on **stderr**. Capture with `QID=$(loom -y <type> create …)` — stderr does not interfere.
+
 For **epic mode**:
 
 ```bash
-EPIC=$(loom epic create <project-qid> --title "<title>" --body-file <tmp>/epic.md)
-loom update "$EPIC" assignee "${CLAUDE_SESSION_ID}"
+EPIC=$(loom -y epic create <project-qid> --title "<title>" --body-file <tmp>/epic.md --assignee "${CLAUDE_SESSION_ID}")
 
 for each story in the draft:
-  STORY=$(loom story create "$EPIC" --title "<story title>" --body-file <tmp>/story-N.md)
-  loom update "$STORY" assignee "${CLAUDE_SESSION_ID}"
+  STORY=$(loom -y story create "$EPIC" --title "<story title>" --body-file <tmp>/story-N.md --assignee "${CLAUDE_SESSION_ID}")
   # Every story MUST have at least one task — a story with no tasks cannot be executed.
   for each task in the story:
-    loom task create "$STORY" --title "<task title>" --body-file <tmp>/task-N-M.md
+    loom -y task create "$STORY" --title "<task title>" --body-file <tmp>/task-N-M.md
 ```
 
 For **story mode**:
 
 ```bash
 # Story lives under <project>:backlog
-STORY=$(loom story create "<project>:backlog" --title "<title>" --body-file <tmp>/story.md)
-loom update "$STORY" assignee "${CLAUDE_SESSION_ID}"
+STORY=$(loom -y story create "<project>:backlog" --title "<title>" --body-file <tmp>/story.md --assignee "${CLAUDE_SESSION_ID}")
 # Every story MUST have at least one task — a story with no tasks cannot be executed.
 for each task in the draft:
-  loom task create "$STORY" --title "<task title>" --body-file <tmp>/task-N.md
+  loom -y task create "$STORY" --title "<task title>" --body-file <tmp>/task-N.md
 ```
 
 ### Step 3: Add dependencies
 
 ```bash
-loom dep add <source-qid> --on <target-qid>
+loom -y dep add <source-qid> --on <target-qid>
 ```
 
 Loom rejects cycles automatically (exit code 4). If you hit a cycle, the groom phase produced a malformed plan — surface the cycle to the user and stop.
@@ -96,8 +95,8 @@ loom tree <epic-qid or story-qid>
 ```
 
 Show both outputs to the user. Confirm the structure is what they approved. If they want changes:
-- Status / structure: `loom update`, `loom dep add/rm`, etc.
-- Bodies: `loom update <qid> body --body-file <new-file>`
+- Status / structure: `loom -y update`, `loom -y dep add/rm`, etc.
+- Bodies: `loom -y update <qid> body --body-file <new-file>`
 
 ### Step 5: Hand off
 

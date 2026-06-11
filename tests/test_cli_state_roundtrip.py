@@ -129,7 +129,7 @@ def test_epic_create_uses_workspace_project_silently(
     assert r.exit_code == 0, r.output
     # The project picker never ran — workspace.project filled it in.
     assert not any(c["prompt"] == "project" for c in calls)
-    assert "created acme:" in r.output
+    assert r.stdout.strip().startswith("acme:")
 
 
 # ---------------------------------------------------------------------------
@@ -142,7 +142,7 @@ def test_story_create_preselects_last_epic(
 ) -> None:
     runner.invoke(app, ["project", "create", "acme", "--title", "Acme", "--root", str(loom_dir)])
     r = runner.invoke(app, ["epic", "create", "--title", "E1", "--root", str(loom_dir)])
-    epic_qid = r.output.strip().removeprefix("created ").strip()
+    epic_qid = r.stdout.strip()
 
     calls, fake = _capture_picker()
     monkeypatch.setattr(prompts, "pick_one", fake)
@@ -158,11 +158,11 @@ def test_show_preselects_deepest_last_touched(
 ) -> None:
     runner.invoke(app, ["project", "create", "acme", "--title", "Acme", "--root", str(loom_dir)])
     r = runner.invoke(app, ["epic", "create", "--title", "E", "--root", str(loom_dir)])
-    epic = r.output.strip().removeprefix("created ").strip()
+    epic = r.stdout.strip()
     r = runner.invoke(app, ["story", "create", epic, "--title", "S", "--root", str(loom_dir)])
-    story = r.output.strip().removeprefix("created ").strip()
+    story = r.stdout.strip()
     r = runner.invoke(app, ["task", "create", story, "--title", "T", "--root", str(loom_dir)])
-    task = r.output.strip().removeprefix("created ").strip()
+    task = r.stdout.strip()
 
     calls, fake = _capture_picker()
     monkeypatch.setattr(prompts, "pick_one", fake)
