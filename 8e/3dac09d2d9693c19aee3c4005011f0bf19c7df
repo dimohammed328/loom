@@ -1,0 +1,38 @@
+plugin/skills/writing-workflows/examples/epic-example.workflow.js
+  s_06801866809c99::t_64e24375329e98 364-412,416-431,433-444
+  s_06801866809c99::t_a237e406cde8a9 482,486-492,504,509
+  s_06801866809c99::t_8746b179a4f482 448-455
+  s_06801866809c99::t_8675540f2df9f1 13
+  s_06801866809c99::t_8f64979d4e314d 62-63
+plugin/skills/writing-workflows/templates/epic-runner.template.js
+  s_06801866809c99::t_08beeb7e448468 469,473-479,491,496
+  s_06801866809c99::t_858d50670660f5 17
+  s_06801866809c99::t_1d8b4406932172 351-399,403-418,420-431
+  s_06801866809c99::t_c43d0b651bb1c3 435-442
+  s_06801866809c99::t_ac1d8208ba29fb 66-67
+plugin/agents/story-fixer.md
+  s_06801866809c99::t_2363481be2204e 76-81
+  s_06801866809c99::t_b1887ec95753ed 25-29
+  s_06801866809c99::t_83e3c04a5a7ace 117-118,121-122
+plugin/skills/writing-workflows/SKILL.md
+  s_06801866809c99::t_77fd2eabc9395a 52-56
+plugin/skills/epic/SKILL.md
+  s_06801866809c99::t_cb1095f3890ffa 46-49
+  s_06801866809c99::t_695c1afe2eb431 30-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "8e3dac09d2d9693c19aee3c4005011f0bf19c7df",
+  "prompts": {},
+  "sessions": {
+    "s_06801866809c99": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1fd19a9e-dc2a-4289-bacb-0ca2c6f66137",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
