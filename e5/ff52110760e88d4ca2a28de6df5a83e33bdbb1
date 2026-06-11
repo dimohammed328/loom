@@ -1,0 +1,24 @@
+plugin/skills/epic/SKILL.md
+  s_06801866809c99::t_d3c4d3b37f2023 30
+plugin/skills/brainstorming/SKILL.md
+  s_06801866809c99::t_79f4aa1676dbae 36
+  s_06801866809c99::t_8284235af83f88 70-85,89
+plugin/skills/story/SKILL.md
+  s_06801866809c99::t_8b85f088a82719 30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "e5ff52110760e88d4ca2a28de6df5a83e33bdbb1",
+  "prompts": {},
+  "sessions": {
+    "s_06801866809c99": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1fd19a9e-dc2a-4289-bacb-0ca2c6f66137",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
