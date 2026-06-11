@@ -27,7 +27,7 @@ The user has invoked `/epic <description>`. The description is in `$ARGUMENTS`. 
    ```
    loom:writing-workflows mode=epic epic_qid=<qid> finalize=<'pr' or 'merge'>
    ```
-   Set `finalize` to `"merge"` only if the original `/epic` request explicitly asked to merge to main (e.g. "merge to main", "push to main", "no PR"); otherwise use `"pr"` (the default). That skill generates a bespoke baked-DAG workflow script and launches it. The generated workflow creates the epic worktree, runs the story scheduler loop, runs final epic validation, and finalizes the branch. On any non-ok result, follow the **HALT PROTOCOL** below.
+   `finalize` is derived mechanically from the original `/epic` request text — it is NEVER a question for the user. Use `"merge"` only when the request explicitly asked to merge (e.g. "merge to main", "push to main", "no PR"); in every other case — including when the request says nothing about merging — use `"pr"`. Do NOT ask the user to choose between PR and merge, in prose or via AskUserQuestion. Unsure means `"pr"`. That skill generates a bespoke baked-DAG workflow script and launches it. The generated workflow creates the epic worktree, runs the story scheduler loop, runs final epic validation, and finalizes the branch. On any non-ok result, follow the **HALT PROTOCOL** below.
 
 ## HALT PROTOCOL — BINDING
 
