@@ -363,12 +363,14 @@ await agent(
 
 // ── Epic validation: validate → fix convergence loop ─────────────────────────
 //
-// A failed epic validation does NOT halt the run. Failed criteria are fixed
-// directly on the trunk by an epic-level fixer pass using common-sense
-// engineering judgment; only questions that genuinely require the user's
-// input are carried into the final result (validation.open_questions). The
-// run always reaches finalize — but a trunk that never passed validation is
-// never auto-merged to main; it falls back to a PR with the failure disclosed.
+// A failed epic validation does NOT halt the run, and fixing is required,
+// not optional: every failed criterion with a reasonable solution is fixed
+// directly on the trunk by an epic-level fixer pass. Only open questions
+// whose answers have ramifications outside this run's context are carried
+// into the final result (validation.open_questions). In pr mode the run
+// still finalizes with the failure disclosed in the PR body; in merge mode
+// an unvalidated trunk is never merged and no PR is opened in its place —
+// the run returns failed with the validation report attached.
 
 const MAX_EPIC_VAL_ATTEMPTS = 3
 const epicFixes = []      // summary of each fix pass applied on the trunk
@@ -397,12 +399,15 @@ failed_criteria:
 ${open.join('\n')}
 ${epicVal.notes ? `validator_notes: ${epicVal.notes}` : ''}
 This is an EPIC-level fix pass on the epic trunk worktree (story_qid above
-carries the epic's qid; read its body with loom show as usual). Fix every
-failed criterion you can resolve with common-sense engineering judgment —
-never skip a criterion merely because it is laborious. Only when a criterion
-truly cannot be resolved without information that only the user can provide
-(product intent, unstated requirements, external credentials) do you skip it
-and report it in "open_questions".`,
+carries the epic's qid; read its body with loom show as usual). Fixing is
+required, not optional: fix every failed criterion that has a reasonable
+solution, using common-sense engineering judgment. If you can see what would
+fix a criterion, apply that fix — describing the fix instead of applying it
+is unacceptable, and laboriousness is never a reason to skip. Skip a
+criterion ONLY when it raises an open question whose answer has
+ramifications outside this run's context (product intent, unstated
+requirements, external systems); report each such criterion in
+"open_questions" with the options you see.`,
     { label: `epic-fixer:${valAttempts}`, phase: 'Epic validation', agentType: 'loom:story-fixer', schema: FIXER_SCHEMA }
   )
   if (fix) {
@@ -418,9 +423,9 @@ const openCriteria = epicValPassed
   ? []
   : (epicVal?.criteria ?? []).filter(c => c && c.pass === false).map(c => c.text)
 
-// Attached to the final result on BOTH finalize paths. When passed=false the
-// orchestrator must surface this verbatim: the run finalized anyway, and the
-// user is told what failed, what the fix passes changed, and what's open.
+// Attached to every final result. When passed=false the orchestrator must
+// surface this verbatim: what failed, what the fix passes changed, and
+// what's still open.
 const validation = {
   passed: epicValPassed,
   attempts: valAttempts,
@@ -440,19 +445,26 @@ if (epicValPassed) {
     { label: `complete-epic:${EPIC_QID}`, phase: 'Epic validation', agentType: 'loom:story-executor' }
   )
 } else {
-  log(`Epic validation did NOT pass after ${valAttempts} attempt(s). Finalizing as a PR with the failure disclosed; the epic stays incomplete in loom.`)
+  log(`Epic validation did NOT pass after ${valAttempts} attempt(s); the epic stays incomplete in loom.`)
 }
 
 // ── Finalize ─────────────────────────────────────────────────────────────────
 
-// Never auto-merge a trunk that didn't pass epic validation — even when
-// finalize=merge was requested, fall back to opening a PR for human review.
-const finalizeMode = FINALIZE === 'merge' && epicValPassed ? 'merge' : 'pr'
-if (FINALIZE === 'merge' && finalizeMode === 'pr') {
-  log('finalize=merge was requested, but epic validation did not pass — opening a PR instead.')
+// An unvalidated trunk is never merged, and merge mode opens no PR in its
+// place — the run returns failed and the orchestrator surfaces the
+// validation report in conversation.
+if (FINALIZE === 'merge' && !epicValPassed) {
+  log('finalize=merge was requested, but epic validation did not pass — leaving the trunk unmerged and opening no PR.')
+  return {
+    result: 'failed',
+    reason: 'epic validation did not pass; finalize=merge withheld (trunk left unmerged, no PR opened)',
+    branch: trunk.branch,
+    worktree: trunk.worktree,
+    validation,
+  }
 }
 
-if (finalizeMode === 'merge') {
+if (FINALIZE === 'merge') {
   // Local merge + push into main (only when explicitly requested).
   log(`Merging ${trunk.branch} into main and pushing`)
   const merge = await agent(

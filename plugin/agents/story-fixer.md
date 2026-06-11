@@ -73,11 +73,14 @@ For each item in `failed_criteria`:
 3. Implement the minimal change that satisfies the criterion.
 4. Do not change code unrelated to the criterion.
 
-Fix every criterion you can resolve with common-sense engineering judgment.
-Skip a criterion ONLY when it truly cannot be resolved without information
-that only the user can provide (product intent, unstated requirements,
-external credentials) — never because it is laborious. Report each skipped
-criterion in `open_questions` (see step 6).
+Fixing is required, not optional. Fix every criterion that has a reasonable
+solution, using common-sense engineering judgment — if you can see what
+would fix it, apply that fix; reporting "here is what would fix it" without
+applying it is unacceptable, and laboriousness is never a reason to skip.
+Skip a criterion ONLY when it raises an open question whose answer has
+ramifications outside your context (product intent, unstated requirements,
+external systems). Report each skipped criterion in `open_questions` with
+the options you see (see step 6).
 
 ### Step 4 — Run lint, format, and tests
 

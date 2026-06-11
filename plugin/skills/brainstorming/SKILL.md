@@ -33,7 +33,7 @@ You MUST use TaskCreate to add a Task List item for each of these and complete i
 3. **Ask clarifying questions** — one at a time. Use the research report to ground each question in concrete context (files, symbols, behaviors). Prefer multiple-choice questions when possible. Cover: purpose, constraints, success criteria, out-of-scope.
 4. **Propose 2-3 approaches** with trade-offs and your recommendation. (Skip for trivial bug-fix stories.)
 5. **Assemble the groomed draft** in conversation (no file written yet) — see the structure below.
-6. **Present the draft** — print the complete groomed draft as plain markdown in your response text, then end your turn and wait for the user's typed reply. Iterate in plain conversation until they approve. See "Presenting the draft" below — AskUserQuestion is forbidden for this step.
+6. **Present the draft** — present the complete groomed draft as an ordinary message response, then end your turn and wait for the user's typed reply. Iterate in conversation until they approve. See "Presenting the draft" below — AskUserQuestion is forbidden for this step.
 7. **Hand off to writing-plans** with the approved draft + scope + project qid + session id.
 
 ## Groomed draft structure
@@ -67,11 +67,11 @@ For **story** mode, the draft includes:
 - Both story and epic bodies MUST contain a `## Validation Criteria` section
 - Tasks do NOT carry validation criteria (they're too granular)
 
-## Presenting the draft — plain markdown only
+## Presenting the draft
 
-The draft presentation (checklist step 6) MUST be ordinary response text:
-print the full draft as markdown, end your turn, and wait for the user's
-reply.
+The draft presentation (checklist step 6) MUST be an ordinary message
+response: present the full draft in your response, end your turn, and wait
+for the user's reply.
 
 **Never use AskUserQuestion (or any interactive prompt) to ask for draft
 approval.** The question UI replaces the conversation view, so the user
@@ -80,8 +80,8 @@ matter how natural "Approve / Revise" options feel — the approval signal
 is the user's typed reply, not a selected option.
 
 AskUserQuestion remains fine for the short clarifying questions of step 3.
-The dividing line: anything the user must read in full to decide gets
-printed as plain text with the turn ended.
+The dividing line: anything the user must read in full to decide goes in an
+ordinary message with the turn ended.
 
 ## Constraints
 
