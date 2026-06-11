@@ -49,7 +49,11 @@ phases that don't apply (no trunk setup, no epic-level validation).
    e. Records its outcome (`{ ok: true }`) in the central store, which lets its
       dependents proceed.
 3. **Inter-story validation** *(epic only)* — after all stories merge, run the
-   epic-level validation criteria against trunk.
+   epic-level validation criteria against trunk. A failed validation does not
+   halt the run: failed criteria get fix passes on the trunk (story-fixer with
+   the epic qid) and re-validation, ≤3 attempts, and the result carries a
+   `validation` report. An unvalidated trunk is never auto-merged to main —
+   `finalize="merge"` falls back to a PR.
 4. **Finalize** — open a PR (`finalize="pr"`) or merge into main and push
    (`finalize="merge"`).
 

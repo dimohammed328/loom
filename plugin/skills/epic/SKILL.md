@@ -27,14 +27,26 @@ The user has invoked `/epic <description>`. The description is in `$ARGUMENTS`. 
    ```
    loom:writing-workflows mode=epic epic_qid=<qid> finalize=<'pr' or 'merge'>
    ```
-   `finalize` is derived mechanically from the original `/epic` request text — it is NEVER a question for the user. Use `"merge"` only when the request explicitly asked to merge (e.g. "merge to main", "push to main", "no PR"); in every other case — including when the request says nothing about merging — use `"pr"`. Do NOT ask the user to choose between PR and merge, in prose or via AskUserQuestion. Unsure means `"pr"`. That skill generates a bespoke baked-DAG workflow script and launches it. The generated workflow creates the epic worktree, runs the story scheduler loop, runs final epic validation, and finalizes the branch. On any non-ok result, follow the **HALT PROTOCOL** below.
+   `finalize` is derived mechanically from the original `/epic` request text — it is NEVER a question for the user. Use `"merge"` only when the request explicitly asked to merge (e.g. "merge to main", "push to main", "no PR"); in every other case — including when the request says nothing about merging — use `"pr"`. Do NOT ask the user to choose between PR and merge, in prose or via AskUserQuestion. Unsure means `"pr"`. That skill generates a bespoke baked-DAG workflow script and launches it. The generated workflow creates the epic worktree, runs the story scheduler loop, runs final epic validation, and finalizes the branch. Epic validation failures are self-healed inside the workflow (fix passes on the trunk + re-validation) and reported in the result — they are NOT a halt; see **Reporting the result**. On a `result: 'failed'`, follow the **HALT PROTOCOL** below.
+
+## Reporting the result
+
+The workflow result carries a `validation` object: `{passed, attempts, fixes, open_criteria, open_questions, notes}`. A failed epic validation does not stop the run — failed criteria get fix passes on the trunk and re-validation (≤3 attempts), and the run still finalizes. A trunk that never passed validation is never auto-merged to main; it falls back to a PR with the failure disclosed in the PR body.
+
+When `validation.passed` is false, your final message MUST report, in this order:
+1. That epic validation failed — state it plainly, first.
+2. What the fix passes changed (`validation.fixes`).
+3. The still-open criteria (`validation.open_criteria`) verbatim.
+4. Any `validation.open_questions` — these are the only items that genuinely needed the user; ask them now.
+
+A `result: 'ok'` with `validation.passed: false` is a completed run with a disclosure duty, not a halt.
 
 ## HALT PROTOCOL — BINDING
 
-> **EXTREMELY IMPORTANT.** When the workflow launched in step 5 returns a
-> result that is not `ok` (validation failed, merge conflict, cycle detected,
-> finalize error, or any other non-success outcome), the ONLY permitted
-> responses are:
+> **EXTREMELY IMPORTANT.** When the workflow launched in step 5 returns
+> `result: 'failed'` (trunk setup failure, story non-convergence, merge
+> conflict, cycle detected, finalize error, or any other non-success
+> outcome), the ONLY permitted responses are:
 >
 > 1. Report the returned `reason`, validation criteria, and any open findings
 >    to the user **verbatim**, exactly as the workflow surfaced them.
