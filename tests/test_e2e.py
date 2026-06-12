@@ -727,9 +727,7 @@ def test_e2e_apply_cli_full_chain_with_metadata(tmp_path: Path, loom_dir: Path) 
                                 "ref": "s1",
                                 "type": "story",
                                 "title": "S",
-                                "children": [
-                                    {"type": "task", "title": "T", "status": "blocked"}
-                                ],
+                                "children": [{"type": "task", "title": "T", "status": "blocked"}],
                             }
                         ],
                     }

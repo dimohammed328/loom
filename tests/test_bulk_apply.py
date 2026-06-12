@@ -12,7 +12,6 @@ import pytest
 from loom.api import Loom
 from loom.bulk import ApplyPlan, PartialApplyError, PlanItem
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -140,9 +139,7 @@ def test_apply_sets_body(loom_dir) -> None:
     loom = Loom(root=loom_dir)
     loom.create_project("p", title="P")
 
-    plan = _make_plan(
-        PlanItem(type="epic", parent="p", title="E", body="## context\nsome text\n")
-    )
+    plan = _make_plan(PlanItem(type="epic", parent="p", title="E", body="## context\nsome text\n"))
     result = loom.apply(plan)
 
     item = loom.get(result.created[0]["qid"])
