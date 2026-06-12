@@ -291,9 +291,7 @@ def _parse_one_item(
     children: list[PlanItem] = []
     raw_children = raw.get("children")
     if isinstance(raw_children, list):
-        children = _parse_item_list(
-            raw_children, f"{path}.children", is_root=False, errors=errors
-        )
+        children = _parse_item_list(raw_children, f"{path}.children", is_root=False, errors=errors)
 
     # Build PlanItem — use defaults for missing/bad fields so we can continue
     item_type = raw.get("type", "")
@@ -373,9 +371,7 @@ def _validate_item(
             PlanError(
                 path=path,
                 code=CODE_BAD_TYPE,
-                message=(
-                    f"invalid type {item.type!r}; must be one of {sorted(_ALLOWED_TYPES)}"
-                ),
+                message=(f"invalid type {item.type!r}; must be one of {sorted(_ALLOWED_TYPES)}"),
             )
         )
         # Can't validate nesting without a valid type — skip nesting checks
@@ -400,7 +396,9 @@ def _validate_item(
                 PlanError(
                     path=path,
                     code=CODE_DUPLICATE_REF,
-                    message=f"duplicate ref {item.ref!r}; refs must be unique across the whole plan",
+                    message=(
+                        f"duplicate ref {item.ref!r}; refs must be unique across the whole plan"
+                    ),
                 )
             )
         else:
@@ -468,7 +466,7 @@ def _validate_item(
 
     # --- children on task ---
     if effective_type == "task" and item.children:
-        for ci, child in enumerate(item.children):
+        for ci, _child in enumerate(item.children):
             child_path = f"{path}.children[{ci}]"
             errors.append(
                 PlanError(

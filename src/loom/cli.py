@@ -1903,8 +1903,6 @@ def apply_cmd(
     import json as _json
 
     from .bulk import (
-        CODE_DUPLICATE_REF,
-        CODE_UNKNOWN_PARENT,
         PartialApplyError,
         PlanValidationError,
         parse_plan,
@@ -1938,6 +1936,7 @@ def apply_cmd(
     # --- semantic validation ---
     try:
         from .bulk import validate_plan
+
         validate_plan(
             plan,
             get_item_type=lambda qid: loom.get_or_none(qid).type if loom.get_or_none(qid) else None,
@@ -1957,6 +1956,7 @@ def apply_cmd(
     # --- execute ---
     try:
         from .bulk import execute_plan
+
         result = execute_plan(plan, loom._root, get_item=loom.get)
     except PartialApplyError as exc:
         # Print partial mapping then exit nonzero.
@@ -1975,14 +1975,11 @@ def apply_cmd(
     typer.echo(f"created {len(result.created)} item(s)", err=True)
 
 
-def _emit_error_report(exc: "PlanValidationError", _json) -> None:  # type: ignore[type-arg]
+def _emit_error_report(exc, _json) -> None:
     """Print error report JSON on stdout, readable lines on stderr, then exit."""
     from .bulk import CODE_DUPLICATE_REF, CODE_UNKNOWN_PARENT
 
-    errors_data = [
-        {"path": e.path, "code": e.code, "message": e.message}
-        for e in exc.errors
-    ]
+    errors_data = [{"path": e.path, "code": e.code, "message": e.message} for e in exc.errors]
     typer.echo(_json.dumps({"errors": errors_data}))
 
     for e in exc.errors:

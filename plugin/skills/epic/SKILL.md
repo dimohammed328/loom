@@ -28,11 +28,14 @@ Never ask the user to choose, in prose or via AskUserQuestion. Unsure means `pr`
   interactive pickers that hang a non-TTY session. The bulk commands
   (`loom apply`, `loom dep apply`) never prompt regardless — `-y` is
   harmless but unnecessary with them.
-- **Bulk item creation:** `loom apply plan.json` accepts a JSON file (or `-`
-  for stdin) and emits **bare JSON on stdout** — a `{"created": […]}` mapping
-  of `ref` → `qid` for every created item, in input order. Refs not supplied
-  in the input appear as `null` in the output. Stderr carries human-readable
-  notes; do not parse it.
+- **Bulk item creation:** `loom apply plan.json` accepts a **nested** JSON
+  file (or `-` for stdin) and emits **bare JSON on stdout** —
+  `{"created": […]}` mapping of `ref` → `qid` in depth-first creation order.
+  Items nest under their parent via a `children` list; `parent` on a root item
+  is the existing project/epic qid; `parent` is forbidden on nested children.
+  On validation failure, stdout is `{"errors": [{path, code, message}, …]}` —
+  all errors collected in one pass; fix everything in one editing pass, then
+  re-apply. Stderr carries human-readable notes; do not parse it.
 - **Bulk dependency wiring:** `loom dep apply deps.json` (or `-` for stdin)
   emits `{"added": N}` on stdout. It runs one batch cycle check over the
   existing graph plus all new edges together — a cycle exits 4 and applies
@@ -110,36 +113,45 @@ the question UI hides the very plan being approved. Iterate until approved.
 
 ## Phase 4 — Materialize (gate 2)
 
-Write `plan.json` with all items inline (bodies as JSON strings — no per-item
-temp body files), then run `loom apply` once to create everything:
+Write `plan.json` with all items **nested** inline (bodies as JSON strings —
+no per-item temp body files), then run `loom apply` once to create everything:
 
 ```bash
-# Write the plan — epic, stories, and tasks in a single JSON file.
-# Bodies are inline strings; refs let later items reference earlier ones.
+# Write the plan — epic at root, stories nested as children, tasks under each story.
+# parent = existing project qid on the root item; no parent on nested children.
 cat > plan.json <<'EOF'
 {
   "items": [
     {
       "ref": "epic", "type": "epic", "parent": "<project-qid>",
       "title": "…", "body": "## Summary\n…\n\n## Validation Criteria\n…",
-      "assignee": "${CLAUDE_SESSION_ID}"
-    },
-    {
-      "ref": "s1", "type": "story", "parent": "epic",
-      "title": "…", "body": "…", "assignee": "${CLAUDE_SESSION_ID}"
-    },
-    { "type": "task", "parent": "s1", "title": "…" },
-    {
-      "ref": "s2", "type": "story", "parent": "epic",
-      "title": "…", "body": "…", "assignee": "${CLAUDE_SESSION_ID}"
-    },
-    { "type": "task", "parent": "s2", "title": "…" }
+      "assignee": "${CLAUDE_SESSION_ID}",
+      "children": [
+        {
+          "ref": "s1", "type": "story",
+          "title": "…", "body": "…", "assignee": "${CLAUDE_SESSION_ID}",
+          "children": [
+            { "type": "task", "title": "…" }
+          ]
+        },
+        {
+          "ref": "s2", "type": "story",
+          "title": "…", "body": "…", "assignee": "${CLAUDE_SESSION_ID}",
+          "children": [
+            { "type": "task", "title": "…" }
+          ]
+        }
+      ]
+    }
   ]
 }
 EOF
 
 # Create all items in one call; capture the ref→qid mapping.
 PLAN_OUT=$(loom apply plan.json)
+
+# On validation failure stdout is {"errors": [...]} — fix all errors in one
+# editing pass and re-apply. Each error carries path/code/message.
 
 # Extract real qids from the mapping using the refs.
 EPIC=$(echo "$PLAN_OUT" | jq -r '.created[] | select(.ref=="epic") | .qid')
