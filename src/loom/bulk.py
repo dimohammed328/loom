@@ -138,7 +138,7 @@ class PlanItem:
     """One item to create in a bulk plan (nested schema)."""
 
     type: str
-    title: str
+    title: str | None = None  # None means absent from raw dict; "" means explicit empty
     parent: str | None = None  # required on roots, forbidden on children
     ref: str | None = None
     body: str = ""
@@ -412,7 +412,7 @@ def _parse_one_item(
 
     # Build PlanItem — use defaults for missing/bad fields so we can continue
     item_type = raw.get("type", "")
-    item_title = raw.get("title", "")
+    item_title = raw.get("title")  # None when absent; "" when explicit empty
     item_ref = raw.get("ref")
     item_parent = raw.get("parent")  # preserved for all items; validate_plan checks children
     item_body = raw.get("body", "")
@@ -509,11 +509,10 @@ def _validate_item(
         effective_type = item.type
 
     # --- title ---
-    # Absent title: parse_plan already reported missing_field.
-    #   PlanItem.title will be "" in both absent and explicit-empty cases.
-    #   We emit empty_title for the "" case so validate_plan alone still catches it.
-    #   When called via load_plan, absent title gets both missing_field (structural)
-    #   and empty_title (semantic); explicit "" gets only empty_title. Both are correct.
+    # Absent title: parse_plan already reported missing_field; title is None.
+    #   Skip the empty_title semantic check for absent titles to avoid double-reporting
+    #   one defect as two errors.  empty_title fires only when title is present-but-blank
+    #   (explicit "" or whitespace-only string).
     if item.title is not None and not item.title.strip():
         errors.append(
             PlanError(
@@ -599,16 +598,17 @@ def _validate_item(
             )
 
     # --- children on task ---
+    # Report at the path of the task that CARRIES the children field, not at the
+    # children themselves.  One error per offending task; do not cascade into the
+    # task's children (the defect is on the task, not on what it contains).
     if effective_type == "task" and item.children:
-        for ci, _child in enumerate(item.children):
-            child_path = f"{path}.children[{ci}]"
-            errors.append(
-                PlanError(
-                    path=child_path,
-                    code=CODE_CHILDREN_ON_TASK,
-                    message="tasks cannot have children; tasks are leaf items",
-                )
+        errors.append(
+            PlanError(
+                path=path,
+                code=CODE_CHILDREN_ON_TASK,
+                message="tasks cannot have children; tasks are leaf items",
             )
+        )
         # Don't recurse into invalid children of tasks
         return
 

@@ -283,6 +283,14 @@ def test_validate_plan_rejects_parent_on_child() -> None:
 
 
 def test_validate_plan_rejects_children_on_task() -> None:
+    """children_on_task error path must point at the carrying task, not its children.
+
+    Tree layout:
+      items[0]                              epic  (parent="p")
+      items[0].children[0]                  story
+      items[0].children[0].children[0]      task T  <- CARRIES children; error goes HERE
+      items[0].children[0].children[0].children[0]  Inner Task  <- must NOT appear
+    """
     grandchild = PlanItem(type="task", title="Inner Task")
     task = PlanItem(type="task", title="T", children=[grandchild])
     story = PlanItem(type="story", title="S", children=[task])
@@ -291,8 +299,18 @@ def test_validate_plan_rejects_children_on_task() -> None:
     with pytest.raises(PlanValidationError) as exc_info:
         validate_plan(plan, get_item_type=_project_resolver(["p"]))
     errors = exc_info.value.errors
-    assert any(e.code == CODE_CHILDREN_ON_TASK for e in errors)
-    assert any("items[0].children[0].children[0]" in e.path for e in errors)
+    # Exactly one children_on_task error
+    task_errors = [e for e in errors if e.code == CODE_CHILDREN_ON_TASK]
+    assert len(task_errors) == 1, f"Expected exactly 1 children_on_task error, got {task_errors}"
+    # Path must be the carrying task, not the inner child
+    assert task_errors[0].path == "items[0].children[0].children[0]", (
+        f"children_on_task must point at the carrying task; got {task_errors[0].path!r}"
+    )
+    # Inner child path must NOT appear in any error (no cascade into task's children)
+    inner_path = "items[0].children[0].children[0].children[0]"
+    assert not any(e.path == inner_path for e in errors), (
+        f"Inner child path {inner_path!r} must not appear in errors (no cascade)"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -660,14 +678,21 @@ def test_load_plan_exit_code_from_first_error_in_document_order(loom_dir) -> Non
 # ---------------------------------------------------------------------------
 
 
-def test_absent_title_reports_missing_field() -> None:
-    """An item missing the 'title' key entirely reports missing_field (structural)."""
+def test_absent_title_reports_missing_field_only() -> None:
+    """An absent 'title' field must emit ONLY missing_field — not empty_title as well.
+
+    One defect, one error.  empty_title fires only when title is present-but-blank.
+    """
     with pytest.raises(PlanValidationError) as exc_info:
         parse_plan({"items": [{"type": "epic", "parent": "p"}]})
     errors = exc_info.value.errors
     codes = [e.code for e in errors]
     assert CODE_MISSING_FIELD in codes, f"missing_field not reported; got {codes}"
     assert any("title" in e.message for e in errors if e.code == CODE_MISSING_FIELD)
+    # Absent title must NOT also produce empty_title — that would be double-reporting
+    assert CODE_EMPTY_TITLE not in codes, (
+        f"empty_title must not fire for an absent title field; got {codes}"
+    )
 
 
 def test_explicit_empty_title_reports_empty_title() -> None:
@@ -685,8 +710,12 @@ def test_explicit_empty_title_reports_empty_title() -> None:
     )
 
 
-def test_load_plan_absent_title_gets_missing_field(loom_dir) -> None:
-    """via load_plan: absent title -> missing_field (structural); different from explicit empty."""
+def test_load_plan_absent_title_gets_missing_field_only(loom_dir) -> None:
+    """via load_plan: absent title -> exactly missing_field, NOT also empty_title.
+
+    One defect, one error: the structural missing_field check fires; the dependent
+    semantic empty_title check must be suppressed for absent fields.
+    """
     from loom.api import Loom
 
     loom = Loom(root=loom_dir)
@@ -696,13 +725,17 @@ def test_load_plan_absent_title_gets_missing_field(loom_dir) -> None:
         i = loom.get_or_none(qid)
         return i.type if i else None
 
-    # Absent title
+    # Absent title: must produce missing_field ONLY (not also empty_title)
     with pytest.raises(PlanValidationError) as exc_info:
         load_plan({"items": [{"type": "epic", "parent": "myproj"}]}, get_item_type=_get_type)
-    codes_absent = [e.code for e in exc_info.value.errors]
+    errors_absent = exc_info.value.errors
+    codes_absent = [e.code for e in errors_absent]
     assert CODE_MISSING_FIELD in codes_absent, f"Absent title: {codes_absent}"
+    assert CODE_EMPTY_TITLE not in codes_absent, (
+        f"empty_title must not fire for an absent title; got {codes_absent}"
+    )
 
-    # Explicit empty title — missing_field must NOT appear
+    # Explicit empty title — empty_title fires, missing_field must NOT appear
     with pytest.raises(PlanValidationError) as exc_info:
         load_plan(
             {"items": [{"type": "epic", "parent": "myproj", "title": ""}]},
