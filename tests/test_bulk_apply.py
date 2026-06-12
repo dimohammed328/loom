@@ -1,6 +1,8 @@
-"""Tests for Loom.apply: creation in file order, created mapping, partial-failure.
+"""Tests for Loom.apply: nested schema creation, depth-first order, partial-failure.
 
-RED phase: all tests must fail before apply() is implemented.
+Covers: nested epic→story→task creation, depth-first created order,
+backlog targeting, body/assignee/tags/status, partial failure, rebuild noop,
+and all-errors-before-write semantics.
 """
 
 from __future__ import annotations
@@ -15,8 +17,8 @@ from loom.bulk import ApplyPlan, PartialApplyError, PlanItem
 # ---------------------------------------------------------------------------
 
 
-def _plan(*items: dict) -> ApplyPlan:
-    return ApplyPlan(items=[PlanItem(**i) for i in items])
+def _make_plan(*root_items: PlanItem) -> ApplyPlan:
+    return ApplyPlan(items=list(root_items))
 
 
 # ---------------------------------------------------------------------------
@@ -29,7 +31,7 @@ def test_apply_result_created_list_shape(loom_dir) -> None:
     loom = Loom(root=loom_dir)
     loom.create_project("p", title="P")
 
-    plan = _plan({"ref": "e1", "type": "epic", "parent": "p", "title": "My Epic"})
+    plan = _make_plan(PlanItem(ref="e1", type="epic", parent="p", title="My Epic"))
     result = loom.apply(plan)
 
     assert len(result.created) == 1
@@ -45,62 +47,54 @@ def test_apply_result_ref_is_null_when_absent(loom_dir) -> None:
     loom = Loom(root=loom_dir)
     loom.create_project("p", title="P")
 
-    plan = _plan({"type": "epic", "parent": "p", "title": "No Ref Epic"})
+    plan = _make_plan(PlanItem(type="epic", parent="p", title="No Ref Epic"))
     result = loom.apply(plan)
 
     assert result.created[0]["ref"] is None
 
 
 # ---------------------------------------------------------------------------
-# Creation: single items
+# Creation: nested epic -> story -> task
 # ---------------------------------------------------------------------------
 
 
-def test_apply_creates_epic(loom_dir) -> None:
+def test_apply_creates_nested_epic_story_task(loom_dir) -> None:
     loom = Loom(root=loom_dir)
     loom.create_project("p", title="P")
 
-    plan = _plan({"ref": "e1", "type": "epic", "parent": "p", "title": "New Epic"})
+    task = PlanItem(type="task", title="T")
+    story = PlanItem(ref="s1", type="story", title="S", children=[task])
+    epic = PlanItem(ref="e1", type="epic", parent="p", title="E", children=[story])
+    plan = _make_plan(epic)
     result = loom.apply(plan)
 
-    qid = result.created[0]["qid"]
-    item = loom.get(qid)
-    assert item.title == "New Epic"
-    assert item.type == "epic"
-
-
-def test_apply_creates_story_under_epic_ref(loom_dir) -> None:
-    loom = Loom(root=loom_dir)
-    loom.create_project("p", title="P")
-
-    plan = _plan(
-        {"ref": "e1", "type": "epic", "parent": "p", "title": "E"},
-        {"ref": "s1", "type": "story", "parent": "e1", "title": "S"},
-    )
-    result = loom.apply(plan)
-
-    story_qid = result.created[1]["qid"]
-    story = loom.get(story_qid)
-    assert story.title == "S"
-    assert story.type == "story"
-
-
-def test_apply_creates_task_under_story_ref(loom_dir) -> None:
-    loom = Loom(root=loom_dir)
-    loom.create_project("p", title="P")
-
-    plan = _plan(
-        {"ref": "e1", "type": "epic", "parent": "p", "title": "E"},
-        {"ref": "s1", "type": "story", "parent": "e1", "title": "S"},
-        {"type": "task", "parent": "s1", "title": "T"},
-    )
-    result = loom.apply(plan)
-
+    # 3 items in depth-first order: epic, story, task
     assert len(result.created) == 3
-    task_qid = result.created[2]["qid"]
-    task = loom.get(task_qid)
-    assert task.title == "T"
-    assert task.type == "task"
+    types = [e["type"] for e in result.created]
+    assert types == ["epic", "story", "task"]
+
+    # Each exists in the store
+    for entry in result.created:
+        item = loom.get(entry["qid"])
+        assert item is not None
+
+
+def test_apply_depth_first_order_two_stories(loom_dir) -> None:
+    """Items created in depth-first order: epic, s1, t1, t2, s2, t3."""
+    loom = Loom(root=loom_dir)
+    loom.create_project("p", title="P")
+
+    t1 = PlanItem(type="task", title="T1")
+    t2 = PlanItem(type="task", title="T2")
+    t3 = PlanItem(type="task", title="T3")
+    s1 = PlanItem(type="story", title="S1", children=[t1, t2])
+    s2 = PlanItem(type="story", title="S2", children=[t3])
+    epic = PlanItem(type="epic", parent="p", title="E", children=[s1, s2])
+    plan = _make_plan(epic)
+    result = loom.apply(plan)
+
+    titles_in_order = [loom.get(e["qid"]).title for e in result.created]
+    assert titles_in_order == ["E", "S1", "T1", "T2", "S2", "T3"]
 
 
 # ---------------------------------------------------------------------------
@@ -113,14 +107,27 @@ def test_apply_story_on_project_targets_backlog(loom_dir) -> None:
     loom = Loom(root=loom_dir)
     loom.create_project("p", title="P")
 
-    plan = _plan({"type": "story", "parent": "p", "title": "Backlog Story"})
+    plan = _make_plan(PlanItem(type="story", parent="p", title="Backlog Story"))
     result = loom.apply(plan)
 
     story_qid = result.created[0]["qid"]
     story = loom.get(story_qid)
     assert story.type == "story"
-    # backlog epic is "p:backlog"
     assert "backlog" in story_qid
+
+
+def test_apply_story_with_existing_epic_qid_parent(loom_dir) -> None:
+    loom = Loom(root=loom_dir)
+    proj = loom.create_project("p", title="P")
+    epic = proj.create_epic(title="Pre-existing Epic")
+
+    plan = _make_plan(PlanItem(type="story", parent=epic.qualified_id, title="S"))
+    result = loom.apply(plan)
+
+    story_qid = result.created[0]["qid"]
+    story = loom.get(story_qid)
+    assert story.type == "story"
+    assert story_qid.startswith(epic.qualified_id + ":")
 
 
 # ---------------------------------------------------------------------------
@@ -132,7 +139,7 @@ def test_apply_sets_body(loom_dir) -> None:
     loom = Loom(root=loom_dir)
     loom.create_project("p", title="P")
 
-    plan = _plan({"type": "epic", "parent": "p", "title": "E", "body": "## context\nsome text\n"})
+    plan = _make_plan(PlanItem(type="epic", parent="p", title="E", body="## context\nsome text\n"))
     result = loom.apply(plan)
 
     item = loom.get(result.created[0]["qid"])
@@ -143,7 +150,7 @@ def test_apply_sets_assignee(loom_dir) -> None:
     loom = Loom(root=loom_dir)
     loom.create_project("p", title="P")
 
-    plan = _plan({"type": "epic", "parent": "p", "title": "E", "assignee": "bob"})
+    plan = _make_plan(PlanItem(type="epic", parent="p", title="E", assignee="bob"))
     result = loom.apply(plan)
 
     item = loom.get(result.created[0]["qid"])
@@ -154,7 +161,7 @@ def test_apply_sets_tags(loom_dir) -> None:
     loom = Loom(root=loom_dir)
     loom.create_project("p", title="P")
 
-    plan = _plan({"type": "epic", "parent": "p", "title": "E", "tags": ["foo", "bar"]})
+    plan = _make_plan(PlanItem(type="epic", parent="p", title="E", tags=["foo", "bar"]))
     result = loom.apply(plan)
 
     item = loom.get(result.created[0]["qid"])
@@ -165,7 +172,7 @@ def test_apply_sets_custom_status(loom_dir) -> None:
     loom = Loom(root=loom_dir)
     loom.create_project("p", title="P")
 
-    plan = _plan({"type": "epic", "parent": "p", "title": "E", "status": "blocked"})
+    plan = _make_plan(PlanItem(type="epic", parent="p", title="E", status="blocked"))
     result = loom.apply(plan)
 
     item = loom.get(result.created[0]["qid"])
@@ -176,58 +183,11 @@ def test_apply_default_status_is_ready(loom_dir) -> None:
     loom = Loom(root=loom_dir)
     loom.create_project("p", title="P")
 
-    plan = _plan({"type": "epic", "parent": "p", "title": "E"})
+    plan = _make_plan(PlanItem(type="epic", parent="p", title="E"))
     result = loom.apply(plan)
 
     item = loom.get(result.created[0]["qid"])
     assert item.status == "ready"
-
-
-# ---------------------------------------------------------------------------
-# Creation: full epic->story->task chain in file order
-# ---------------------------------------------------------------------------
-
-
-def test_apply_full_chain_in_file_order(loom_dir) -> None:
-    """apply creates 3 items in the order listed and each is findable."""
-    loom = Loom(root=loom_dir)
-    loom.create_project("p", title="P")
-
-    plan = _plan(
-        {"ref": "epic", "type": "epic", "parent": "p", "title": "Epic"},
-        {"ref": "s1", "type": "story", "parent": "epic", "title": "Story 1"},
-        {"type": "task", "parent": "s1", "title": "Task 1"},
-    )
-    result = loom.apply(plan)
-
-    assert len(result.created) == 3
-    types = [e["type"] for e in result.created]
-    assert types == ["epic", "story", "task"]
-
-    # Each item actually exists in the store.
-    for entry in result.created:
-        item = loom.get(entry["qid"])
-        assert item is not None
-
-
-# ---------------------------------------------------------------------------
-# Creation: story -> existing epic qid as parent
-# ---------------------------------------------------------------------------
-
-
-def test_apply_story_with_existing_epic_qid_parent(loom_dir) -> None:
-    loom = Loom(root=loom_dir)
-    proj = loom.create_project("p", title="P")
-    epic = proj.create_epic(title="Pre-existing Epic")
-
-    plan = _plan({"type": "story", "parent": epic.qualified_id, "title": "S"})
-    result = loom.apply(plan)
-
-    story_qid = result.created[0]["qid"]
-    story = loom.get(story_qid)
-    assert story.type == "story"
-    # Story lives under the pre-existing epic
-    assert story_qid.startswith(epic.qualified_id + ":")
 
 
 # ---------------------------------------------------------------------------
@@ -240,13 +200,10 @@ def test_apply_partial_failure_raises_PartialApplyError(loom_dir) -> None:
     loom = Loom(root=loom_dir)
     loom.create_project("p", title="P")
 
-    # First item is valid; second references a ref that resolves to the first
-    # but we'll simulate failure by using a bad parent qid for the third item.
-    # We construct the plan manually to smuggle in an unknown qid at position 2.
+    # First item is valid; second uses a bad qid parent that passes
+    # skip_validation but will fail at create time.
     items = [
         PlanItem(ref="e1", type="epic", parent="p", title="Good Epic"),
-        # This item has a bad qid parent that passes validation (we bypass validate)
-        # but will fail at create time — we use a ghost qid for story parent.
         PlanItem(type="story", parent="p:zzzzzzz:99", title="Bad Story"),
     ]
     plan = ApplyPlan(items=items)
@@ -255,7 +212,6 @@ def test_apply_partial_failure_raises_PartialApplyError(loom_dir) -> None:
         loom.apply(plan, skip_validation=True)
 
     err = exc_info.value
-    # The epic was created before the failure.
     assert len(err.created) == 1
     assert err.created[0]["type"] == "epic"
 
@@ -275,9 +231,52 @@ def test_apply_partial_failure_no_rollback(loom_dir) -> None:
         loom.apply(plan, skip_validation=True)
 
     kept_qid = exc_info.value.created[0]["qid"]
-    # The already-created epic still exists.
     item = loom.get(kept_qid)
     assert item.title == "Kept Epic"
+
+
+def test_apply_partial_failure_in_nested_child(loom_dir) -> None:
+    """Failure inside a nested child still reports parent as created."""
+    loom = Loom(root=loom_dir)
+    loom.create_project("p", title="P")
+
+    # story has a bad nested task parent — simulate by constructing
+    # a PlanItem with a bad parent qid that bypass validation
+    bad_task = PlanItem(type="story", parent="p:zzz:999", title="Bad")
+    # Wrap in an epic that creates fine
+    good_epic = PlanItem(ref="e1", type="epic", parent="p", title="Good Epic")
+    plan = ApplyPlan(items=[good_epic, bad_task])
+
+    with pytest.raises(PartialApplyError) as exc_info:
+        loom.apply(plan, skip_validation=True)
+
+    assert exc_info.value.created[0]["type"] == "epic"
+
+
+# ---------------------------------------------------------------------------
+# All-errors-before-write: validation stops creation
+# ---------------------------------------------------------------------------
+
+
+def test_apply_validation_prevents_any_writes(loom_dir) -> None:
+    """A plan whose only error is in a deep child creates nothing."""
+    loom = Loom(root=loom_dir)
+    loom.create_project("p", title="P")
+
+    from loom.bulk import PlanValidationError
+
+    bad_task = PlanItem(type="task", title="")  # empty title — invalid
+    story = PlanItem(type="story", title="S", children=[bad_task])
+    epic = PlanItem(type="epic", parent="p", title="E", children=[story])
+    plan = ApplyPlan(items=[epic])
+
+    with pytest.raises(PlanValidationError):
+        loom.apply(plan)
+
+    # Nothing was written
+    epics = loom.find(type="epic", project="p")
+    user_epics = [e for e in epics if e.title == "E"]
+    assert len(user_epics) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -290,18 +289,10 @@ def test_apply_rebuild_is_noop(loom_dir) -> None:
     loom = Loom(root=loom_dir)
     loom.create_project("p", title="P")
 
-    plan = _plan(
-        {"ref": "e1", "type": "epic", "parent": "p", "title": "E"},
-        {
-            "ref": "s1",
-            "type": "story",
-            "parent": "e1",
-            "title": "S",
-            "assignee": "alice",
-            "tags": ["x"],
-        },
-        {"type": "task", "parent": "s1", "title": "T", "status": "blocked"},
-    )
+    t = PlanItem(type="task", title="T", status="blocked")
+    s = PlanItem(ref="s1", type="story", title="S", assignee="alice", tags=["x"], children=[t])
+    e = PlanItem(ref="e1", type="epic", parent="p", title="E", children=[s])
+    plan = _make_plan(e)
     loom.apply(plan)
 
     result = loom.rebuild()

@@ -496,33 +496,45 @@ class Loom:
 
     def apply(
         self,
-        plan: ApplyPlan,
+        plan: ApplyPlan | dict,
         *,
         skip_validation: bool = False,
     ) -> ApplyResult:
-        """Bulk-create items described by *plan* in file order.
+        """Bulk-create items described by *plan* in depth-first order.
+
+        Accepts either a pre-parsed :class:`~loom.bulk.ApplyPlan` or a raw
+        dict (which is parsed via :func:`~loom.bulk.parse_plan` first).
 
         Validates first (unless *skip_validation* is True), then creates each
-        item in the order listed in the plan.  Returns an
-        :class:`~loom.bulk.ApplyResult` with the created mapping.
+        item depth-first.  Returns an :class:`~loom.bulk.ApplyResult` with
+        the created mapping.
 
+        Raises :class:`~loom.bulk.PlanValidationError` if the plan has errors
+        (collect-all; nothing is created).
         Raises :class:`~loom.bulk.PartialApplyError` on mid-create failure
         (partial mapping attached, no rollback).
 
-        :param plan: An :class:`~loom.bulk.ApplyPlan` to execute.
+        :param plan: A :class:`~loom.bulk.ApplyPlan` or a raw plan dict.
         :param skip_validation: Bypass pre-write validation (for testing
             partial-failure paths).  Do not pass True in production code.
         """
-        from .bulk import execute_plan, validate_plan
+        from .bulk import ApplyPlan, execute_plan, load_plan, parse_plan, validate_plan
 
-        if not skip_validation:
-            validate_plan(
-                plan,
-                get_item_type=lambda qid: (
-                    self.get_or_none(qid).type if self.get_or_none(qid) else None
-                ),
-            )
+        _get_item_type = lambda qid: (  # noqa: E731
+            self.get_or_none(qid).type if self.get_or_none(qid) else None
+        )
 
+        if isinstance(plan, dict):
+            if not skip_validation:
+                # load_plan combines structural parsing + semantic validation in one pass
+                plan = load_plan(plan, get_item_type=_get_item_type)
+            else:
+                plan = parse_plan(plan)
+        elif not skip_validation:
+            # Pre-parsed ApplyPlan: run semantic validation only
+            validate_plan(plan, get_item_type=_get_item_type)
+
+        assert isinstance(plan, ApplyPlan)
         return execute_plan(plan, self._root, get_item=self.get)
 
     def add_dependencies(

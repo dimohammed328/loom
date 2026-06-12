@@ -1,6 +1,9 @@
-"""Tests for loom apply plan schema + pre-write validation.
+"""Tests for loom apply nested plan schema + collect-all path-indexed validation.
 
-RED phase: all tests must fail before any implementation is written.
+Tests cover: parse_plan, validate_plan, PlanError/PlanValidationError,
+multi-error collection, every code constant, nesting cross-checks,
+tree-wide ref uniqueness, parent-on-child and missing-parent rejections,
+deep-child-error-creates-nothing, and backlog targeting.
 """
 
 from __future__ import annotations
@@ -8,14 +11,24 @@ from __future__ import annotations
 import pytest
 
 from loom.bulk import (
+    CODE_BAD_NESTING,
+    CODE_BAD_TYPE,
+    CODE_CHILDREN_ON_TASK,
+    CODE_DUPLICATE_REF,
+    CODE_EMPTY_TITLE,
+    CODE_MISSING_FIELD,
+    CODE_MISSING_PARENT,
+    CODE_NON_OBJECT,
+    CODE_PARENT_ON_CHILD,
+    CODE_UNKNOWN_FIELD,
+    CODE_UNKNOWN_PARENT,
     ApplyPlan,
+    PlanError,
     PlanItem,
+    PlanValidationError,
+    load_plan,
+    parse_plan,
     validate_plan,
-)
-from loom.errors import (
-    Duplicate,
-    LoomError,
-    NotFound,
 )
 
 # ---------------------------------------------------------------------------
@@ -23,16 +36,40 @@ from loom.errors import (
 # ---------------------------------------------------------------------------
 
 
-def _plan(*items: dict) -> ApplyPlan:
-    return ApplyPlan(items=[PlanItem(**i) for i in items])
+def _project_resolver(proj_qids=("myproj",)):
+    """Returns a get_item_type that resolves named projects as 'project'."""
+    proj_set = set(proj_qids)
+    return lambda qid: "project" if qid in proj_set else None
 
 
 # ---------------------------------------------------------------------------
-# PlanItem construction
+# PlanError / PlanValidationError dataclasses
 # ---------------------------------------------------------------------------
 
 
-def test_plan_item_required_fields() -> None:
+def test_plan_error_fields() -> None:
+    err = PlanError(path="items[0]", code=CODE_BAD_TYPE, message="bad type 'bogus'")
+    assert err.path == "items[0]"
+    assert err.code == CODE_BAD_TYPE
+    assert "bogus" in err.message
+
+
+def test_plan_validation_error_carries_list() -> None:
+    errors = [
+        PlanError(path="items[0]", code=CODE_BAD_TYPE, message="bad type"),
+        PlanError(path="items[1]", code=CODE_EMPTY_TITLE, message="empty title"),
+    ]
+    exc = PlanValidationError(errors)
+    assert len(exc.errors) == 2
+    assert exc.errors[0].code == CODE_BAD_TYPE
+
+
+# ---------------------------------------------------------------------------
+# PlanItem nested shape
+# ---------------------------------------------------------------------------
+
+
+def test_plan_item_root_fields() -> None:
     item = PlanItem(type="epic", parent="myproj", title="My Epic")
     assert item.type == "epic"
     assert item.parent == "myproj"
@@ -42,226 +79,689 @@ def test_plan_item_required_fields() -> None:
     assert item.assignee is None
     assert item.tags == []
     assert item.status == "ready"
+    assert item.children == []
 
 
-def test_plan_item_with_ref_and_optional_fields() -> None:
-    item = PlanItem(
-        ref="e1",
-        type="epic",
-        parent="proj",
-        title="Epic",
-        body="body text",
-        assignee="alice",
-        tags=["tag1", "tag2"],
-        status="blocked",
-    )
-    assert item.ref == "e1"
-    assert item.assignee == "alice"
-    assert item.tags == ["tag1", "tag2"]
-    assert item.status == "blocked"
+def test_plan_item_child_no_parent() -> None:
+    child = PlanItem(type="story", title="S", parent=None)
+    assert child.parent is None
+
+
+def test_plan_item_with_children() -> None:
+    child = PlanItem(type="task", title="T")
+    item = PlanItem(type="story", title="S", children=[child])
+    assert len(item.children) == 1
+    assert item.children[0].title == "T"
 
 
 # ---------------------------------------------------------------------------
-# validate_plan: happy-path (no loom store needed)
+# parse_plan: structural parsing
 # ---------------------------------------------------------------------------
 
 
-def test_validate_plan_empty_list_ok() -> None:
-    """Empty plan is valid."""
+def test_parse_plan_empty_items() -> None:
+    plan = parse_plan({"items": []})
+    assert isinstance(plan, ApplyPlan)
+    assert plan.items == []
+
+
+def test_parse_plan_nested_structure() -> None:
+    data = {
+        "items": [
+            {
+                "ref": "e1",
+                "type": "epic",
+                "parent": "myproj",
+                "title": "Epic",
+                "children": [
+                    {
+                        "type": "story",
+                        "title": "Story",
+                        "children": [{"type": "task", "title": "Task"}],
+                    }
+                ],
+            }
+        ]
+    }
+    plan = parse_plan(data)
+    assert len(plan.items) == 1
+    epic = plan.items[0]
+    assert epic.type == "epic"
+    assert epic.parent == "myproj"
+    assert len(epic.children) == 1
+    story = epic.children[0]
+    assert story.type == "story"
+    assert story.parent is None  # children have no parent field
+    assert len(story.children) == 1
+    assert story.children[0].type == "task"
+
+
+def test_parse_plan_non_object_item_raises() -> None:
+    with pytest.raises(PlanValidationError) as exc_info:
+        parse_plan({"items": ["not an object"]})
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_NON_OBJECT for e in errors)
+    assert any("items[0]" in e.path for e in errors)
+
+
+def test_parse_plan_unknown_field_raises() -> None:
+    with pytest.raises(PlanValidationError) as exc_info:
+        parse_plan({"items": [{"type": "epic", "parent": "p", "title": "E", "titel": "typo"}]})
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_UNKNOWN_FIELD for e in errors)
+    assert any("titel" in e.message for e in errors)
+
+
+def test_parse_plan_missing_items_key_raises() -> None:
+    """Top-level object missing 'items' key is a structural error."""
+    with pytest.raises(PlanValidationError) as exc_info:
+        parse_plan({"not_items": []})
+    errors = exc_info.value.errors
+    assert len(errors) >= 1
+
+
+def test_parse_plan_tags_not_list_raises() -> None:
+    with pytest.raises(PlanValidationError) as exc_info:
+        parse_plan({"items": [{"type": "epic", "parent": "p", "title": "E", "tags": "foo"}]})
+    errors = exc_info.value.errors
+    assert len(errors) >= 1
+    assert any("tags" in e.message for e in errors)
+
+
+def test_parse_plan_children_not_list_raises() -> None:
+    with pytest.raises(PlanValidationError) as exc_info:
+        parse_plan({"items": [{"type": "epic", "parent": "p", "title": "E", "children": "bad"}]})
+    errors = exc_info.value.errors
+    assert len(errors) >= 1
+    assert any("children" in e.message for e in errors)
+
+
+def test_parse_plan_collects_multiple_field_errors() -> None:
+    """parse_plan collects errors from multiple items in one pass."""
+    data = {
+        "items": [
+            "not an object",  # items[0]
+            {"type": "epic", "parent": "p", "title": "E", "titel": "typo"},  # items[1]: unknown
+        ]
+    }
+    with pytest.raises(PlanValidationError) as exc_info:
+        parse_plan(data)
+    errors = exc_info.value.errors
+    # Both errors collected
+    assert len(errors) >= 2
+    codes = [e.code for e in errors]
+    assert CODE_NON_OBJECT in codes
+    assert CODE_UNKNOWN_FIELD in codes
+
+
+# ---------------------------------------------------------------------------
+# validate_plan: happy paths
+# ---------------------------------------------------------------------------
+
+
+def test_validate_plan_empty_ok() -> None:
     plan = ApplyPlan(items=[])
-    validate_plan(plan, get_item_type=lambda qid: None)  # no store calls expected
+    validate_plan(plan, get_item_type=lambda qid: None)  # no errors
 
 
-def test_validate_plan_single_epic_against_existing_project(loom_dir) -> None:
-    """Epic whose parent is an existing project qid passes."""
+def test_validate_plan_single_epic_on_project(loom_dir) -> None:
     from loom.api import Loom
 
     loom = Loom(root=loom_dir)
     loom.create_project("myproj", title="My Project")
 
-    plan = _plan(
-        {"ref": "e1", "type": "epic", "parent": "myproj", "title": "An Epic"},
-    )
+    item = PlanItem(type="epic", parent="myproj", title="Epic")
+    plan = ApplyPlan(items=[item])
 
-    # Should not raise
     def _get_type(qid: str) -> str | None:
-        item = loom.get_or_none(qid)
-        return item.type if item else None
+        i = loom.get_or_none(qid)
+        return i.type if i else None
 
-    validate_plan(plan, get_item_type=_get_type)
+    validate_plan(plan, get_item_type=_get_type)  # no error
+
+
+def test_validate_plan_nested_epic_story_task_ok(loom_dir) -> None:
+    from loom.api import Loom
+
+    loom = Loom(root=loom_dir)
+    loom.create_project("p", title="P")
+
+    task = PlanItem(type="task", title="T")
+    story = PlanItem(type="story", title="S", children=[task])
+    epic = PlanItem(type="epic", parent="p", title="E", children=[story])
+    plan = ApplyPlan(items=[epic])
+
+    def _get_type(qid: str) -> str | None:
+        i = loom.get_or_none(qid)
+        return i.type if i else None
+
+    validate_plan(plan, get_item_type=_get_type)  # no error
+
+
+def test_validate_plan_story_on_project_ok() -> None:
+    """Story directly on a project is allowed (targets backlog)."""
+    item = PlanItem(type="story", parent="p", title="S")
+    plan = ApplyPlan(items=[item])
+    validate_plan(plan, get_item_type=_project_resolver(["p"]))  # no error
 
 
 # ---------------------------------------------------------------------------
-# validate_plan: duplicate ref
+# validate_plan: missing parent on root
 # ---------------------------------------------------------------------------
 
 
-def test_validate_plan_rejects_duplicate_ref() -> None:
-    plan = _plan(
-        {"ref": "e1", "type": "epic", "parent": "myproj", "title": "Epic 1"},
-        {"ref": "e1", "type": "epic", "parent": "myproj", "title": "Epic 2"},
+def test_validate_plan_rejects_root_without_parent() -> None:
+    item = PlanItem(type="epic", title="E", parent=None)
+    plan = ApplyPlan(items=[item])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=lambda qid: None)
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_MISSING_PARENT for e in errors)
+    assert any("items[0]" in e.path for e in errors)
+
+
+# ---------------------------------------------------------------------------
+# validate_plan: parent on child
+# ---------------------------------------------------------------------------
+
+
+def test_validate_plan_rejects_parent_on_child() -> None:
+    """A child item with a 'parent' field set should be rejected."""
+    child = PlanItem(type="story", title="S", parent="explicit-parent")
+    epic = PlanItem(type="epic", parent="p", title="E", children=[child])
+    plan = ApplyPlan(items=[epic])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_PARENT_ON_CHILD for e in errors)
+    assert any("items[0].children[0]" in e.path for e in errors)
+
+
+# ---------------------------------------------------------------------------
+# validate_plan: children on task
+# ---------------------------------------------------------------------------
+
+
+def test_validate_plan_rejects_children_on_task() -> None:
+    """children_on_task error path must point at the carrying task, not its children.
+
+    Tree layout:
+      items[0]                              epic  (parent="p")
+      items[0].children[0]                  story
+      items[0].children[0].children[0]      task T  <- CARRIES children; error goes HERE
+      items[0].children[0].children[0].children[0]  Inner Task  <- must NOT appear
+    """
+    grandchild = PlanItem(type="task", title="Inner Task")
+    task = PlanItem(type="task", title="T", children=[grandchild])
+    story = PlanItem(type="story", title="S", children=[task])
+    epic = PlanItem(type="epic", parent="p", title="E", children=[story])
+    plan = ApplyPlan(items=[epic])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    # Exactly one children_on_task error
+    task_errors = [e for e in errors if e.code == CODE_CHILDREN_ON_TASK]
+    assert len(task_errors) == 1, f"Expected exactly 1 children_on_task error, got {task_errors}"
+    # Path must be the carrying task, not the inner child
+    assert task_errors[0].path == "items[0].children[0].children[0]", (
+        f"children_on_task must point at the carrying task; got {task_errors[0].path!r}"
     )
-    with pytest.raises(Duplicate):
-        validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
+    # Inner child path must NOT appear in any error (no cascade into task's children)
+    inner_path = "items[0].children[0].children[0].children[0]"
+    assert not any(e.path == inner_path for e in errors), (
+        f"Inner child path {inner_path!r} must not appear in errors (no cascade)"
+    )
 
 
 # ---------------------------------------------------------------------------
-# validate_plan: missing / empty title
+# validate_plan: bad nesting (type incompatible with enclosure)
+# ---------------------------------------------------------------------------
+
+
+def test_validate_plan_rejects_story_inside_story() -> None:
+    inner_story = PlanItem(type="story", title="Inner")
+    outer_story = PlanItem(type="story", title="S", children=[inner_story])
+    epic = PlanItem(type="epic", parent="p", title="E", children=[outer_story])
+    plan = ApplyPlan(items=[epic])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_BAD_NESTING for e in errors)
+    assert any("items[0].children[0].children[0]" in e.path for e in errors)
+
+
+def test_validate_plan_rejects_epic_inside_epic() -> None:
+    inner_epic = PlanItem(type="epic", title="Inner Epic")
+    outer_epic = PlanItem(type="epic", parent="p", title="E", children=[inner_epic])
+    plan = ApplyPlan(items=[outer_epic])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_BAD_NESTING for e in errors)
+
+
+def test_validate_plan_rejects_epic_inside_story() -> None:
+    inner_epic = PlanItem(type="epic", title="E2")
+    story = PlanItem(type="story", title="S", children=[inner_epic])
+    epic = PlanItem(type="epic", parent="p", title="E1", children=[story])
+    plan = ApplyPlan(items=[epic])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_BAD_NESTING for e in errors)
+
+
+# ---------------------------------------------------------------------------
+# validate_plan: bad type value
+# ---------------------------------------------------------------------------
+
+
+def test_validate_plan_rejects_bad_type() -> None:
+    item = PlanItem(type="bogus", parent="p", title="X")
+    plan = ApplyPlan(items=[item])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_BAD_TYPE for e in errors)
+    assert any("bogus" in e.message for e in errors)
+
+
+def test_validate_plan_rejects_project_type() -> None:
+    item = PlanItem(type="project", parent="p", title="X")
+    plan = ApplyPlan(items=[item])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_BAD_TYPE for e in errors)
+
+
+# ---------------------------------------------------------------------------
+# validate_plan: empty title
 # ---------------------------------------------------------------------------
 
 
 def test_validate_plan_rejects_empty_title() -> None:
-    plan = _plan({"type": "epic", "parent": "myproj", "title": ""})
-    with pytest.raises(LoomError, match="title"):
-        validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
+    item = PlanItem(type="epic", parent="p", title="")
+    plan = ApplyPlan(items=[item])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_EMPTY_TITLE for e in errors)
 
 
 def test_validate_plan_rejects_whitespace_only_title() -> None:
-    plan = _plan({"type": "epic", "parent": "myproj", "title": "   "})
-    with pytest.raises(LoomError, match="title"):
-        validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
+    item = PlanItem(type="epic", parent="p", title="   ")
+    plan = ApplyPlan(items=[item])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_EMPTY_TITLE for e in errors)
 
 
 # ---------------------------------------------------------------------------
-# validate_plan: bad type
+# validate_plan: duplicate ref (tree-wide)
 # ---------------------------------------------------------------------------
 
 
-def test_validate_plan_rejects_project_type() -> None:
-    plan = _plan({"type": "project", "parent": "myproj", "title": "Oops"})
-    with pytest.raises(LoomError, match="type"):
-        validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
+def test_validate_plan_rejects_duplicate_ref_flat() -> None:
+    e1 = PlanItem(ref="e1", type="epic", parent="p", title="E1")
+    e2 = PlanItem(ref="e1", type="epic", parent="p", title="E2")
+    plan = ApplyPlan(items=[e1, e2])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_DUPLICATE_REF for e in errors)
+    assert any("e1" in e.message for e in errors)
 
 
-def test_validate_plan_rejects_unknown_type() -> None:
-    plan = _plan({"type": "bogus", "parent": "myproj", "title": "Oops"})
-    with pytest.raises(LoomError, match="type"):
-        validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
-
-
-# ---------------------------------------------------------------------------
-# validate_plan: type/parent incompatibility
-# ---------------------------------------------------------------------------
-
-
-def test_validate_plan_rejects_epic_with_epic_parent() -> None:
-    """Epics must be parented on projects, not other epics."""
-    plan = _plan(
-        {"ref": "e1", "type": "epic", "parent": "myproj", "title": "E1"},
-        {"type": "epic", "parent": "e1", "title": "Nested epic"},
-    )
-    with pytest.raises(LoomError, match=r"[Pp]arent|[Tt]ype"):
-        validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
-
-
-def test_validate_plan_rejects_story_with_task_parent() -> None:
-    """Stories must be parented on epics or projects (via backlog), not tasks."""
-    plan = _plan(
-        {"ref": "e1", "type": "epic", "parent": "myproj", "title": "E"},
-        {"ref": "s1", "type": "story", "parent": "e1", "title": "S"},
-        {"ref": "t1", "type": "task", "parent": "s1", "title": "T"},
-        {"type": "story", "parent": "t1", "title": "Bad story"},
-    )
-    with pytest.raises(LoomError, match=r"[Pp]arent|[Tt]ype"):
-        validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
-
-
-def test_validate_plan_rejects_task_with_epic_parent() -> None:
-    """Tasks must be parented on stories only."""
-    plan = _plan(
-        {"ref": "e1", "type": "epic", "parent": "myproj", "title": "E"},
-        {"type": "task", "parent": "e1", "title": "Bad task"},
-    )
-    with pytest.raises(LoomError, match=r"[Pp]arent|[Tt]ype"):
-        validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
-
-
-def test_validate_plan_rejects_task_with_project_parent() -> None:
-    """Tasks cannot be directly parented on projects."""
-    plan = _plan({"type": "task", "parent": "myproj", "title": "Bad task"})
-    with pytest.raises(LoomError, match=r"[Pp]arent|[Tt]ype"):
-        validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
-
-
-def test_validate_plan_story_with_project_parent_ok() -> None:
-    """A story parented on a project targets the backlog epic (valid)."""
-    plan = _plan(
-        {"type": "story", "parent": "myproj", "title": "Story on backlog"},
-    )
-    # Should not raise - project parent for story is allowed (backlog targeting).
-    validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
+def test_validate_plan_rejects_duplicate_ref_across_nesting() -> None:
+    """Ref 'r1' appears at root and in a nested child."""
+    task = PlanItem(ref="r1", type="task", title="T")
+    story = PlanItem(type="story", title="S", children=[task])
+    epic = PlanItem(ref="r1", type="epic", parent="p", title="E", children=[story])
+    plan = ApplyPlan(items=[epic])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_DUPLICATE_REF for e in errors)
 
 
 # ---------------------------------------------------------------------------
-# validate_plan: unknown parent ref / qid
+# validate_plan: unknown parent qid
 # ---------------------------------------------------------------------------
-
-
-def test_validate_plan_rejects_unknown_parent_ref() -> None:
-    """Parent ref that was never defined in the plan is rejected."""
-    plan = _plan({"type": "story", "parent": "nonexistent_ref", "title": "Story"})
-    with pytest.raises(NotFound):
-        validate_plan(plan, get_item_type=lambda qid: None)
 
 
 def test_validate_plan_rejects_unknown_parent_qid() -> None:
-    """Parent qid that doesn't exist in the store is rejected."""
-    plan = _plan({"type": "epic", "parent": "ghost-proj", "title": "Epic"})
-    with pytest.raises(NotFound):
+    item = PlanItem(type="epic", parent="ghost-proj", title="E")
+    plan = ApplyPlan(items=[item])
+    with pytest.raises(PlanValidationError) as exc_info:
         validate_plan(plan, get_item_type=lambda qid: None)
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_UNKNOWN_PARENT for e in errors)
+    assert any("ghost-proj" in e.message for e in errors)
+    assert any("items[0]" in e.path for e in errors)
+
+
+def test_validate_plan_rejects_ref_as_parent_on_root() -> None:
+    """Using a ref as parent on a root item (ref-as-parent is deleted)."""
+    # In the nested schema, a ref cannot be used as a root parent.
+    # The root parent must be an existing qid.
+    item = PlanItem(type="epic", parent="some-ref", title="E")
+    plan = ApplyPlan(items=[item])
+    # get_item_type returns None for "some-ref" -> unknown parent
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=lambda qid: None)
+    errors = exc_info.value.errors
+    assert any(e.code == CODE_UNKNOWN_PARENT for e in errors)
 
 
 # ---------------------------------------------------------------------------
-# validate_plan: forward ref (parent ref defined later in list)
+# validate_plan: multi-error collection (all errors in one pass)
 # ---------------------------------------------------------------------------
 
 
-def test_validate_plan_rejects_forward_ref_parent() -> None:
-    """Parent ref defined later in the list (forward reference) is rejected."""
-    plan = _plan(
-        # s1 references e1 which comes AFTER it
-        {"ref": "s1", "type": "story", "parent": "e1", "title": "Story"},
-        {"ref": "e1", "type": "epic", "parent": "myproj", "title": "Epic"},
+def test_validate_plan_collects_all_errors_in_one_pass() -> None:
+    """Multiple independent errors are all reported together."""
+    # Error 1: bad type at items[0]
+    e0 = PlanItem(type="bogus", parent="p", title="X")
+    # Error 2: empty title at items[1]
+    e1 = PlanItem(type="epic", parent="p", title="")
+    # Error 3: unknown parent qid at items[2]
+    e2 = PlanItem(type="epic", parent="nonexistent", title="Y")
+    plan = ApplyPlan(items=[e0, e1, e2])
+
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    codes = [e.code for e in errors]
+    assert CODE_BAD_TYPE in codes
+    assert CODE_EMPTY_TITLE in codes
+    assert CODE_UNKNOWN_PARENT in codes
+    # All three errors in one pass
+    assert len(errors) >= 3
+
+
+def test_validate_plan_path_indexes_deep_errors() -> None:
+    """Errors at different nesting depths carry exact paths."""
+    # items[0].children[0].children[1]: story inside story is bad nesting
+    task_ok = PlanItem(type="task", title="Good Task")
+    bad_story = PlanItem(type="story", title="Wrong")  # story inside story
+    story_container = PlanItem(type="story", title="S", children=[task_ok, bad_story])
+    epic = PlanItem(type="epic", parent="p", title="E", children=[story_container])
+    plan = ApplyPlan(items=[epic])
+
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    # The bad nesting is at items[0].children[0].children[1]
+    paths = [e.path for e in errors]
+    assert any("items[0].children[0].children[1]" in p for p in paths)
+
+
+def test_validate_plan_deep_child_error_still_collects_all() -> None:
+    """A deeply nested error is reported alongside shallow errors."""
+    deep_task = PlanItem(type="task", title="")  # empty title deep
+    story = PlanItem(type="story", title="S", children=[deep_task])
+    epic = PlanItem(type="epic", parent="p", title="", children=[story])  # also empty title
+    plan = ApplyPlan(items=[epic])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    assert len(errors) >= 2
+    # Root epic empty title
+    assert any("items[0]" in e.path and e.code == CODE_EMPTY_TITLE for e in errors)
+    # Deep task empty title
+    assert any(
+        "items[0].children[0].children[0]" in e.path and e.code == CODE_EMPTY_TITLE for e in errors
     )
-    with pytest.raises(NotFound):
-        validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
 
 
 # ---------------------------------------------------------------------------
-# validate_plan: chained refs (story -> epic ref -> project qid)
-# ---------------------------------------------------------------------------
-
-
-def test_validate_plan_chained_refs_ok() -> None:
-    """story -> epic ref -> project qid chain resolves correctly."""
-    plan = _plan(
-        {"ref": "e1", "type": "epic", "parent": "myproj", "title": "E"},
-        {"ref": "s1", "type": "story", "parent": "e1", "title": "S"},
-        {"type": "task", "parent": "s1", "title": "T"},
-    )
-    # Should not raise
-    validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
-
-
-# ---------------------------------------------------------------------------
-# validate_plan: existing qid as parent
+# validate_plan: story under existing epic qid
 # ---------------------------------------------------------------------------
 
 
 def test_validate_plan_story_with_existing_epic_qid_parent(loom_dir) -> None:
-    """Story parented on an existing epic qid is valid."""
     from loom.api import Loom
 
     loom = Loom(root=loom_dir)
     proj = loom.create_project("p", title="P")
     epic = proj.create_epic(title="E")
 
-    plan = _plan(
-        {"type": "story", "parent": epic.qualified_id, "title": "S"},
-    )
+    item = PlanItem(type="story", parent=epic.qualified_id, title="S")
+    plan = ApplyPlan(items=[item])
 
     def _get_type(qid: str) -> str | None:
-        item = loom.get_or_none(qid)
-        return item.type if item else None
+        i = loom.get_or_none(qid)
+        return i.type if i else None
 
-    validate_plan(plan, get_item_type=_get_type)
+    validate_plan(plan, get_item_type=_get_type)  # no error
+
+
+# ---------------------------------------------------------------------------
+# Code constants are exported
+# ---------------------------------------------------------------------------
+
+
+def test_code_constants_are_strings() -> None:
+    codes = [
+        CODE_BAD_TYPE,
+        CODE_EMPTY_TITLE,
+        CODE_DUPLICATE_REF,
+        CODE_UNKNOWN_PARENT,
+        CODE_MISSING_PARENT,
+        CODE_PARENT_ON_CHILD,
+        CODE_CHILDREN_ON_TASK,
+        CODE_BAD_NESTING,
+        CODE_NON_OBJECT,
+        CODE_UNKNOWN_FIELD,
+        CODE_MISSING_FIELD,
+    ]
+    for c in codes:
+        assert isinstance(c, str), f"Expected str code, got {type(c)}: {c!r}"
+        assert c  # non-empty
+
+
+# ---------------------------------------------------------------------------
+# load_plan: cross-phase multi-error collection
+# ---------------------------------------------------------------------------
+
+
+def test_load_plan_cross_phase_collects_all_errors(loom_dir) -> None:
+    """Cross-phase regression: structural unknown_field on a later item must not
+    hide semantic errors on earlier items.  Reproduces the observed plan shape
+    from the validation criteria: items[1] has an unknown field 'titel', while
+    items[0] has an unknown parent qid plus additional semantic errors in children.
+    All errors must appear in one combined report, sorted in document order.
+    """
+    from loom.api import Loom
+
+    loom = Loom(root=loom_dir)
+    loom.create_project("myproj", title="My Project")
+
+    data = {
+        "items": [
+            {
+                # items[0]: valid structure, but unknown parent + nesting errors
+                "type": "epic",
+                "parent": "ghost-proj",  # unknown parent -> CODE_UNKNOWN_PARENT
+                "title": "Root Epic",
+                "children": [
+                    {"type": "epic", "title": "epic-inside-epic"},  # bad_nesting
+                    {"type": "task", "title": "task-in-epic"},  # bad_nesting
+                ],
+            },
+            {
+                # items[1]: structural unknown_field 'titel'
+                "type": "epic",
+                "parent": "myproj",
+                "title": "Valid Epic",
+                "titel": "typo",  # unknown_field -> CODE_UNKNOWN_FIELD
+            },
+        ]
+    }
+
+    def _get_type(qid: str) -> str | None:
+        i = loom.get_or_none(qid)
+        return i.type if i else None
+
+    with pytest.raises(PlanValidationError) as exc_info:
+        load_plan(data, get_item_type=_get_type)
+
+    errors = exc_info.value.errors
+    codes = [e.code for e in errors]
+
+    # Structural error from items[1] must be present
+    assert CODE_UNKNOWN_FIELD in codes, f"unknown_field missing from {codes}"
+    # Semantic errors from items[0] must ALL be present
+    assert CODE_UNKNOWN_PARENT in codes, f"unknown_parent missing from {codes}"
+    assert CODE_BAD_NESTING in codes, f"bad_nesting missing from {codes}"
+
+    # Document order: items[0] errors come before items[1] errors
+    first_err = errors[0]
+    assert "items[0]" in first_err.path, (
+        f"First error should be at items[0], got {first_err.path!r}"
+    )
+    last_err = errors[-1]
+    assert "items[1]" in last_err.path, f"Last error should be at items[1], got {last_err.path!r}"
+    assert last_err.code == CODE_UNKNOWN_FIELD
+
+    # At least 4 errors total: unknown_parent + 2 bad_nesting + unknown_field
+    assert len(errors) >= 4, f"Expected >= 4 errors, got {len(errors)}: {codes}"
+
+
+def test_load_plan_exit_code_from_first_error_in_document_order(loom_dir) -> None:
+    """Exit code must be determined by the first error in document order, not phase order.
+    With unknown_parent at items[0] and unknown_field at items[1], the first error
+    (document order) is unknown_parent -> exit code 2, not 1.
+    """
+    from loom.api import Loom
+
+    loom = Loom(root=loom_dir)
+    loom.create_project("myproj", title="My Project")
+
+    data = {
+        "items": [
+            {
+                "type": "epic",
+                "parent": "no-such-proj",  # semantic: unknown_parent
+                "title": "Epic A",
+            },
+            {
+                "type": "epic",
+                "parent": "myproj",
+                "title": "Epic B",
+                "titel": "typo",  # structural: unknown_field
+            },
+        ]
+    }
+
+    def _get_type(qid: str) -> str | None:
+        i = loom.get_or_none(qid)
+        return i.type if i else None
+
+    with pytest.raises(PlanValidationError) as exc_info:
+        load_plan(data, get_item_type=_get_type)
+
+    errors = exc_info.value.errors
+    # First error in document order must be unknown_parent (items[0]) not unknown_field (items[1])
+    assert errors[0].code == CODE_UNKNOWN_PARENT, (
+        f"First error should be unknown_parent, got {errors[0].code!r}"
+    )
+    assert errors[-1].code == CODE_UNKNOWN_FIELD, (
+        f"Last error should be unknown_field, got {errors[-1].code!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Missing-title vs empty-title distinction
+# ---------------------------------------------------------------------------
+
+
+def test_absent_title_reports_missing_field_only() -> None:
+    """An absent 'title' field must emit ONLY missing_field — not empty_title as well.
+
+    One defect, one error.  empty_title fires only when title is present-but-blank.
+    """
+    with pytest.raises(PlanValidationError) as exc_info:
+        parse_plan({"items": [{"type": "epic", "parent": "p"}]})
+    errors = exc_info.value.errors
+    codes = [e.code for e in errors]
+    assert CODE_MISSING_FIELD in codes, f"missing_field not reported; got {codes}"
+    assert any("title" in e.message for e in errors if e.code == CODE_MISSING_FIELD)
+    # Absent title must NOT also produce empty_title — that would be double-reporting
+    assert CODE_EMPTY_TITLE not in codes, (
+        f"empty_title must not fire for an absent title field; got {codes}"
+    )
+
+
+def test_explicit_empty_title_reports_empty_title() -> None:
+    """An item with 'title': '' reports empty_title (semantic), not missing_field."""
+    item = PlanItem(type="epic", parent="p", title="")
+    plan = ApplyPlan(items=[item])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    codes = [e.code for e in errors]
+    assert CODE_EMPTY_TITLE in codes, f"empty_title not reported; got {codes}"
+    # missing_field should NOT be reported (title key was present)
+    assert CODE_MISSING_FIELD not in codes, (
+        "missing_field should not appear for explicit empty title"
+    )
+
+
+def test_load_plan_absent_title_gets_missing_field_only(loom_dir) -> None:
+    """via load_plan: absent title -> exactly missing_field, NOT also empty_title.
+
+    One defect, one error: the structural missing_field check fires; the dependent
+    semantic empty_title check must be suppressed for absent fields.
+    """
+    from loom.api import Loom
+
+    loom = Loom(root=loom_dir)
+    loom.create_project("myproj", title="My Project")
+
+    def _get_type(qid: str) -> str | None:
+        i = loom.get_or_none(qid)
+        return i.type if i else None
+
+    # Absent title: must produce missing_field ONLY (not also empty_title)
+    with pytest.raises(PlanValidationError) as exc_info:
+        load_plan({"items": [{"type": "epic", "parent": "myproj"}]}, get_item_type=_get_type)
+    errors_absent = exc_info.value.errors
+    codes_absent = [e.code for e in errors_absent]
+    assert CODE_MISSING_FIELD in codes_absent, f"Absent title: {codes_absent}"
+    assert CODE_EMPTY_TITLE not in codes_absent, (
+        f"empty_title must not fire for an absent title; got {codes_absent}"
+    )
+
+    # Explicit empty title — empty_title fires, missing_field must NOT appear
+    with pytest.raises(PlanValidationError) as exc_info:
+        load_plan(
+            {"items": [{"type": "epic", "parent": "myproj", "title": ""}]},
+            get_item_type=_get_type,
+        )
+    codes_empty = [e.code for e in exc_info.value.errors]
+    assert CODE_EMPTY_TITLE in codes_empty, f"Explicit empty title: {codes_empty}"
+    assert CODE_MISSING_FIELD not in codes_empty, (
+        f"missing_field must not appear for explicit empty title: {codes_empty}"
+    )
+
+
+def test_load_plan_document_order_sort() -> None:
+    """Errors from different items are sorted in document (pre-order) order."""
+    # items[0] semantic error, items[1] structural error -> items[0] first
+    data = {
+        "items": [
+            {"type": "epic", "parent": "missing-proj", "title": "A"},
+            {"type": "epic", "parent": "x", "title": "B", "bad_field": "x"},
+        ]
+    }
+    with pytest.raises(PlanValidationError) as exc_info:
+        load_plan(data, get_item_type=lambda qid: None)
+    errors = exc_info.value.errors
+    # items[0] error must come before items[1] error
+    paths = [e.path for e in errors]
+    first_idx = next(i for i, p in enumerate(paths) if "items[0]" in p)
+    last_idx = max(i for i, p in enumerate(paths) if "items[1]" in p)
+    assert first_idx < last_idx, f"Expected items[0] before items[1]; paths={paths}"
