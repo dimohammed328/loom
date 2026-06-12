@@ -1,0 +1,23 @@
+tests/test_bulk_validation.py
+  s_12f384153cebba::t_54fd3b9552e3b9 286-293,302-313
+  s_12f384153cebba::t_1b47592d78a558 713-718,728,731-732,734-736,738
+  s_12f384153cebba::t_4869241a44825d 681-685,692-695
+src/loom/bulk.py
+  s_12f384153cebba::t_009ce0f9c27191 141,415,512-515,601-603,605-609,611
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "733029dda0d2a4c4196e81f7223488b932a0c824",
+  "prompts": {},
+  "sessions": {
+    "s_12f384153cebba": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8218f31b-505b-4a6b-b7d2-96f1892ad0ab",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
