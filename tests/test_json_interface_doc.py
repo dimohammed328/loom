@@ -167,9 +167,17 @@ def test_json_interface_doc_collect_all_behavior() -> None:
     doc = _doc()
     lower = doc.lower()
     # "all errors", "collect all", "single pass", "one pass", or "one round-trip"
-    assert any(phrase in lower for phrase in [
-        "all errors", "collect all", "one pass", "single pass", "one round", "every error",
-    ])
+    assert any(
+        phrase in lower
+        for phrase in [
+            "all errors",
+            "collect all",
+            "one pass",
+            "single pass",
+            "one round",
+            "every error",
+        ]
+    )
 
 
 def test_json_interface_doc_has_all_error_codes() -> None:
@@ -180,16 +188,19 @@ def test_json_interface_doc_has_all_error_codes() -> None:
         CODE_CHILDREN_ON_TASK,
         CODE_DUPLICATE_REF,
         CODE_EMPTY_TITLE,
+        CODE_MISSING_FIELD,
         CODE_MISSING_PARENT,
         CODE_NON_OBJECT,
         CODE_PARENT_ON_CHILD,
         CODE_UNKNOWN_FIELD,
         CODE_UNKNOWN_PARENT,
     )
+
     doc = _doc()
     for code in [
         CODE_BAD_TYPE,
         CODE_EMPTY_TITLE,
+        CODE_MISSING_FIELD,
         CODE_DUPLICATE_REF,
         CODE_UNKNOWN_PARENT,
         CODE_MISSING_PARENT,
@@ -229,3 +240,16 @@ def test_json_interface_doc_worked_multi_error_example() -> None:
     assert '"path"' in doc
     assert '"code"' in doc
     assert '"message"' in doc
+
+
+def test_json_interface_doc_has_missing_field_code() -> None:
+    """Must document the missing_field error code."""
+    doc = _doc()
+    assert "missing_field" in doc
+
+
+def test_json_interface_doc_errors_in_document_order() -> None:
+    """Must mention that errors are reported in document order."""
+    doc = _doc()
+    lower = doc.lower()
+    assert "document order" in lower or "pre-order" in lower

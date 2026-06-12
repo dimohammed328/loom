@@ -92,13 +92,18 @@ flat/forward-ref form — nesting *is* the parent relationship.
 
 ### Validation (collect-all, before any write)
 
-**All errors are collected in one pass.** On failure, nothing is written and
-the complete error report is emitted on stdout so you can fix every error in
-one editing pass, then re-apply.
+**All errors — structural and semantic — are collected in one combined pass.**
+On failure, nothing is written and the complete error report is emitted on
+stdout so you can fix every error in one editing pass, then re-apply.
+
+Structural rules (field-level):
+- `type` and `title` must be present on every item (absent field → `missing_field`).
+- Unknown fields are rejected (`unknown_field`).
+- `tags` and `children` must be JSON lists when present.
 
 Semantic rules:
 - `type` must be `epic`, `story`, or `task`.
-- `title` must be non-empty (whitespace-only is rejected).
+- `title` must be non-empty string (present but empty/whitespace-only → `empty_title`).
 - `ref` values must be unique across the **whole plan tree** (including nested children).
 - `parent` on a root item must be an existing qid in the store. Refs, symbolic
   names, or symbolic references are not valid — always use existing qids.
@@ -112,7 +117,9 @@ Semantic rules:
 
 ### Validation error report
 
-On any validation failure, stdout is a bare JSON error report; nothing is created:
+On any validation failure, stdout is a bare JSON error report; nothing is created.
+Errors are reported in **document order** (pre-order walk position: e.g. `items[0]`
+errors before `items[1]` errors, parent before children).
 
 ```json
 {
@@ -148,7 +155,8 @@ preserves the previous exit-code specificity):
 | Code | Meaning |
 |---|---|
 | `bad_type` | `type` value is not `epic`, `story`, or `task` |
-| `empty_title` | `title` is missing, empty, or whitespace-only |
+| `empty_title` | `title` is present but empty or whitespace-only |
+| `missing_field` | A required field (`type` or `title`) is absent from the item |
 | `duplicate_ref` | A `ref` value appears more than once across the whole tree |
 | `unknown_parent` | Root item's `parent` qid does not exist in the store |
 | `missing_parent` | A root item has no `parent` field |

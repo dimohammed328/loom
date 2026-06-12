@@ -496,10 +496,10 @@ class Loom:
 
     def apply(
         self,
-        plan: "ApplyPlan | dict",
+        plan: ApplyPlan | dict,
         *,
         skip_validation: bool = False,
-    ) -> "ApplyResult":
+    ) -> ApplyResult:
         """Bulk-create items described by *plan* in depth-first order.
 
         Accepts either a pre-parsed :class:`~loom.bulk.ApplyPlan` or a raw
@@ -518,20 +518,23 @@ class Loom:
         :param skip_validation: Bypass pre-write validation (for testing
             partial-failure paths).  Do not pass True in production code.
         """
-        from .bulk import ApplyPlan, execute_plan, parse_plan, validate_plan
+        from .bulk import ApplyPlan, execute_plan, load_plan, parse_plan, validate_plan
+
+        _get_item_type = lambda qid: (  # noqa: E731
+            self.get_or_none(qid).type if self.get_or_none(qid) else None
+        )
 
         if isinstance(plan, dict):
-            plan = parse_plan(plan)
+            if not skip_validation:
+                # load_plan combines structural parsing + semantic validation in one pass
+                plan = load_plan(plan, get_item_type=_get_item_type)
+            else:
+                plan = parse_plan(plan)
+        elif not skip_validation:
+            # Pre-parsed ApplyPlan: run semantic validation only
+            validate_plan(plan, get_item_type=_get_item_type)
+
         assert isinstance(plan, ApplyPlan)
-
-        if not skip_validation:
-            validate_plan(
-                plan,
-                get_item_type=lambda qid: (
-                    self.get_or_none(qid).type if self.get_or_none(qid) else None
-                ),
-            )
-
         return execute_plan(plan, self._root, get_item=self.get)
 
     def add_dependencies(

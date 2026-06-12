@@ -16,6 +16,7 @@ from loom.bulk import (
     CODE_CHILDREN_ON_TASK,
     CODE_DUPLICATE_REF,
     CODE_EMPTY_TITLE,
+    CODE_MISSING_FIELD,
     CODE_MISSING_PARENT,
     CODE_NON_OBJECT,
     CODE_PARENT_ON_CHILD,
@@ -25,6 +26,7 @@ from loom.bulk import (
     PlanError,
     PlanItem,
     PlanValidationError,
+    load_plan,
     parse_plan,
     validate_plan,
 )
@@ -168,9 +170,7 @@ def test_parse_plan_tags_not_list_raises() -> None:
 
 def test_parse_plan_children_not_list_raises() -> None:
     with pytest.raises(PlanValidationError) as exc_info:
-        parse_plan(
-            {"items": [{"type": "epic", "parent": "p", "title": "E", "children": "bad"}]}
-        )
+        parse_plan({"items": [{"type": "epic", "parent": "p", "title": "E", "children": "bad"}]})
     errors = exc_info.value.errors
     assert len(errors) >= 1
     assert any("children" in e.message for e in errors)
@@ -494,8 +494,7 @@ def test_validate_plan_deep_child_error_still_collects_all() -> None:
     assert any("items[0]" in e.path and e.code == CODE_EMPTY_TITLE for e in errors)
     # Deep task empty title
     assert any(
-        "items[0].children[0].children[0]" in e.path and e.code == CODE_EMPTY_TITLE
-        for e in errors
+        "items[0].children[0].children[0]" in e.path and e.code == CODE_EMPTY_TITLE for e in errors
     )
 
 
@@ -538,7 +537,198 @@ def test_code_constants_are_strings() -> None:
         CODE_BAD_NESTING,
         CODE_NON_OBJECT,
         CODE_UNKNOWN_FIELD,
+        CODE_MISSING_FIELD,
     ]
     for c in codes:
         assert isinstance(c, str), f"Expected str code, got {type(c)}: {c!r}"
         assert c  # non-empty
+
+
+# ---------------------------------------------------------------------------
+# load_plan: cross-phase multi-error collection
+# ---------------------------------------------------------------------------
+
+
+def test_load_plan_cross_phase_collects_all_errors(loom_dir) -> None:
+    """Cross-phase regression: structural unknown_field on a later item must not
+    hide semantic errors on earlier items.  Reproduces the observed plan shape
+    from the validation criteria: items[1] has an unknown field 'titel', while
+    items[0] has an unknown parent qid plus additional semantic errors in children.
+    All errors must appear in one combined report, sorted in document order.
+    """
+    from loom.api import Loom
+
+    loom = Loom(root=loom_dir)
+    loom.create_project("myproj", title="My Project")
+
+    data = {
+        "items": [
+            {
+                # items[0]: valid structure, but unknown parent + nesting errors
+                "type": "epic",
+                "parent": "ghost-proj",  # unknown parent -> CODE_UNKNOWN_PARENT
+                "title": "Root Epic",
+                "children": [
+                    {"type": "epic", "title": "epic-inside-epic"},  # bad_nesting
+                    {"type": "task", "title": "task-in-epic"},  # bad_nesting
+                ],
+            },
+            {
+                # items[1]: structural unknown_field 'titel'
+                "type": "epic",
+                "parent": "myproj",
+                "title": "Valid Epic",
+                "titel": "typo",  # unknown_field -> CODE_UNKNOWN_FIELD
+            },
+        ]
+    }
+
+    def _get_type(qid: str) -> str | None:
+        i = loom.get_or_none(qid)
+        return i.type if i else None
+
+    with pytest.raises(PlanValidationError) as exc_info:
+        load_plan(data, get_item_type=_get_type)
+
+    errors = exc_info.value.errors
+    codes = [e.code for e in errors]
+
+    # Structural error from items[1] must be present
+    assert CODE_UNKNOWN_FIELD in codes, f"unknown_field missing from {codes}"
+    # Semantic errors from items[0] must ALL be present
+    assert CODE_UNKNOWN_PARENT in codes, f"unknown_parent missing from {codes}"
+    assert CODE_BAD_NESTING in codes, f"bad_nesting missing from {codes}"
+
+    # Document order: items[0] errors come before items[1] errors
+    first_err = errors[0]
+    assert "items[0]" in first_err.path, (
+        f"First error should be at items[0], got {first_err.path!r}"
+    )
+    last_err = errors[-1]
+    assert "items[1]" in last_err.path, f"Last error should be at items[1], got {last_err.path!r}"
+    assert last_err.code == CODE_UNKNOWN_FIELD
+
+    # At least 4 errors total: unknown_parent + 2 bad_nesting + unknown_field
+    assert len(errors) >= 4, f"Expected >= 4 errors, got {len(errors)}: {codes}"
+
+
+def test_load_plan_exit_code_from_first_error_in_document_order(loom_dir) -> None:
+    """Exit code must be determined by the first error in document order, not phase order.
+    With unknown_parent at items[0] and unknown_field at items[1], the first error
+    (document order) is unknown_parent -> exit code 2, not 1.
+    """
+    from loom.api import Loom
+
+    loom = Loom(root=loom_dir)
+    loom.create_project("myproj", title="My Project")
+
+    data = {
+        "items": [
+            {
+                "type": "epic",
+                "parent": "no-such-proj",  # semantic: unknown_parent
+                "title": "Epic A",
+            },
+            {
+                "type": "epic",
+                "parent": "myproj",
+                "title": "Epic B",
+                "titel": "typo",  # structural: unknown_field
+            },
+        ]
+    }
+
+    def _get_type(qid: str) -> str | None:
+        i = loom.get_or_none(qid)
+        return i.type if i else None
+
+    with pytest.raises(PlanValidationError) as exc_info:
+        load_plan(data, get_item_type=_get_type)
+
+    errors = exc_info.value.errors
+    # First error in document order must be unknown_parent (items[0]) not unknown_field (items[1])
+    assert errors[0].code == CODE_UNKNOWN_PARENT, (
+        f"First error should be unknown_parent, got {errors[0].code!r}"
+    )
+    assert errors[-1].code == CODE_UNKNOWN_FIELD, (
+        f"Last error should be unknown_field, got {errors[-1].code!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Missing-title vs empty-title distinction
+# ---------------------------------------------------------------------------
+
+
+def test_absent_title_reports_missing_field() -> None:
+    """An item missing the 'title' key entirely reports missing_field (structural)."""
+    with pytest.raises(PlanValidationError) as exc_info:
+        parse_plan({"items": [{"type": "epic", "parent": "p"}]})
+    errors = exc_info.value.errors
+    codes = [e.code for e in errors]
+    assert CODE_MISSING_FIELD in codes, f"missing_field not reported; got {codes}"
+    assert any("title" in e.message for e in errors if e.code == CODE_MISSING_FIELD)
+
+
+def test_explicit_empty_title_reports_empty_title() -> None:
+    """An item with 'title': '' reports empty_title (semantic), not missing_field."""
+    item = PlanItem(type="epic", parent="p", title="")
+    plan = ApplyPlan(items=[item])
+    with pytest.raises(PlanValidationError) as exc_info:
+        validate_plan(plan, get_item_type=_project_resolver(["p"]))
+    errors = exc_info.value.errors
+    codes = [e.code for e in errors]
+    assert CODE_EMPTY_TITLE in codes, f"empty_title not reported; got {codes}"
+    # missing_field should NOT be reported (title key was present)
+    assert CODE_MISSING_FIELD not in codes, (
+        "missing_field should not appear for explicit empty title"
+    )
+
+
+def test_load_plan_absent_title_gets_missing_field(loom_dir) -> None:
+    """via load_plan: absent title -> missing_field (structural); different from explicit empty."""
+    from loom.api import Loom
+
+    loom = Loom(root=loom_dir)
+    loom.create_project("myproj", title="My Project")
+
+    def _get_type(qid: str) -> str | None:
+        i = loom.get_or_none(qid)
+        return i.type if i else None
+
+    # Absent title
+    with pytest.raises(PlanValidationError) as exc_info:
+        load_plan({"items": [{"type": "epic", "parent": "myproj"}]}, get_item_type=_get_type)
+    codes_absent = [e.code for e in exc_info.value.errors]
+    assert CODE_MISSING_FIELD in codes_absent, f"Absent title: {codes_absent}"
+
+    # Explicit empty title — missing_field must NOT appear
+    with pytest.raises(PlanValidationError) as exc_info:
+        load_plan(
+            {"items": [{"type": "epic", "parent": "myproj", "title": ""}]},
+            get_item_type=_get_type,
+        )
+    codes_empty = [e.code for e in exc_info.value.errors]
+    assert CODE_EMPTY_TITLE in codes_empty, f"Explicit empty title: {codes_empty}"
+    assert CODE_MISSING_FIELD not in codes_empty, (
+        f"missing_field must not appear for explicit empty title: {codes_empty}"
+    )
+
+
+def test_load_plan_document_order_sort() -> None:
+    """Errors from different items are sorted in document (pre-order) order."""
+    # items[0] semantic error, items[1] structural error -> items[0] first
+    data = {
+        "items": [
+            {"type": "epic", "parent": "missing-proj", "title": "A"},
+            {"type": "epic", "parent": "x", "title": "B", "bad_field": "x"},
+        ]
+    }
+    with pytest.raises(PlanValidationError) as exc_info:
+        load_plan(data, get_item_type=lambda qid: None)
+    errors = exc_info.value.errors
+    # items[0] error must come before items[1] error
+    paths = [e.path for e in errors]
+    first_idx = next(i for i, p in enumerate(paths) if "items[0]" in p)
+    last_idx = max(i for i, p in enumerate(paths) if "items[1]" in p)
+    assert first_idx < last_idx, f"Expected items[0] before items[1]; paths={paths}"

@@ -11,17 +11,22 @@ have children.  The ``parent`` field is forbidden on nested children.
 
 Error reporting
 ---------------
-:func:`parse_plan` and :func:`validate_plan` collect **all** errors in one
-pass and raise :class:`PlanValidationError` carrying a list of
-:class:`PlanError` objects.  Each error has:
+:func:`load_plan` is the single entry point that collects **all** errors —
+both structural field errors and semantic errors — in one combined pass and
+raises :class:`PlanValidationError` carrying a list of :class:`PlanError`
+objects sorted in document (pre-order) position.  Each error has:
 
 - ``path``    — JSON-path into the plan (``items[0].children[2]``)
 - ``code``    — stable machine constant (``CODE_*`` below)
 - ``message`` — human/model-readable; names the offending value and expected form
+
+:func:`parse_plan` and :func:`validate_plan` remain available for callers that
+need them separately, but callers should prefer :func:`load_plan`.
 """
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -40,7 +45,7 @@ CODE_BAD_TYPE = "bad_type"
 """``type`` value is not one of ``epic``, ``story``, ``task``."""
 
 CODE_EMPTY_TITLE = "empty_title"
-"""``title`` is missing, empty, or whitespace-only."""
+"""``title`` is present but empty or whitespace-only."""
 
 CODE_DUPLICATE_REF = "duplicate_ref"
 """A ``ref`` value appears more than once across the whole plan tree."""
@@ -49,7 +54,7 @@ CODE_UNKNOWN_PARENT = "unknown_parent"
 """The ``parent`` qid on a root item does not exist in the store."""
 
 CODE_MISSING_PARENT = "missing_parent"
-"""A root item has no ``parent`` field (it is ``None``)."""
+"""A root item has no ``parent`` field (it is absent)."""
 
 CODE_PARENT_ON_CHILD = "parent_on_child"
 """A nested child item has a ``parent`` field set (forbidden; nesting is the relationship)."""
@@ -66,8 +71,8 @@ CODE_NON_OBJECT = "non_object"
 CODE_UNKNOWN_FIELD = "unknown_field"
 """An item contains a field not in the allowed set."""
 
-CODE_MISSING_REQUIRED = "missing_required"
-"""An item is missing a required field (``type`` or ``title``)."""
+CODE_MISSING_FIELD = "missing_field"
+"""An item is missing a required field (e.g. ``type`` or ``title``)."""
 
 CODE_WRONG_TYPE = "wrong_type"
 """A field has the wrong JSON type (e.g. ``tags`` must be a list)."""
@@ -93,8 +98,6 @@ _VALID_CHILDREN: dict[str, set[str]] = {
 _ITEM_FIELDS = frozenset(
     {"ref", "type", "title", "parent", "body", "assignee", "tags", "status", "children"}
 )
-# Required fields
-_REQUIRED_FIELDS = frozenset({"type", "title"})
 
 
 # ---------------------------------------------------------------------------
@@ -113,9 +116,10 @@ class PlanError:
 
 @dataclass
 class PlanValidationError(LoomError):
-    """Raised when parse_plan or validate_plan finds errors.
+    """Raised when load_plan / parse_plan / validate_plan finds errors.
 
     Carries every collected error so callers can act on all problems at once.
+    Errors are sorted in document (pre-order walk) position order.
     """
 
     errors: list[PlanError]
@@ -173,6 +177,106 @@ class PartialApplyError(LoomError):
 
 
 # ---------------------------------------------------------------------------
+# Document-order sort key for error paths
+# ---------------------------------------------------------------------------
+
+
+def _path_sort_key(path: str) -> tuple:
+    """Convert a path like 'items[0].children[2]' to a tuple of ints for sorting.
+
+    Plan-level paths (empty or no bracket) sort before item paths.
+    """
+    parts = re.findall(r"\d+", path)
+    return tuple(int(p) for p in parts)
+
+
+def _sort_errors(errors: list[PlanError]) -> list[PlanError]:
+    """Return errors sorted in document (pre-order) position."""
+    return sorted(errors, key=lambda e: _path_sort_key(e.path))
+
+
+# ---------------------------------------------------------------------------
+# Combined entry point (preferred)
+# ---------------------------------------------------------------------------
+
+
+def load_plan(
+    data: object,
+    *,
+    get_item_type: Callable[[str], str | None],
+) -> ApplyPlan:
+    """Parse and fully validate a raw plan dict in one combined pass.
+
+    Collects **all** structural field errors AND semantic errors in one run,
+    merges them, sorts in document order, and raises
+    :class:`PlanValidationError` if any errors exist.
+
+    This is the preferred entry point for both the CLI and :meth:`Loom.apply`.
+
+    :param data: Raw plan object (from JSON deserialization).
+    :param get_item_type: Callable that resolves an existing qid to its
+        type string (``"project"``, ``"epic"``, etc.) or ``None`` when
+        not found.  Called only for ``parent`` values on root items.
+    :raises PlanValidationError: if any errors are found (combined report,
+        sorted in document order).
+    """
+    structural_errors: list[PlanError] = []
+
+    # Top-level structural checks — these are fatal; can't build a tree at all
+    if not isinstance(data, dict):
+        raise PlanValidationError(
+            [PlanError(path="", code=CODE_NON_OBJECT, message="plan must be a JSON object")]
+        )
+
+    if "items" not in data:
+        raise PlanValidationError(
+            [
+                PlanError(
+                    path="",
+                    code=CODE_MISSING_ITEMS,
+                    message="plan must have an 'items' key",
+                )
+            ]
+        )
+
+    raw_items = data["items"]
+    if not isinstance(raw_items, list):
+        raise PlanValidationError(
+            [
+                PlanError(
+                    path="items",
+                    code=CODE_WRONG_TYPE,
+                    message="'items' must be a list",
+                )
+            ]
+        )
+
+    # Parse best-effort tree (collecting structural errors)
+    items = _parse_item_list(raw_items, "items", is_root=True, errors=structural_errors)
+    plan = ApplyPlan(items=items)
+
+    # Run semantic validation on the best-effort tree (collecting semantic errors)
+    semantic_errors: list[PlanError] = []
+    seen_refs: set[str] = set()
+    for idx, item in enumerate(plan.items):
+        _validate_item(
+            item,
+            path=f"items[{idx}]",
+            parent_type=None,
+            is_root=True,
+            errors=semantic_errors,
+            seen_refs=seen_refs,
+            get_item_type=get_item_type,
+        )
+
+    all_errors = _sort_errors(structural_errors + semantic_errors)
+    if all_errors:
+        raise PlanValidationError(all_errors)
+
+    return plan
+
+
+# ---------------------------------------------------------------------------
 # Parsing
 # ---------------------------------------------------------------------------
 
@@ -182,6 +286,8 @@ def parse_plan(data: object) -> ApplyPlan:
 
     Performs structural field checking (unknown/missing fields, wrong JSON
     types).  Collects **all** structural errors before raising.
+
+    Prefer :func:`load_plan` which also runs semantic validation in one pass.
 
     :raises PlanValidationError: if any structural errors are found.
     """
@@ -268,6 +374,17 @@ def _parse_one_item(
             )
         )
 
+    # Missing required fields: type and title must be present (not just non-empty)
+    missing = [f for f in ("type", "title") if f not in raw]
+    if missing:
+        errors.append(
+            PlanError(
+                path=path,
+                code=CODE_MISSING_FIELD,
+                message=f"missing required field(s): {', '.join(missing)}",
+            )
+        )
+
     # Wrong JSON types for specific fields
     if "tags" in raw and not isinstance(raw["tags"], list):
         errors.append(
@@ -331,6 +448,8 @@ def validate_plan(
     Collects **all** errors in one pass and raises
     :class:`PlanValidationError` if any are found.
 
+    Prefer :func:`load_plan` which combines structural and semantic validation.
+
     :param get_item_type: Callable that resolves an existing qid to its
         type string (``"project"``, ``"epic"``, etc.) or ``None`` when
         not found.  Called only for ``parent`` values on root items.
@@ -363,24 +482,39 @@ def _validate_item(
     seen_refs: set[str],
     get_item_type: Callable[[str], str | None],
 ) -> None:
-    """Recursively validate one item, appending to *errors*."""
+    """Recursively validate one item, appending to *errors*.
+
+    If item.type is empty string (absent from raw dict — missing_field already
+    reported by parse), skip type-dependent semantic checks to avoid cascade
+    noise, but still validate other fields and recurse into children.
+    """
 
     # --- type ---
     if item.type not in _ALLOWED_TYPES:
-        errors.append(
-            PlanError(
-                path=path,
-                code=CODE_BAD_TYPE,
-                message=(f"invalid type {item.type!r}; must be one of {sorted(_ALLOWED_TYPES)}"),
+        if item.type:
+            # Non-empty bad type value — report bad_type
+            errors.append(
+                PlanError(
+                    path=path,
+                    code=CODE_BAD_TYPE,
+                    message=(
+                        f"invalid type {item.type!r}; must be one of {sorted(_ALLOWED_TYPES)}"
+                    ),
+                )
             )
-        )
-        # Can't validate nesting without a valid type — skip nesting checks
+        # item.type == "" means it was absent (missing_field already reported by parse);
+        # skip the bad_type error to avoid double-reporting.
         effective_type = None
     else:
         effective_type = item.type
 
     # --- title ---
-    if not item.title or not item.title.strip():
+    # Absent title: parse_plan already reported missing_field.
+    #   PlanItem.title will be "" in both absent and explicit-empty cases.
+    #   We emit empty_title for the "" case so validate_plan alone still catches it.
+    #   When called via load_plan, absent title gets both missing_field (structural)
+    #   and empty_title (semantic); explicit "" gets only empty_title. Both are correct.
+    if item.title is not None and not item.title.strip():
         errors.append(
             PlanError(
                 path=path,
@@ -449,8 +583,8 @@ def _validate_item(
         resolved_parent_type = parent_type
 
     # --- nesting / children validation ---
+    # Only check nesting if we have a valid effective_type (not absent/bad)
     if effective_type is not None and resolved_parent_type is not None:
-        # Check type is allowed under this parent
         allowed = _VALID_CHILDREN.get(resolved_parent_type, set())
         if effective_type not in allowed:
             errors.append(

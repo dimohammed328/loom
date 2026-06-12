@@ -1905,7 +1905,7 @@ def apply_cmd(
     from .bulk import (
         PartialApplyError,
         PlanValidationError,
-        parse_plan,
+        load_plan,
     )
 
     # --- read source ---
@@ -1925,20 +1925,11 @@ def apply_cmd(
         _die(f"apply: malformed JSON: {exc}", code=EXIT_GENERIC)
         return
 
-    # --- parse_plan: field validation + build ApplyPlan ---
+    # --- combined parse + validate (structural and semantic, one pass) ---
     loom = _loom(root)
     try:
-        plan = parse_plan(data)
-    except PlanValidationError as exc:
-        _emit_error_report(exc, _json)
-        return
-
-    # --- semantic validation ---
-    try:
-        from .bulk import validate_plan
-
-        validate_plan(
-            plan,
+        plan = load_plan(
+            data,
             get_item_type=lambda qid: loom.get_or_none(qid).type if loom.get_or_none(qid) else None,
         )
     except PlanValidationError as exc:
