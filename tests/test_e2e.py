@@ -672,20 +672,18 @@ def test_e2e_apply_library_creates_and_rebuild_is_noop(loom_dir: Path) -> None:
     loom = Loom(root=loom_dir)
     loom.create_project("myproj", title="My Project")
 
-    plan = ApplyPlan(
-        items=[
-            PlanItem(
-                ref="e1",
-                type="epic",
-                parent="myproj",
-                title="Auth Epic",
-                assignee="alice",
-                tags=["auth"],
-            ),
-            PlanItem(ref="s1", type="story", parent="e1", title="OAuth Story"),
-            PlanItem(type="task", parent="s1", title="Wire callback", status="blocked"),
-        ]
+    task = PlanItem(type="task", title="Wire callback", status="blocked")
+    story = PlanItem(ref="s1", type="story", title="OAuth Story", children=[task])
+    epic = PlanItem(
+        ref="e1",
+        type="epic",
+        parent="myproj",
+        title="Auth Epic",
+        assignee="alice",
+        tags=["auth"],
+        children=[story],
     )
+    plan = ApplyPlan(items=[epic])
     result = loom.apply(plan)
 
     assert len(result.created) == 3
@@ -724,9 +722,17 @@ def test_e2e_apply_cli_full_chain_with_metadata(tmp_path: Path, loom_dir: Path) 
                         "title": "E",
                         "assignee": "bob",
                         "tags": ["x", "y"],
-                    },
-                    {"ref": "s1", "type": "story", "parent": "e1", "title": "S"},
-                    {"type": "task", "parent": "s1", "title": "T", "status": "blocked"},
+                        "children": [
+                            {
+                                "ref": "s1",
+                                "type": "story",
+                                "title": "S",
+                                "children": [
+                                    {"type": "task", "title": "T", "status": "blocked"}
+                                ],
+                            }
+                        ],
+                    }
                 ]
             }
         )
