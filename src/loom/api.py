@@ -489,3 +489,34 @@ class Loom:
     def validate(self) -> list[ValidationIssue]:
         """Return every inconsistency between the index and the filesystem."""
         return _validate(self._root)
+
+    def apply(
+        self,
+        plan: "ApplyPlan",
+        *,
+        skip_validation: bool = False,
+    ) -> "ApplyResult":
+        """Bulk-create items described by *plan* in file order.
+
+        Validates first (unless *skip_validation* is True), then creates each
+        item in the order listed in the plan.  Returns an
+        :class:`~loom.bulk.ApplyResult` with the created mapping.
+
+        Raises :class:`~loom.bulk.PartialApplyError` on mid-create failure
+        (partial mapping attached, no rollback).
+
+        :param plan: An :class:`~loom.bulk.ApplyPlan` to execute.
+        :param skip_validation: Bypass pre-write validation (for testing
+            partial-failure paths).  Do not pass True in production code.
+        """
+        from .bulk import ApplyResult, execute_plan, validate_plan
+
+        if not skip_validation:
+            validate_plan(
+                plan,
+                get_item_type=lambda qid: (
+                    self.get_or_none(qid).type if self.get_or_none(qid) else None
+                ),
+            )
+
+        return execute_plan(plan, self._root, get_item=self.get)

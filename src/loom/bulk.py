@@ -7,9 +7,13 @@ The CLI command (``loom apply``) is a thin wrapper over :func:`apply`.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING, Callable
 
 from .errors import Duplicate, LoomError, NotFound
+
+if TYPE_CHECKING:
+    pass
 
 # ---------------------------------------------------------------------------
 # Plan schema
@@ -45,6 +49,27 @@ class ApplyPlan:
     """A parsed apply plan ready for validation + execution."""
 
     items: list[PlanItem]
+
+
+@dataclass
+class ApplyResult:
+    """Returned by a successful :func:`apply` call."""
+
+    created: list[dict]  # [{"ref": str|None, "qid": str, "type": str}, ...]
+
+
+class PartialApplyError(LoomError):
+    """Raised when creation fails mid-plan.
+
+    Carries the items that were successfully created before the failure so
+    the caller (CLI) can print a partial mapping before exiting nonzero.
+    No rollback is performed.
+    """
+
+    def __init__(self, cause: Exception, created: list[dict]) -> None:
+        super().__init__(f"apply failed after {len(created)} item(s): {cause}")
+        self.cause = cause
+        self.created = created
 
 
 # ---------------------------------------------------------------------------
@@ -131,3 +156,99 @@ def _resolve_parent_type(
 
     # Unknown: not a seen ref and not in the store.
     raise NotFound(parent)
+
+
+# ---------------------------------------------------------------------------
+# Execution
+# ---------------------------------------------------------------------------
+
+
+def execute_plan(
+    plan: ApplyPlan,
+    root: Path,
+    *,
+    get_item: Callable[[str], object],  # returns Item or raises NotFound
+) -> ApplyResult:
+    """Execute *plan* in file order, creating items one by one.
+
+    Returns :class:`ApplyResult` on full success.
+    Raises :class:`PartialApplyError` if any creation fails mid-plan —
+    items already created remain (no rollback), and the partial list is
+    attached to the exception.
+
+    :param plan: A validated :class:`ApplyPlan`.
+    :param root: The loom root directory (``$LOOM_DIR``).
+    :param get_item: Callable that resolves a qid to an Item.  Used to
+        fetch existing parent items during execution.
+    """
+    from .ids import BACKLOG_EPIC_ID
+    from .items import Epic, Project, Story
+
+    # ref -> created qid (for resolving local ref parents during execution)
+    ref_to_qid: dict[str, str] = {}
+
+    created: list[dict] = []
+
+    for item in plan.items:
+        # Resolve parent qid: local ref or raw qid.
+        if item.parent in ref_to_qid:
+            parent_qid = ref_to_qid[item.parent]
+        else:
+            parent_qid = item.parent
+
+        try:
+            parent_item = get_item(parent_qid)
+
+            if item.type == "epic":
+                assert isinstance(parent_item, Project)
+                created_item = parent_item.create_epic(
+                    title=item.title,
+                    body=item.body,
+                )
+            elif item.type == "story":
+                if isinstance(parent_item, Project):
+                    # Target the backlog epic (auto-created by create_project).
+                    backlog_qid = f"{parent_qid}:{BACKLOG_EPIC_ID}"
+                    backlog = get_item(backlog_qid)
+                    assert isinstance(backlog, Epic)
+                    created_item = backlog.create_story(
+                        title=item.title,
+                        body=item.body,
+                    )
+                else:
+                    assert isinstance(parent_item, Epic)
+                    created_item = parent_item.create_story(
+                        title=item.title,
+                        body=item.body,
+                    )
+            elif item.type == "task":
+                assert isinstance(parent_item, Story)
+                created_item = parent_item.create_task(
+                    title=item.title,
+                    body=item.body,
+                )
+            else:  # pragma: no cover — validated before this point
+                raise LoomError(f"unexpected type {item.type!r}")
+
+            # Apply optional post-create mutators.
+            if item.assignee is not None:
+                created_item.set_assignee(item.assignee)  # type: ignore[union-attr]
+            for tag in item.tags:
+                created_item.add_tag(tag)
+            if item.status != "ready":
+                created_item.set_status(item.status)  # type: ignore[union-attr]
+
+        except Exception as exc:
+            raise PartialApplyError(exc, created) from exc
+
+        entry = {
+            "ref": item.ref,
+            "qid": created_item.qualified_id,
+            "type": created_item.type,
+        }
+        created.append(entry)
+
+        if item.ref is not None:
+            ref_to_qid[item.ref] = created_item.qualified_id
+
+    return ApplyResult(created=created)
