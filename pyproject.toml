@@ -1,6 +1,6 @@
 [project]
 name = "loom"
-version = "0.3.0"
+version = "0.4.0"
 description = "A markdown-based, hierarchy-agnostic project management system."
 authors = [
     { email = "dimohammed328@gmail.com" }
