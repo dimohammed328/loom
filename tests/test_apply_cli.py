@@ -136,6 +136,36 @@ def test_apply_dry_run_exits_zero_on_valid_plan(tmp_path: Path, loom_dir: Path) 
     result = runner.invoke(app, ["apply", "--root", str(loom_dir), "--dry-run", str(plan_file)])
 
     assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload == {
+        "plan": [{"ref": None, "type": "epic", "parent": "p", "title": "Dry Run Epic"}]
+    }
+
+
+def test_apply_missing_required_field_message_is_clean(tmp_path: Path, loom_dir: Path) -> None:
+    """A plan item without a title exits 1 with a clean message, not a Python traceback leak."""
+    _make_project(loom_dir)
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(_plan_json([{"type": "story", "parent": "p"}]))
+
+    result = runner.invoke(app, ["apply", "--root", str(loom_dir), str(plan_file)])
+
+    assert result.exit_code == 1
+    assert "item 0: missing required field(s): title" in result.stderr
+    assert "__init__" not in result.stderr
+
+
+def test_apply_unknown_field_rejected(tmp_path: Path, loom_dir: Path) -> None:
+    _make_project(loom_dir)
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(
+        _plan_json([{"type": "story", "parent": "p", "title": "T", "titel": "typo"}])
+    )
+
+    result = runner.invoke(app, ["apply", "--root", str(loom_dir), str(plan_file)])
+
+    assert result.exit_code == 1
+    assert "item 0: unknown field(s): titel" in result.stderr
 
 
 def test_apply_dry_run_exits_nonzero_on_invalid_plan(tmp_path: Path, loom_dir: Path) -> None:
