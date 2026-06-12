@@ -20,6 +20,10 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .bulk import ApplyPlan, ApplyResult
 
 from .errors import Duplicate, LoomError, NotFound
 from .ids import (
@@ -492,10 +496,10 @@ class Loom:
 
     def apply(
         self,
-        plan: "ApplyPlan",
+        plan: ApplyPlan,
         *,
         skip_validation: bool = False,
-    ) -> "ApplyResult":
+    ) -> ApplyResult:
         """Bulk-create items described by *plan* in file order.
 
         Validates first (unless *skip_validation* is True), then creates each
@@ -509,7 +513,7 @@ class Loom:
         :param skip_validation: Bypass pre-write validation (for testing
             partial-failure paths).  Do not pass True in production code.
         """
-        from .bulk import ApplyResult, execute_plan, validate_plan
+        from .bulk import execute_plan, validate_plan
 
         if not skip_validation:
             validate_plan(
@@ -520,3 +524,92 @@ class Loom:
             )
 
         return execute_plan(plan, self._root, get_item=self.get)
+
+    def add_dependencies(
+        self,
+        edges: list[tuple[str, str]],
+    ) -> int:
+        """Bulk-add dependency edges with an all-or-nothing batch cycle check.
+
+        Each edge is a ``(source_qid, target_qid)`` tuple meaning *source*
+        depends on *target* (same direction as :func:`~loom.deps.add_dependency`).
+
+        Validates before any write:
+
+        * Every qid exists (raises :class:`~loom.errors.NotFound`).
+        * Neither source nor target is a project.
+        * No self-loops.
+        * One batch cycle check over the existing graph plus all new edges
+          together (raises :class:`~loom.errors.CycleError` if any cycle).
+
+        Already-existing edges are idempotent (not counted in the return value).
+
+        :returns: Number of *new* edges actually written (0 when all were
+            already present).
+        :raises NotFound: Any qid in *edges* not found in the store.
+        :raises LoomError: Self-loop or dep-on-project violation.
+        :raises CycleError: Batch cycle detected.
+        """
+        from .deps import _declared_deps, batch_would_create_cycle
+        from .errors import CycleError
+        from .ids import ItemType
+
+        if not edges:
+            return 0
+
+        idx = self._index
+
+        # --- pre-flight validation (before any write) ---
+        for src_qid, tgt_qid in edges:
+            src = idx.get(src_qid)
+            if src is None:
+                raise NotFound(src_qid)
+            tgt = idx.get(tgt_qid)
+            if tgt is None:
+                raise NotFound(tgt_qid)
+            if src.type == ItemType.PROJECT.value:
+                raise LoomError(f"projects cannot have dependencies (source: {src_qid})")
+            if tgt.type == ItemType.PROJECT.value:
+                raise LoomError(f"depending on a project is forbidden (target: {tgt_qid})")
+            if src_qid == tgt_qid:
+                raise LoomError(f"an item cannot depend on itself: {src_qid}")
+
+        # Filter out already-existing edges (idempotent).
+        new_edges: list[tuple[str, str]] = []
+        for src_qid, tgt_qid in edges:
+            src_rec = idx.get(src_qid)
+            assert src_rec is not None  # checked above
+            existing = _declared_deps(src_rec)
+            if tgt_qid not in existing:
+                new_edges.append((src_qid, tgt_qid))
+
+        if not new_edges:
+            return 0
+
+        # Batch cycle check over existing graph + all new edges.
+        cycle = batch_would_create_cycle(idx, new_edges)
+        if cycle is not None:
+            # Report as a CycleError using the first closing edge for src/tgt.
+            src_qid, tgt_qid = new_edges[0]
+            raise CycleError(cycle[0], cycle[-1], cycle)
+
+        # Apply all edges (already validated; skip per-edge cycle check overhead
+        # by calling _rewrite_depends_on directly to group writes per source).
+
+        from .deps import _rewrite_depends_on
+
+        # Group new edges by source so each file is written once.
+        by_source: dict[str, list[str]] = {}
+        for src_qid, tgt_qid in new_edges:
+            by_source.setdefault(src_qid, []).append(tgt_qid)
+
+        for src_qid, tgt_qids in by_source.items():
+            src_rec = idx.get(src_qid)
+            assert src_rec is not None
+            _rewrite_depends_on(
+                self._root,
+                src_rec,
+                lambda existing, _tgts=tgt_qids: [*existing, *_tgts],
+            )
+
+        return len(new_edges)

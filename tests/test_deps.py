@@ -15,6 +15,7 @@ from loom import (
 from loom.deps import (
     ItemRef,
     add_dependency,
+    batch_would_create_cycle,
     compute_blockers,
     compute_dependencies,
     compute_dependents,
@@ -424,3 +425,97 @@ def test_remove_dependency_idempotency_via_low_level(loom_dir: Path) -> None:
     remove_dependency(loom_dir, t2, t1)
     with pytest.raises(NotFound):
         remove_dependency(loom_dir, t2, t1)
+
+
+# ---------------------------------------------------------------------------
+# batch_would_create_cycle
+# ---------------------------------------------------------------------------
+
+
+def test_batch_cycle_visible_only_across_new_edges(loom_dir: Path) -> None:
+    """Cycle only visible when all new edges are considered together.
+
+    Existing graph: a -> b.
+    New edges: b -> c, c -> a.
+    Neither b->c nor c->a alone creates a cycle with the existing graph,
+    but together they close a->b->c->a.
+    """
+    loom = Loom(root=loom_dir)
+    p = loom.create_project("acme", title="A")
+    e = p.create_epic(title="E")
+    s = e.create_story(title="S")
+    a = s.create_task(title="ta").qualified_id
+    b = s.create_task(title="tb").qualified_id
+    c = s.create_task(title="tc").qualified_id
+
+    # Existing edge: a -> b
+    loom.get(a).depends_on(b)  # type: ignore[union-attr]
+
+    idx = Index(loom_dir)
+    new_edges = [(b, c), (c, a)]
+
+    # Both edges individually are safe against existing graph alone.
+    assert would_create_cycle(idx, b, c) is None
+    assert would_create_cycle(idx, c, a) is None
+
+    # Batch check sees the cycle.
+    cycle = batch_would_create_cycle(idx, new_edges)
+    assert cycle is not None
+
+
+def test_batch_cycle_edge_order_independent(loom_dir: Path) -> None:
+    """Cycle detection result must not depend on edge order in input."""
+    loom = Loom(root=loom_dir)
+    p = loom.create_project("acme", title="A")
+    e = p.create_epic(title="E")
+    s = e.create_story(title="S")
+    a = s.create_task(title="ta").qualified_id
+    b = s.create_task(title="tb").qualified_id
+    c = s.create_task(title="tc").qualified_id
+
+    loom.get(a).depends_on(b)  # type: ignore[union-attr]
+    idx = Index(loom_dir)
+
+    # Same cycle, edges in reversed order.
+    cycle1 = batch_would_create_cycle(idx, [(b, c), (c, a)])
+    cycle2 = batch_would_create_cycle(idx, [(c, a), (b, c)])
+    assert cycle1 is not None
+    assert cycle2 is not None
+
+
+def test_batch_no_cycle_returns_none(loom_dir: Path) -> None:
+    """Safe batch of edges returns None."""
+    loom = Loom(root=loom_dir)
+    p = loom.create_project("acme", title="A")
+    e = p.create_epic(title="E")
+    s = e.create_story(title="S")
+    a = s.create_task(title="ta").qualified_id
+    b = s.create_task(title="tb").qualified_id
+    c = s.create_task(title="tc").qualified_id
+
+    idx = Index(loom_dir)
+    # a->b, b->c: linear chain, no cycle.
+    cycle = batch_would_create_cycle(idx, [(a, b), (b, c)])
+    assert cycle is None
+
+
+def test_batch_self_loop_detected(loom_dir: Path) -> None:
+    """A self-loop in the new edges is reported as a cycle."""
+    loom = Loom(root=loom_dir)
+    p = loom.create_project("acme", title="A")
+    e = p.create_epic(title="E")
+    s = e.create_story(title="S")
+    a = s.create_task(title="ta").qualified_id
+
+    idx = Index(loom_dir)
+    cycle = batch_would_create_cycle(idx, [(a, a)])
+    assert cycle is not None
+
+
+def test_batch_empty_edges_no_cycle(loom_dir: Path) -> None:
+    """Empty edge list never produces a cycle."""
+    # loom_dir is a freshly initialized LOOM_DIR (from conftest fixture).
+    from loom.index import Index as _Index
+
+    idx = _Index(loom_dir)
+    assert batch_would_create_cycle(idx, []) is None
