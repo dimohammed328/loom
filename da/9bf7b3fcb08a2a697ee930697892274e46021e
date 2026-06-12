@@ -1,0 +1,29 @@
+plugin/skills/epic/SKILL.md
+  s_4237cde4ac239b::t_95c2d414df12ac 215-229,233-236,239,242-254,256-261,265,267-269,271-272,274,278-280
+  s_4237cde4ac239b::t_fb9202c0855de6 157-159
+  s_4237cde4ac239b::t_dc1110f2a3bd93 296-299
+  s_4237cde4ac239b::t_718ccae7c3b598 86-87,89-91
+  s_4237cde4ac239b::t_c3a462f3a7dca2 88
+  s_4237cde4ac239b::t_1f6ff87ad6ed9c 206-208,210,214,230-232,237-238,240-241,255,262-264,266,270,273,275-277,284-286
+tests/test_plugin_structure.py
+  s_4237cde4ac239b::t_a857e634d9d9d9 118-119
+  s_4237cde4ac239b::t_4e321562425524 113-115,117,120-121,124-125,130,136,139-141
+  s_4237cde4ac239b::t_5f82d7ecf78366 116,126-129,131-135,137-138
+  s_4237cde4ac239b::t_c3a462f3a7dca2 122-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "da9bf7b3fcb08a2a697ee930697892274e46021e",
+  "prompts": {},
+  "sessions": {
+    "s_4237cde4ac239b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0da95bb3-3e64-4371-a5fa-87bc6edd6d83",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
