@@ -46,8 +46,8 @@ approval), then wait for the typed reply:
 
 ## Phase 3 — Materialize (gate 2 — lightweight)
 
-Write `plan.json` with the story and all tasks inline, then run `loom apply`
-once to create everything:
+Write `plan.json` with the story and all tasks **nested** inline, then run
+`loom apply` once to create everything:
 
 ```bash
 PLAN_OUT=$(loom apply - <<'EOF'
@@ -56,10 +56,12 @@ PLAN_OUT=$(loom apply - <<'EOF'
     {
       "ref": "story", "type": "story", "parent": "<project-qid>",
       "title": "…", "body": "## Summary\n…\n\n## Validation Criteria\n…",
-      "assignee": "${CLAUDE_SESSION_ID}"
-    },
-    { "type": "task", "parent": "story", "title": "…" },
-    { "type": "task", "parent": "story", "title": "…" }
+      "assignee": "${CLAUDE_SESSION_ID}",
+      "children": [
+        { "type": "task", "title": "…" },
+        { "type": "task", "title": "…" }
+      ]
+    }
   ]
 }
 EOF
@@ -67,6 +69,10 @@ EOF
 
 STORY=$(echo "$PLAN_OUT" | jq -r '.created[] | select(.ref=="story") | .qid')
 ```
+
+On validation failure, stdout is `{"errors": [{path, code, message}, …]}` —
+all errors collected in one pass. Fix everything in one editing pass, then
+re-apply.
 
 At least one task — `loom order` drives the executor and an empty list aborts
 it. Intra-task deps only for genuine prerequisites; creation order already

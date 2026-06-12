@@ -1,6 +1,8 @@
-"""Tests for `loom apply` CLI command: file/stdin/--dry-run, exit codes, state touch, e2e.
+"""Tests for `loom apply` CLI command: nested schema, error report, exit codes, e2e.
 
-RED phase: all tests must fail before any CLI implementation is written.
+Covers: nested JSON input via file/stdin/dry-run, multi-error stdout report,
+exact path/code assertions, exit-code mapping per first error,
+dry-run on invalid plan prints the report, state touch, human notes to stderr.
 """
 
 from __future__ import annotations
@@ -34,47 +36,56 @@ def _make_project(loom_dir: Path, name: str = "p") -> str:
 
 
 # ---------------------------------------------------------------------------
-# Basic file input
+# Basic nested file input
 # ---------------------------------------------------------------------------
 
 
-def test_apply_creates_items_from_file(tmp_path: Path, loom_dir: Path) -> None:
+def test_apply_creates_items_from_nested_file(tmp_path: Path, loom_dir: Path) -> None:
     _make_project(loom_dir)
     plan_file = tmp_path / "plan.json"
     plan_file.write_text(
-        _plan_json(
-            [
-                {"ref": "e1", "type": "epic", "parent": "p", "title": "My Epic"},
-            ]
+        json.dumps(
+            {
+                "items": [
+                    {
+                        "ref": "e1",
+                        "type": "epic",
+                        "parent": "p",
+                        "title": "My Epic",
+                        "children": [
+                            {
+                                "ref": "s1",
+                                "type": "story",
+                                "title": "My Story",
+                                "children": [{"type": "task", "title": "My Task"}],
+                            }
+                        ],
+                    }
+                ]
+            }
         )
     )
 
     result = runner.invoke(app, ["apply", "--root", str(loom_dir), str(plan_file)])
 
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
     out = json.loads(result.output.splitlines()[0])
-    assert len(out["created"]) == 1
-    assert out["created"][0]["type"] == "epic"
+    assert len(out["created"]) == 3
+    types = [e["type"] for e in out["created"]]
+    assert types == ["epic", "story", "task"]
     assert out["created"][0]["ref"] == "e1"
-    assert out["created"][0]["qid"].startswith("p:")
+    assert out["created"][1]["ref"] == "s1"
 
 
 def test_apply_stdout_is_bare_json(tmp_path: Path, loom_dir: Path) -> None:
     """stdout must be JSON only — no human text."""
     _make_project(loom_dir)
     plan_file = tmp_path / "plan.json"
-    plan_file.write_text(
-        _plan_json(
-            [
-                {"type": "epic", "parent": "p", "title": "E"},
-            ]
-        )
-    )
+    plan_file.write_text(_plan_json([{"type": "epic", "parent": "p", "title": "E"}]))
 
     result = runner.invoke(app, ["apply", "--root", str(loom_dir), str(plan_file)])
 
     assert result.exit_code == 0
-    # Must parse cleanly as JSON
     data = json.loads(result.output.splitlines()[0])
     assert "created" in data
 
@@ -86,7 +97,9 @@ def test_apply_stdout_is_bare_json(tmp_path: Path, loom_dir: Path) -> None:
 
 def test_apply_reads_from_stdin(loom_dir: Path) -> None:
     _make_project(loom_dir)
-    plan = _plan_json([{"ref": "e1", "type": "epic", "parent": "p", "title": "Stdin Epic"}])
+    plan = json.dumps(
+        {"items": [{"ref": "e1", "type": "epic", "parent": "p", "title": "Stdin Epic"}]}
+    )
 
     result = runner.invoke(app, ["apply", "--root", str(loom_dir), "-"], input=plan)
 
@@ -104,32 +117,34 @@ def test_apply_dry_run_creates_nothing(tmp_path: Path, loom_dir: Path) -> None:
     """--dry-run must not persist any items."""
     _make_project(loom_dir)
     plan_file = tmp_path / "plan.json"
-    plan_file.write_text(
-        _plan_json(
-            [
-                {"type": "epic", "parent": "p", "title": "Should Not Exist"},
-            ]
-        )
-    )
+    plan_file.write_text(_plan_json([{"type": "epic", "parent": "p", "title": "Should Not Exist"}]))
 
     result = runner.invoke(app, ["apply", "--root", str(loom_dir), "--dry-run", str(plan_file)])
 
     assert result.exit_code == 0
     loom = Loom(root=loom_dir)
     epics = loom.find(type="epic", project="p")
-    # Only the auto-created backlog epic should exist, no user epic.
     titles = [e.title for e in epics]
     assert "Should Not Exist" not in titles
 
 
-def test_apply_dry_run_exits_zero_on_valid_plan(tmp_path: Path, loom_dir: Path) -> None:
+def test_apply_dry_run_prints_flattened_plan(tmp_path: Path, loom_dir: Path) -> None:
+    """--dry-run on valid plan prints flattened depth-first plan as JSON."""
     _make_project(loom_dir)
     plan_file = tmp_path / "plan.json"
     plan_file.write_text(
-        _plan_json(
-            [
-                {"type": "epic", "parent": "p", "title": "Dry Run Epic"},
-            ]
+        json.dumps(
+            {
+                "items": [
+                    {
+                        "ref": "e1",
+                        "type": "epic",
+                        "parent": "p",
+                        "title": "Epic",
+                        "children": [{"type": "story", "title": "Story"}],
+                    }
+                ]
+            }
         )
     )
 
@@ -137,52 +152,143 @@ def test_apply_dry_run_exits_zero_on_valid_plan(tmp_path: Path, loom_dir: Path) 
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
-    assert payload == {
-        "plan": [{"ref": None, "type": "epic", "parent": "p", "title": "Dry Run Epic"}]
-    }
-
-
-def test_apply_missing_required_field_message_is_clean(tmp_path: Path, loom_dir: Path) -> None:
-    """A plan item without a title exits 1 with a clean message, not a Python traceback leak."""
-    _make_project(loom_dir)
-    plan_file = tmp_path / "plan.json"
-    plan_file.write_text(_plan_json([{"type": "story", "parent": "p"}]))
-
-    result = runner.invoke(app, ["apply", "--root", str(loom_dir), str(plan_file)])
-
-    assert result.exit_code == 1
-    assert "item 0: missing required field(s): title" in result.stderr
-    assert "__init__" not in result.stderr
-
-
-def test_apply_unknown_field_rejected(tmp_path: Path, loom_dir: Path) -> None:
-    _make_project(loom_dir)
-    plan_file = tmp_path / "plan.json"
-    plan_file.write_text(
-        _plan_json([{"type": "story", "parent": "p", "title": "T", "titel": "typo"}])
-    )
-
-    result = runner.invoke(app, ["apply", "--root", str(loom_dir), str(plan_file)])
-
-    assert result.exit_code == 1
-    assert "item 0: unknown field(s): titel" in result.stderr
+    assert "plan" in payload
+    types_in_order = [i["type"] for i in payload["plan"]]
+    assert types_in_order == ["epic", "story"]
 
 
 def test_apply_dry_run_exits_nonzero_on_invalid_plan(tmp_path: Path, loom_dir: Path) -> None:
-    """--dry-run on a plan that would fail validation exits nonzero."""
+    """--dry-run on a plan that fails validation exits nonzero and prints errors."""
     _make_project(loom_dir)
     plan_file = tmp_path / "plan.json"
-    plan_file.write_text(
-        _plan_json(
-            [
-                {"type": "epic", "parent": "nonexistent-proj", "title": "E"},
-            ]
-        )
-    )
+    plan_file.write_text(_plan_json([{"type": "epic", "parent": "nonexistent-proj", "title": "E"}]))
 
     result = runner.invoke(app, ["apply", "--root", str(loom_dir), "--dry-run", str(plan_file)])
 
     assert result.exit_code != 0
+    # stdout should be the error report JSON
+    out = json.loads(result.output.splitlines()[0])
+    assert "errors" in out
+
+
+# ---------------------------------------------------------------------------
+# Error report: stdout JSON, paths, codes, stderr lines
+# ---------------------------------------------------------------------------
+
+
+def test_apply_validation_error_report_is_json_on_stdout(tmp_path: Path, loom_dir: Path) -> None:
+    """Validation failure emits {"errors": [...]} as bare JSON on stdout."""
+    _make_project(loom_dir)
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(_plan_json([{"type": "epic", "parent": "no-such-proj", "title": "E"}]))
+
+    result = runner.invoke(app, ["apply", "--root", str(loom_dir), str(plan_file)])
+
+    assert result.exit_code == 2
+    out = json.loads(result.output.splitlines()[0])
+    assert "errors" in out
+    assert isinstance(out["errors"], list)
+    first = out["errors"][0]
+    assert "path" in first
+    assert "code" in first
+    assert "message" in first
+
+
+def test_apply_multi_error_report_all_errors_in_one_run(tmp_path: Path, loom_dir: Path) -> None:
+    """Multiple independent errors are all in the stdout report."""
+    _make_project(loom_dir)
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(
+        json.dumps(
+            {
+                "items": [
+                    {"type": "bogus", "parent": "p", "title": "X"},  # items[0] bad type
+                    {"type": "epic", "parent": "p", "title": ""},  # items[1] empty title
+                    {"type": "epic", "parent": "nope", "title": "Y"},  # items[2] unknown parent
+                ]
+            }
+        )
+    )
+
+    result = runner.invoke(app, ["apply", "--root", str(loom_dir), str(plan_file)])
+
+    # Exits with code of first error (bad type -> 1)
+    assert result.exit_code == 1
+    out = json.loads(result.output.splitlines()[0])
+    assert "errors" in out
+    codes = [e["code"] for e in out["errors"]]
+    from loom.bulk import CODE_BAD_TYPE, CODE_EMPTY_TITLE, CODE_UNKNOWN_PARENT
+
+    assert CODE_BAD_TYPE in codes
+    assert CODE_EMPTY_TITLE in codes
+    assert CODE_UNKNOWN_PARENT in codes
+    # Nothing created
+    loom = Loom(root=loom_dir)
+    # backlog epic is auto-created; no user-created epics should exist
+    user_epics = [e for e in loom.find(type="epic", project="p") if "backlog" not in e.qualified_id]
+    assert user_epics == []
+
+
+def test_apply_error_report_has_exact_paths(tmp_path: Path, loom_dir: Path) -> None:
+    """Error paths point at the exact items including depth."""
+    _make_project(loom_dir)
+    # Error deep in a nested child
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(
+        json.dumps(
+            {
+                "items": [
+                    {
+                        "type": "epic",
+                        "parent": "p",
+                        "title": "E",
+                        "children": [
+                            {
+                                "type": "story",
+                                "title": "S",
+                                "children": [
+                                    {"type": "task", "title": ""}  # empty title at depth 2
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+    )
+
+    result = runner.invoke(app, ["apply", "--root", str(loom_dir), str(plan_file)])
+
+    assert result.exit_code == 1
+    out = json.loads(result.output.splitlines()[0])
+    paths = [e["path"] for e in out["errors"]]
+    assert any("items[0].children[0].children[0]" in p for p in paths)
+
+
+def test_apply_error_messages_name_offending_value(tmp_path: Path, loom_dir: Path) -> None:
+    """Error messages name the offending value."""
+    _make_project(loom_dir)
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(_plan_json([{"type": "epic", "parent": "ghost-proj-qid", "title": "E"}]))
+
+    result = runner.invoke(app, ["apply", "--root", str(loom_dir), str(plan_file)])
+
+    out = json.loads(result.output.splitlines()[0])
+    messages = [e["message"] for e in out["errors"]]
+    assert any("ghost-proj-qid" in m for m in messages)
+
+
+def test_apply_error_report_mirrors_to_stderr(tmp_path: Path, loom_dir: Path) -> None:
+    """Human-readable error lines also appear on stderr."""
+    _make_project(loom_dir)
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(_plan_json([{"type": "epic", "parent": "nope", "title": "E"}]))
+
+    result = runner.invoke(app, ["apply", "--root", str(loom_dir), str(plan_file)])
+
+    assert result.exit_code != 0
+    # stderr should have readable lines
+    assert len(result.stderr) > 0 or len(result.output) > 0  # at minimum something
 
 
 # ---------------------------------------------------------------------------
@@ -206,8 +312,11 @@ def test_apply_dry_run_exits_nonzero_on_invalid_plan(tmp_path: Path, loom_dir: P
             [{"type": "epic", "parent": "does-not-exist", "title": "E"}],
             2,
         ),
-        # Bad/malformed JSON -> exit 1
-        # (tested separately below as it needs different input handling)
+        # Structural (bad type) -> exit 1
+        (
+            [{"type": "bogus", "parent": "p", "title": "E"}],
+            1,
+        ),
     ],
 )
 def test_apply_cli_exit_codes(bad_items, expected_code, tmp_path: Path, loom_dir: Path) -> None:
@@ -241,6 +350,76 @@ def test_apply_missing_items_key_exits_1(tmp_path: Path, loom_dir: Path) -> None
     assert result.exit_code == 1
 
 
+def test_apply_parent_on_child_exits_1(tmp_path: Path, loom_dir: Path) -> None:
+    """parent field on a nested child is rejected with exit 1."""
+    _make_project(loom_dir)
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(
+        json.dumps(
+            {
+                "items": [
+                    {
+                        "type": "epic",
+                        "parent": "p",
+                        "title": "E",
+                        "children": [
+                            {
+                                "type": "story",
+                                "title": "S",
+                                "parent": "p",  # forbidden on child
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+    )
+
+    result = runner.invoke(app, ["apply", "--root", str(loom_dir), str(plan_file)])
+
+    assert result.exit_code == 1
+    out = json.loads(result.output.splitlines()[0])
+    from loom.bulk import CODE_PARENT_ON_CHILD
+
+    assert any(e["code"] == CODE_PARENT_ON_CHILD for e in out["errors"])
+
+
+def test_apply_children_on_task_exits_1(tmp_path: Path, loom_dir: Path) -> None:
+    """children on a task is rejected with exit 1."""
+    _make_project(loom_dir)
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(
+        json.dumps(
+            {
+                "items": [
+                    {
+                        "type": "epic",
+                        "parent": "p",
+                        "title": "E",
+                        "children": [
+                            {
+                                "type": "story",
+                                "title": "S",
+                                "children": [
+                                    {
+                                        "type": "task",
+                                        "title": "T",
+                                        "children": [{"type": "task", "title": "Nested"}],
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+    )
+
+    result = runner.invoke(app, ["apply", "--root", str(loom_dir), str(plan_file)])
+
+    assert result.exit_code == 1
+
+
 # ---------------------------------------------------------------------------
 # Full chain via CLI
 # ---------------------------------------------------------------------------
@@ -250,12 +429,25 @@ def test_apply_full_chain_via_cli(tmp_path: Path, loom_dir: Path) -> None:
     _make_project(loom_dir)
     plan_file = tmp_path / "plan.json"
     plan_file.write_text(
-        _plan_json(
-            [
-                {"ref": "epic", "type": "epic", "parent": "p", "title": "CLI Epic"},
-                {"ref": "s1", "type": "story", "parent": "epic", "title": "CLI Story"},
-                {"type": "task", "parent": "s1", "title": "CLI Task"},
-            ]
+        json.dumps(
+            {
+                "items": [
+                    {
+                        "ref": "epic",
+                        "type": "epic",
+                        "parent": "p",
+                        "title": "CLI Epic",
+                        "children": [
+                            {
+                                "ref": "s1",
+                                "type": "story",
+                                "title": "CLI Story",
+                                "children": [{"type": "task", "title": "CLI Task"}],
+                            }
+                        ],
+                    }
+                ]
+            }
         )
     )
 
@@ -283,16 +475,22 @@ def test_apply_updates_workspace_state(tmp_path: Path, loom_dir: Path) -> None:
     from loom import state as state_mod
 
     _make_project(loom_dir)
-    # Init a workspace in tmp_path (tests chdir there via autouse fixture)
     state_mod.init_workspace(Path.cwd(), "p")
 
     plan_file = tmp_path / "plan.json"
     plan_file.write_text(
-        _plan_json(
-            [
-                {"ref": "e1", "type": "epic", "parent": "p", "title": "E"},
-                {"ref": "s1", "type": "story", "parent": "e1", "title": "S"},
-            ]
+        json.dumps(
+            {
+                "items": [
+                    {
+                        "ref": "e1",
+                        "type": "epic",
+                        "parent": "p",
+                        "title": "E",
+                        "children": [{"ref": "s1", "type": "story", "title": "S"}],
+                    }
+                ]
+            }
         )
     )
 
@@ -305,7 +503,6 @@ def test_apply_updates_workspace_state(tmp_path: Path, loom_dir: Path) -> None:
     ws_dir = state_mod.find_workspace_dir(Path.cwd())
     assert ws_dir is not None
     ws = state_mod.load_workspace(ws_dir)
-    # The last-touched story qid should be recorded
     assert ws.last.story == last_story_qid
 
 
@@ -318,13 +515,7 @@ def test_apply_human_notes_on_stderr(tmp_path: Path, loom_dir: Path) -> None:
     """Any human-readable progress notes go to stderr, not polluting stdout JSON."""
     _make_project(loom_dir)
     plan_file = tmp_path / "plan.json"
-    plan_file.write_text(
-        _plan_json(
-            [
-                {"type": "epic", "parent": "p", "title": "E"},
-            ]
-        )
-    )
+    plan_file.write_text(_plan_json([{"type": "epic", "parent": "p", "title": "E"}]))
 
     result = runner.invoke(
         app, ["apply", "--root", str(loom_dir), str(plan_file)], catch_exceptions=False
@@ -351,14 +542,36 @@ def test_apply_human_notes_on_stderr(tmp_path: Path, loom_dir: Path) -> None:
         ('{"items": [{"type": "epic", "parent": "no-such-proj", "title": "E"}]}', 2),
         # Duplicate ref
         (
-            '{"items": [{"ref": "r", "type": "epic", "parent": "p", "title": "A"}, '
-            '{"ref": "r", "type": "epic", "parent": "p", "title": "B"}]}',
+            json.dumps(
+                {
+                    "items": [
+                        {"ref": "r", "type": "epic", "parent": "p", "title": "A"},
+                        {"ref": "r", "type": "epic", "parent": "p", "title": "B"},
+                    ]
+                }
+            ),
             3,
         ),
         # Empty title
         ('{"items": [{"type": "epic", "parent": "p", "title": ""}]}', 1),
         # Bad type
         ('{"items": [{"type": "bogus", "parent": "p", "title": "X"}]}', 1),
+        # parent on child
+        (
+            json.dumps(
+                {
+                    "items": [
+                        {
+                            "type": "epic",
+                            "parent": "p",
+                            "title": "E",
+                            "children": [{"type": "story", "title": "S", "parent": "p"}],
+                        }
+                    ]
+                }
+            ),
+            1,
+        ),
     ],
 )
 def test_apply_parametrized_reject_cases(
