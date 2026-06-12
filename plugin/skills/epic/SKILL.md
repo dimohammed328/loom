@@ -57,10 +57,14 @@ non-loom fallback).
 
 Ground the plan in the actual codebase before asking the user anything: find
 the files, symbols, and patterns the change touches, and gauge blast radius
-(grep for callers). Do it inline for focused changes; spawn an `Explore`
-subagent for broad sweeps so the file dumps stay out of your context. Never
-skip research — it is what makes validation criteria observable rather than
-hand-wavy.
+(grep for callers). Epic-scale changes usually span subsystems — **spawn
+multiple `Explore` subagents in parallel**, one per subsystem or angle (e.g.
+backend data model, API surface, frontend consumers, test conventions), in a
+single message so they run concurrently and the file dumps stay out of your
+context; you keep only the conclusions. Go inline only when the change is
+narrow enough that one focused grep/read pass covers it. Never skip
+research — it is what makes validation criteria observable rather than
+hand-wavy, and it feeds the story diff estimates in Phase 3.
 
 ## Phase 3 — Groom (gate 1)
 
