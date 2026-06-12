@@ -1,0 +1,23 @@
+tests/test_apply_cli.py
+  s_12f384153cebba::t_fa0313c21d1d30 47-66,84,100-102,120,136-148,164,179,183,197,202-210,221,238-257,272,285,358-375,383,392-415,432-451,482-494,518,545-552,561-572
+tests/test_bulk_apply.py
+  s_12f384153cebba::t_fa0313c21d1d30 142
+tests/test_e2e.py
+  s_12f384153cebba::t_fa0313c21d1d30 730
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "f0931b390e050ce5a89692419010b7cb06c5efe0",
+  "prompts": {},
+  "sessions": {
+    "s_12f384153cebba": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8218f31b-505b-4a6b-b7d2-96f1892ad0ab",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
