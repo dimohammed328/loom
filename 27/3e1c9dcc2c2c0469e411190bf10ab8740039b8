@@ -1,0 +1,25 @@
+tests/test_apply_cli.py
+  s_12f384153cebba::t_ba5a7f85ad6e05 139-168
+src/loom/cli.py
+  s_12f384153cebba::t_61a9ec7e3ea0f6 1902-1903
+  s_12f384153cebba::t_a146d9c9dde91e 1929-1947,1949-1951
+  s_12f384153cebba::t_b8f3d886d36af5 1967-1971
+docs/JSON_INTERFACE.md
+  s_12f384153cebba::t_7727100beb05cd 124-125,128-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "273e1c9dcc2c2c0469e411190bf10ab8740039b8",
+  "prompts": {},
+  "sessions": {
+    "s_12f384153cebba": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8218f31b-505b-4a6b-b7d2-96f1892ad0ab",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
