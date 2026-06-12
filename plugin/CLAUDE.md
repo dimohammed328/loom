@@ -9,24 +9,24 @@ the loom Python project and takes precedence for everything outside `plugin/`.
 ```
 plugin/
 ├── .claude-plugin/
-│   └── plugin.json          # Plugin manifest (name, description, hooks)
-├── agents/                  # Subagent definition files (*.md)
+│   └── plugin.json          # Plugin manifest (name, description)
+├── agents/
+│   └── story-executor.md    # The one specialized subagent: implements a single story
 ├── hooks/
-│   └── hooks.json           # Hook wiring (legacy; plugin.json is authoritative)
-├── scripts/                 # Shell helpers invoked by hooks
+│   └── hooks.json           # SessionStart wiring (load-bearing: injects using-loom-skills)
+├── scripts/
+│   └── session-start        # Emits the using-loom-skills content at session start
 ├── skills/                  # Skill directories, each with a SKILL.md
-│   └── writing-workflows/   # Generates baked-DAG workflow scripts at plan time
-│       ├── SKILL.md         # Skill definition: generation procedure + invariants
-│       ├── templates/       # Source templates (epic-runner, story-runner)
-│       └── examples/        # Example generated workflows (for reference/testing)
+│   ├── epic/                # /epic — self-contained multi-story orchestrator flow
+│   ├── story/               # /story — single-story sibling of /epic
+│   └── …                    # discipline skills (TDD, debugging, verification, reviews)
 ├── README.md                # End-user install and usage guide
 └── CLAUDE.md                # This file
 ```
 
-Workflow scripts are **generated** by `loom:writing-workflows` into `.loom/workflows/`
-(gitignored) at plan time — there is no static `plugin/workflows/` directory.
-The `plugin/skills/writing-workflows/templates/` directory holds the source
-templates; `examples/` holds concrete filled instances for reference and `node --check`.
+There is no workflow-generation layer: `/epic` and `/story` orchestrate
+execution live in the session, reading the DAG from `loom ready`/`loom order`
+at runtime and dispatching `story-executor` subagents directly.
 
 ## Namespace
 
@@ -34,12 +34,11 @@ All skills in this plugin are registered under the **`loom:` prefix**.
 When referencing a skill from within a SKILL.md or agent prompt, use the
 fully-qualified name: `loom:<skill-name>`. Examples:
 
-- `loom:brainstorming`
 - `loom:epic`
 - `loom:story`
-- `loom:using-loom-cli`
+- `loom:test-driven-development`
 
-Do not use bare names (e.g. `brainstorming`) inside plugin artefacts — they
+Do not use bare names (e.g. `epic`) inside plugin artefacts — they
 are ambiguous when other plugins are installed.
 
 ## Skill file conventions
@@ -82,7 +81,7 @@ Optional fields: `tools`, `model`, `effort`.
 ## Hook scripts
 
 Scripts under `plugin/scripts/` are invoked by the hooks defined in
-`plugin/.claude-plugin/plugin.json`. They must be POSIX-compatible shell
+`plugin/hooks/hooks.json`. They must be POSIX-compatible shell
 scripts or executables. Do not introduce Node.js or Python dependencies here —
 keep hooks lightweight.
 
@@ -101,7 +100,7 @@ keep hooks lightweight.
 
 1. Skills: edit `plugin/skills/<name>/SKILL.md`. Keep frontmatter valid.
 2. Agents: edit `plugin/agents/<name>.md`. Keep frontmatter valid.
-3. Hooks: edit `plugin/.claude-plugin/plugin.json`. Validate JSON before committing.
+3. Hooks: edit `plugin/hooks/hooks.json`. Validate JSON before committing.
 4. Scripts: keep POSIX-compatible; no external runtime deps.
 5. README: keep the install instructions (`/plugin marketplace add` +
    `/plugin install loom@<marketplace>`) accurate.
