@@ -17,9 +17,8 @@ request explicitly said to merge to main; otherwise — including silence —
 `pr`. Never ask.
 
 The **Loom CLI facts** section of `loom:epic` applies verbatim (-y is global,
-`create` prints the bare qid on stdout, `--body-file` for bodies, dep
-direction and exit-code-4 cycles, only literal `done` satisfies deps, tasks
-carry no assignee).
+bulk commands emit bare JSON on stdout, dep direction and exit-code-4 cycles,
+only literal `done` satisfies deps, tasks carry no assignee).
 
 ## Phase 1 — Bind
 
@@ -47,10 +46,26 @@ approval), then wait for the typed reply:
 
 ## Phase 3 — Materialize (gate 2 — lightweight)
 
+Write `plan.json` with the story and all tasks inline, then run `loom apply`
+once to create everything:
+
 ```bash
-STORY=$(loom -y story create <project> --title "…" --body-file "$TMP/story.md" --assignee "${CLAUDE_SESSION_ID}")
-loom -y task create "$STORY" --title "…" --body-file "$TMP/t1.md"
-…
+PLAN_OUT=$(loom apply - <<'EOF'
+{
+  "items": [
+    {
+      "ref": "story", "type": "story", "parent": "<project-qid>",
+      "title": "…", "body": "## Summary\n…\n\n## Validation Criteria\n…",
+      "assignee": "${CLAUDE_SESSION_ID}"
+    },
+    { "type": "task", "parent": "story", "title": "…" },
+    { "type": "task", "parent": "story", "title": "…" }
+  ]
+}
+EOF
+)
+
+STORY=$(echo "$PLAN_OUT" | jq -r '.created[] | select(.ref=="story") | .qid')
 ```
 
 At least one task — `loom order` drives the executor and an empty list aborts
