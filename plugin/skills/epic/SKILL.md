@@ -25,19 +25,26 @@ Never ask the user to choose, in prose or via AskUserQuestion. Unsure means `pr`
 
 - `-y` / `--non-interactive` is a **global** flag: `loom -y epic create …`,
   never `loom epic create -y …`. Without it, missing arguments open
-  interactive pickers that hang a non-TTY session.
-- Every `create` prints the **bare qid on stdout** (`created <qid>` goes to
-  stderr), so `QID=$(loom -y story create …)` captures cleanly.
-- Bodies always go through `--body-file` (write them in a `mktemp -d` dir),
-  never `--body` with multi-paragraph strings.
-- Dependency direction: `loom -y dep add <source> --on <target>` means
-  *source waits for target*. A cycle is rejected with exit code 4 — that means
-  the plan is malformed; fix the plan, don't retry.
+  interactive pickers that hang a non-TTY session. The bulk commands
+  (`loom apply`, `loom dep apply`) never prompt regardless — `-y` is
+  harmless but unnecessary with them.
+- **Bulk item creation:** `loom apply plan.json` accepts a JSON file (or `-`
+  for stdin) and emits **bare JSON on stdout** — a `{"created": […]}` mapping
+  of `ref` → `qid` for every created item, in input order. Refs not supplied
+  in the input appear as `null` in the output. Stderr carries human-readable
+  notes; do not parse it.
+- **Bulk dependency wiring:** `loom dep apply deps.json` (or `-` for stdin)
+  emits `{"added": N}` on stdout. It runs one batch cycle check over the
+  existing graph plus all new edges together — a cycle exits 4 and applies
+  nothing. Already-existing edges are idempotent (counted as 0 in `added`).
+- Dependency direction in both `dep add` and `dep apply`: `source` waits for
+  `on` / `target`. A cycle is rejected with exit code 4 — that means the
+  plan is malformed; fix the plan, don't retry.
 - **Only the literal `done` status satisfies a dependency.** `in_progress`,
   `completed`, or any custom status does not. `loom complete <qid>` is the
   only way work unblocks its dependents.
-- Epics and stories carry `--assignee "${CLAUDE_SESSION_ID}"`; tasks never
-  carry an assignee.
+- Epics and stories carry `assignee` (set to `"${CLAUDE_SESSION_ID}"` in the
+  plan JSON); tasks never carry an assignee.
 - Useful reads: `loom show <qid> --json` (frontmatter + body),
   `loom order --json <qid>` (open descendants, deps-first),
   `loom ready --type story --json <qid>` (unblocked stories under a parent),
@@ -103,15 +110,46 @@ the question UI hides the very plan being approved. Iterate until approved.
 
 ## Phase 4 — Materialize (gate 2)
 
-Write one body file per item in a temp dir, then create everything,
-capturing qids:
+Write `plan.json` with all items inline (bodies as JSON strings — no per-item
+temp body files), then run `loom apply` once to create everything:
 
 ```bash
-EPIC=$(loom -y epic create <project> --title "…" --body-file "$TMP/epic.md" --assignee "${CLAUDE_SESSION_ID}")
-STORY1=$(loom -y story create "$EPIC" --title "…" --body-file "$TMP/s1.md" --assignee "${CLAUDE_SESSION_ID}")
-loom -y task create "$STORY1" --title "…" --body-file "$TMP/s1t1.md"
-…
-loom -y dep add "$STORY2" --on "$STORY1"
+# Write the plan — epic, stories, and tasks in a single JSON file.
+# Bodies are inline strings; refs let later items reference earlier ones.
+cat > plan.json <<'EOF'
+{
+  "items": [
+    {
+      "ref": "epic", "type": "epic", "parent": "<project-qid>",
+      "title": "…", "body": "## Summary\n…\n\n## Validation Criteria\n…",
+      "assignee": "${CLAUDE_SESSION_ID}"
+    },
+    {
+      "ref": "s1", "type": "story", "parent": "epic",
+      "title": "…", "body": "…", "assignee": "${CLAUDE_SESSION_ID}"
+    },
+    { "type": "task", "parent": "s1", "title": "…" },
+    {
+      "ref": "s2", "type": "story", "parent": "epic",
+      "title": "…", "body": "…", "assignee": "${CLAUDE_SESSION_ID}"
+    },
+    { "type": "task", "parent": "s2", "title": "…" }
+  ]
+}
+EOF
+
+# Create all items in one call; capture the ref→qid mapping.
+PLAN_OUT=$(loom apply plan.json)
+
+# Extract real qids from the mapping using the refs.
+EPIC=$(echo "$PLAN_OUT" | jq -r '.created[] | select(.ref=="epic") | .qid')
+S1=$(echo "$PLAN_OUT"   | jq -r '.created[] | select(.ref=="s1")   | .qid')
+S2=$(echo "$PLAN_OUT"   | jq -r '.created[] | select(.ref=="s2")   | .qid')
+
+# Wire story deps from the real qids.
+loom dep apply - <<EOF
+{"deps": [{"source": "$S2", "on": "$S1"}]}
+EOF
 ```
 
 Every story needs at least one task — `loom order` is the executor's work
