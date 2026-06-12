@@ -121,8 +121,18 @@ Human-readable progress notes: `"created N item(s)"`. Do not parse stderr.
 
 ### `--dry-run`
 
-Validates the plan and prints a human note to stderr; creates nothing.
+Validates the plan and prints the would-be plan as a single JSON object on
+stdout (bodies omitted); creates nothing. A human note goes to stderr.
 Exit 0 on valid plan, nonzero on validation failure.
+
+```json
+{"plan": [
+  {"ref": "epic", "type": "epic", "parent": "loom-app", "title": "Auth overhaul"}
+]}
+```
+
+The `plan` array is in input order; `parent` is echoed as given (a local
+`ref` stays a `ref`, a qid stays a qid).
 
 ### Partial failure / no rollback
 

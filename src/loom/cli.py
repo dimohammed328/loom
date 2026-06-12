@@ -1899,6 +1899,8 @@ def apply_cmd(
     process exits nonzero (no rollback).
     """
     import json as _json
+    from dataclasses import MISSING as _DC_MISSING
+    from dataclasses import fields as _dc_fields
 
     from .bulk import ApplyPlan, PartialApplyError, PlanItem, validate_plan
 
@@ -1924,11 +1926,29 @@ def apply_cmd(
         return
 
     # --- build ApplyPlan ---
-    try:
-        items = [PlanItem(**entry) for entry in data["items"]]
-    except (TypeError, KeyError) as exc:
-        _die(f"apply: invalid plan item: {exc}", code=EXIT_GENERIC)
-        return
+    allowed_fields = {f.name for f in _dc_fields(PlanItem)}
+    required_fields = {
+        f.name
+        for f in _dc_fields(PlanItem)
+        if f.default is _DC_MISSING and f.default_factory is _DC_MISSING
+    }
+    items: list[PlanItem] = []
+    for i, entry in enumerate(data["items"]):
+        if not isinstance(entry, dict):
+            _die(f"apply: item {i}: must be a JSON object", code=EXIT_GENERIC)
+            return
+        unknown = sorted(set(entry) - allowed_fields)
+        if unknown:
+            _die(f"apply: item {i}: unknown field(s): {', '.join(unknown)}", code=EXIT_GENERIC)
+            return
+        missing = sorted(required_fields - set(entry))
+        if missing:
+            _die(
+                f"apply: item {i}: missing required field(s): {', '.join(missing)}",
+                code=EXIT_GENERIC,
+            )
+            return
+        items.append(PlanItem(**entry))
 
     plan = ApplyPlan(items=items)
 
@@ -1944,6 +1964,11 @@ def apply_cmd(
         return
 
     if dry_run:
+        plan_view = [
+            {"ref": it.ref, "type": it.type, "parent": it.parent, "title": it.title}
+            for it in plan.items
+        ]
+        typer.echo(_json.dumps({"plan": plan_view}))
         typer.echo(f"dry-run: plan valid, {len(plan.items)} item(s) would be created", err=True)
         raise typer.Exit(code=0)
 
