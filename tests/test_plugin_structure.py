@@ -110,6 +110,35 @@ def test_epic_skill_completes_story_only_after_merge() -> None:
     )
 
 
+def test_epic_skill_finalizes_as_stacked_prs_with_review_budget() -> None:
+    """Epics ship as a stack of per-story PRs cut at the trunk's story merge
+    commits, sized at groom time to a ~500-line review budget. Pinned because
+    single multi-thousand-line epic PRs were the original complaint."""
+    content = EPIC_SKILL.read_text()
+    flat = " ".join(content.split())
+    assert "stack of PRs, one per story" in flat, (
+        "epic/SKILL.md Phase 7 must finalize as a stack of per-story PRs"
+    )
+    assert "300-400" in content and "500" in content, (
+        "epic/SKILL.md must keep the groom-time diff budget (~300-400 lines "
+        "per story, PRs under ~500)"
+    )
+    assert "first-parent" in content and "load-bearing" in content, (
+        "epic/SKILL.md must derive cut points from the trunk's first-parent "
+        "merge log, which requires the 'Merge story <qid>' message format "
+        "to be marked load-bearing in Phase 5"
+    )
+    assert "-s<i>" in content and "loom/<SLUG>/s<i>" in content, (
+        "epic/SKILL.md must name segment branches with a hyphen "
+        "(loom/<SLUG>-s<i>) and warn against the slash form, which is a git "
+        "ref directory/file conflict with the trunk branch"
+    )
+    assert "squash" in content.lower(), (
+        "epic/SKILL.md must handle squash-only repos (no stack) and warn "
+        "about squash-merging a stack"
+    )
+
+
 def test_skills_frontmatter_name_matches_directory() -> None:
     for skill_md in (PLUGIN_ROOT / "skills").glob("*/SKILL.md"):
         head = skill_md.read_text().split("---")[1]

@@ -83,6 +83,12 @@ Then assemble the draft plan in conversation (no file is written):
   concurrent executors on one file waste every run but one. A pure
   sequencing edge's direction is your call; pick the more natural review
   order.
+- **Size stories to a review budget.** Each story becomes its own PR in a
+  review stack (Phase 7), so estimate its diff from the research (files
+  touched × expected churn) and target **~300-400 changed lines** per story,
+  keeping the eventual PR under ~500. A story projecting past the budget
+  gets split into sequenced stories along coherent seams — do this yourself
+  during grooming; never make the user specify the split.
 - Within a story, task order is the creation order; `loom order` preserves it.
   Add intra-story dep edges only for genuine prerequisites, not to encode
   sequence.
@@ -148,7 +154,9 @@ Repeat until no open stories remain under the epic:
      item against the worktree (grep/read/run); run the project's test suite
      in the story worktree. You validate — don't take the executor's word.
    - **Pass** → merge in the trunk worktree:
-     `git merge --no-ff <branch> -m "Merge story <qid>"`. Resolve only
+     `git merge --no-ff <branch> -m "Merge story <qid>"` (this message
+     format is load-bearing: Phase 7 locates the PR-stack cut points from
+     these merge commits). Resolve only
      trivial, unambiguous conflicts (both-added distinct lines, lockfiles,
      whitespace); for anything touching real logic, `git merge --abort` and
      re-dispatch the executor with `fix_notes` telling it to merge the trunk
@@ -195,18 +203,87 @@ validation state and stop.
 
 ## Phase 7 — Finalize and report
 
+**`finalize=merge`** (only if validation passed): merge the trunk and stop —
+no PR stack.
+
 ```bash
-git push -u origin "loom/<SLUG>"
-gh pr create --title "…" --body "…"        # finalize=pr (default)
-# or: git checkout <default-branch> && git merge --no-ff loom/<SLUG> && git push   # finalize=merge, only if validated
-loom update "$EPIC" pr_url "<url>"          # and on each story (they ship in the same PR); skip when finalize=merge
+git checkout <default-branch> && git merge --no-ff "loom/<SLUG>" && git push
 loom complete "$EPIC"
 ```
 
+**`finalize=pr`** (default): the epic ships as a **stack of PRs, one per
+story**, so no single review exceeds ~500 lines. The cut points are the
+trunk's story merge commits: `git log --first-parent --oneline "loom/<SLUG>"`
+lists them, and Phase 5's `"Merge story <qid>"` messages map each sha
+`m1…mN` to its story, in merge order. `m0` is the trunk's fork point:
+`git merge-base <default-branch> "loom/<SLUG>"`.
+
+Two checks before cutting anything:
+
+- **Merge methods**: `gh repo view --json squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed`.
+  A **squash-only repo cannot host a stack** (each squash orphans the next
+  PR's base) — fall back to a single trunk → default-branch PR and tell the
+  user why.
+- **Degenerate case**: one story, or a total trunk diff under ~500 lines
+  (`git diff --stat <default-branch>...loom/<SLUG>`) → push the trunk, open
+  a single PR, write `pr_url` everywhere, `loom complete "$EPIC"`, done.
+
+Otherwise:
+
+1. **Cut and push a segment branch per story** at each merge commit, in
+   order. Name them `loom/<SLUG>-s<i>` — hyphen, never `loom/<SLUG>/s<i>`:
+   a slash there makes the segment a directory-like ref under the trunk
+   branch's name, which git rejects as a ref conflict.
+
+   ```bash
+   git branch "loom/<SLUG>-s1" <m1> && git push -u origin "loom/<SLUG>-s1"   # … through sN
+   ```
+
+2. **Overflow backstop**: check each segment's size with
+   `git diff --stat <m(i-1)>..<mi>`. A segment over ~1,000 changed lines
+   (2× the PR cap) gets split at its story's task-commit boundaries — task
+   commits are coherent TDD units; cut extra branches on them, named
+   `loom/<SLUG>-s<i>a`, `-s<i>b`, …, and push them like any segment. A
+   sub-PR's diff stays clean even when the story forked from an older trunk
+   state — GitHub diffs against the merge-base. Between ~500 and ~1,000
+   lines ships as-is with the size noted in the PR body. Never split
+   mechanically by file.
+
+3. **Open the stack bottom-up**: PR 1 is `…-s1 → <default-branch>`; PR i is
+   `…-s<i> → …-s<i-1>` (`gh pr create --base … --head …`). Each PR body
+   carries: the story's `## Summary` and `## Validation Criteria` from
+   `loom show <story> --json`; its stack position ("PR i of N for epic
+   <qid>", counting sub-segments, with a link to the PR it builds on); and
+   the review instruction — *merge bottom-up; delete each head branch after
+   merging (or enable auto-delete of merged branches) so GitHub retargets
+   the next PR's base automatically*. Note in PR 1's body that the stack
+   wants merge-commit or rebase merges — squash-merging makes later diffs
+   dirty until rebased.
+
+4. **Epic-polish PR**: if validation fix passes left commits after `mN`
+   (trunk tip ≠ `mN`), push the trunk and open one final PR
+   `loom/<SLUG> → …-s<N>` titled as epic polish.
+
+5. The **epic-level validation disclosure** (open criteria, fixes applied)
+   goes on the last PR of the stack — the polish PR if one exists, PR N
+   otherwise — where the epic is whole.
+
+6. **Write back, complete, clean up**:
+
+   ```bash
+   loom update <story> pr_url "<that story's PR url>"   # its first sub-PR when split
+   loom update "$EPIC" pr_url "<PR 1 url>"              # the stack's entry point
+   loom complete "$EPIC"
+   ```
+
+   Remove the trunk worktree; segment branches disappear as their PRs
+   merge.
+
 Final message, in order: what shipped (per story), validation outcome —
 stated plainly first if anything failed, with fixes applied and open criteria
-verbatim — anything you hand-finished outside an executor, the PR link, and
-`loom tree "$EPIC"` so the user sees the recorded state.
+verbatim — anything you hand-finished outside an executor, the PR stack in
+review order with sizes, and `loom tree "$EPIC"` so the user sees the
+recorded state.
 
 ## Recovery
 
@@ -216,7 +293,10 @@ verbatim — anything you hand-finished outside an executor, the PR link, and
   and re-assign the epic to the new session id. Story worktrees/branches are
   deterministic from qids and executors resume in place. Loom state implies
   the phase: open stories → Phase 5 (`loom ready` says what's next); all
-  stories done → Phase 6.
+  stories done, epic still open → Phase 6; epic validated but the PR stack
+  absent or partial → Phase 7, which is safely re-runnable: cut points
+  re-derive from the trunk's first-parent merge log, segment branch names
+  are deterministic, and `gh pr list` shows which PRs already exist.
 - User drops a story mid-run: `loom -y archive <story>`; check nothing
   depended on it (`loom validate`).
 - A rerun of a finished story: `loom reopen <story>`, then schedule normally.
