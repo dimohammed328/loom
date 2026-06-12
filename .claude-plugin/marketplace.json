@@ -8,7 +8,7 @@
     {
       "name": "loom",
       "source": "./plugin",
-      "description": "Loom — markdown-based project management with loom CLI integration. Provides agent orchestration hooks, event logging, and subagent context injection for the loom workflow."
+      "description": "Loom — markdown-based project management with loom CLI integration. /epic and /story workflows plan work as loom items and execute via story-executor subagents."
     }
   ]
 }

@@ -5,9 +5,11 @@ hierarchy-agnostic project management CLI — into your AI-assisted development 
 
 ## What this plugin provides
 
-- **Lifecycle hooks** — SubagentStart injects loom workflow context; SubagentStop and Bash git-operation events are logged.
-- **Skills** — `/brainstorming`, `/epic`, `/story`, `/writing-plans`, and more.
-- **Agents** — Specialized subagents for story execution and validation.
+- **`/epic` and `/story` workflows** — plan work in conversation, record it as loom
+  epics/stories/tasks, execute via `story-executor` subagents (parallel where the
+  dependency graph allows), validate, and finalize with a PR.
+- **Discipline skills** — TDD, systematic debugging, verification-before-completion,
+  code-review etiquette — injected at session start via `using-loom-skills`.
 
 ## Installation
 
@@ -35,32 +37,31 @@ Run this from the root of the loom repository.
 
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
-| `loom:brainstorming` | `/brainstorming` | Groom a feature into a loom epic or story |
-| `loom:epic` | `/epic <description>` | Full epic: plan → parallel execution → PR |
-| `loom:story` | `/story <description>` | Single story: plan → execute → validate → PR |
-| `loom:writing-plans` | (internal) | Materialize groomed drafts as loom items; hands off to `loom:writing-workflows` |
-| `loom:writing-workflows` | (internal) | Generate bespoke baked-DAG workflow script and launch it |
-| `loom:using-loom-cli` | (internal) | Reference for correct loom CLI flags |
-| `loom:verification-before-completion` | (internal) | Require evidence before claiming work complete |
+| `loom:epic` | `/epic <description>` | Multi-story change: groom → loom epic → parallel executors → validate → PR |
+| `loom:story` | `/story <description>` | Single scoped change: groom → loom story → one executor → validate → PR |
+| `loom:using-loom-skills` | session start | Establishes skill-invocation discipline |
 | `loom:test-driven-development` | (internal) | TDD discipline for story executors |
+| `loom:verification-before-completion` | (internal) | Evidence before claiming work complete |
+| `loom:systematic-debugging` | (internal) | Root-cause discipline for bugs and test failures |
+| `loom:requesting-code-review` / `loom:receiving-code-review` | (internal) | Review etiquette |
+| `loom:writing-skills` | (internal) | TDD-for-documentation when editing plugin skills |
 
 ## Agents
 
 | Agent | Role |
 |-------|------|
-| `codebase-researcher` | Read-only research during groom phase |
-| `epic-validator` | Validate epic-level criteria after all stories merge |
-| `story-executor` | Implement a single story on an isolated branch |
+| `story-executor` | Implement a single loom story in its own worktree, one commit per task |
 
 ## Namespace
 
-All skills are registered under the `loom:` prefix. Example: `loom:brainstorming`.
+All skills are registered under the `loom:` prefix. Example: `loom:epic`.
 
 ## Requirements
 
 - Claude Code with plugin support
 - `loom` CLI installed and on `$PATH` (`uv run loom` or `pip install loom-pm`)
 - A loom workspace initialised in your project (`loom init` or `loom project create`)
+- `gh` CLI for PR finalization
 
 ## License
 

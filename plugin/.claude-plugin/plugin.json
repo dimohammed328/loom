@@ -1,44 +1,9 @@
 {
   "name": "loom",
-  "description": "Loom — markdown-based project management with loom CLI integration. Wires lifecycle hooks for agent orchestration, event logging, and subagent context injection.",
+  "description": "Loom — markdown-based project management with loom CLI integration. /epic and /story workflows plan work as loom items and execute via story-executor subagents.",
   "author": {
     "name": "dimohammed328",
     "email": "dimohammed328@gmail.com"
   },
-  "license": "MIT",
-  "hooks": {
-    "SubagentStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/loom-subagent-context-inject.sh\"",
-            "async": false
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/loom-log.sh\"",
-            "async": true
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/loom-log.sh\"",
-            "async": true
-          }
-        ]
-      }
-    ]
-  }
+  "license": "MIT"
 }
