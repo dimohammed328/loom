@@ -1,0 +1,36 @@
+tests/test_bulk_validation.py
+  s_12f384153cebba::t_98aece7419d2b8 683-685
+  s_12f384153cebba::t_fa0313c21d1d30 173,497
+  s_12f384153cebba::t_7f0c62d90e2ca7 19,29,540,545-568,570-572,574-580,582-607,609-635,637-682,686-734
+  s_12f384153cebba::t_a53bd2d06aef94 569,573,581,608,636
+tests/test_json_interface_doc.py
+  s_12f384153cebba::t_0bb3566252e07c 191,203,243-255
+  s_12f384153cebba::t_fa0313c21d1d30 170-180,198
+docs/JSON_INTERFACE.md
+  s_12f384153cebba::t_23ef2720f2e42b 95-102,106,120-122,158-159
+src/loom/bulk.py
+  s_12f384153cebba::t_245456c8e40aa8 14-17,22-24,29,48,57,74-75,119,122,179-278,290-291,377-387,451-452,485-490,494-503,505-506,512-517,586
+src/loom/api.py
+  s_12f384153cebba::t_bd6f4d16ec3d6a 521,529
+  s_12f384153cebba::t_23ebf219105005 528,531-532
+  s_12f384153cebba::t_f955494ba09f82 523-525,530,533-535,537
+  s_12f384153cebba::t_fa0313c21d1d30 499,502
+src/loom/cli.py
+  s_12f384153cebba::t_2103d00a0eed49 1908,1928,1931-1932
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "6efc60e86d635cc2e5e22bae3c07915f290d0a02",
+  "prompts": {},
+  "sessions": {
+    "s_12f384153cebba": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8218f31b-505b-4a6b-b7d2-96f1892ad0ab",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
