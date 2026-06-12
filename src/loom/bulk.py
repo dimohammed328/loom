@@ -6,9 +6,10 @@ The CLI command (``loom apply``) is a thin wrapper over :func:`apply`.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from .errors import Duplicate, LoomError, NotFound
 
@@ -104,8 +105,7 @@ def validate_plan(
         # --- type ---
         if item.type not in _ALLOWED_TYPES:
             raise LoomError(
-                f"item {idx}: invalid type {item.type!r}; "
-                f"must be one of {sorted(_ALLOWED_TYPES)}"
+                f"item {idx}: invalid type {item.type!r}; must be one of {sorted(_ALLOWED_TYPES)}"
             )
 
         # --- title ---
@@ -113,9 +113,8 @@ def validate_plan(
             raise LoomError(f"item {idx}: title must be a non-empty string")
 
         # --- duplicate ref ---
-        if item.ref is not None:
-            if item.ref in seen_refs:
-                raise Duplicate(item.ref)
+        if item.ref is not None and item.ref in seen_refs:
+            raise Duplicate(item.ref)
 
         # --- resolve parent type ---
         parent_type = _resolve_parent_type(item.parent, seen_refs, get_item_type, idx)
@@ -124,8 +123,7 @@ def validate_plan(
         allowed_children = _VALID_PARENT_TYPES.get(parent_type, set())
         if item.type not in allowed_children:
             raise LoomError(
-                f"item {idx}: type {item.type!r} cannot be parented on a "
-                f"{parent_type!r} item"
+                f"item {idx}: type {item.type!r} cannot be parented on a {parent_type!r} item"
             )
 
         # Register this item's ref so later entries can reference it.
@@ -191,10 +189,7 @@ def execute_plan(
 
     for item in plan.items:
         # Resolve parent qid: local ref or raw qid.
-        if item.parent in ref_to_qid:
-            parent_qid = ref_to_qid[item.parent]
-        else:
-            parent_qid = item.parent
+        parent_qid = ref_to_qid.get(item.parent, item.parent)
 
         try:
             parent_item = get_item(parent_qid)

@@ -1727,3 +1727,99 @@ def close_cmd(
 
 # Suppress unused-import lint for symbols re-exported through CLI imports.
 _ = (Task, parse_qid)
+
+
+# ---------------------------------------------------------------------------
+# apply — bulk item creation
+# ---------------------------------------------------------------------------
+
+
+@app.command("apply")
+def apply_cmd(
+    source: Annotated[
+        str,
+        typer.Argument(
+            help="Path to a JSON plan file, or '-' to read from stdin.",
+        ),
+    ],
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Validate the plan and print it; create nothing."),
+    ] = False,
+    root: RootOption = None,
+) -> None:
+    """Bulk-create items from a JSON plan file (or stdin with '-').
+
+    Output (stdout): bare JSON created-mapping
+    ``{"created": [{"ref": ..., "qid": ..., "type": ...}, ...]}``.
+    Human notes go to stderr. Exit codes follow the standard contract.
+    On mid-create failure the partial mapping is printed to stdout and the
+    process exits nonzero (no rollback).
+    """
+    import json as _json
+
+    from .bulk import ApplyPlan, PartialApplyError, PlanItem, validate_plan
+
+    # --- read source ---
+    if source == "-":
+        raw = sys.stdin.read()
+    else:
+        try:
+            raw = Path(source).read_text(encoding="utf-8")
+        except FileNotFoundError:
+            _die(f"apply: file not found: {source}", code=EXIT_NOT_FOUND)
+            return
+
+    # --- parse JSON ---
+    try:
+        data = _json.loads(raw)
+    except _json.JSONDecodeError as exc:
+        _die(f"apply: malformed JSON: {exc}", code=EXIT_GENERIC)
+        return
+
+    if not isinstance(data, dict) or "items" not in data:
+        _die("apply: JSON must be an object with an 'items' key", code=EXIT_GENERIC)
+        return
+
+    # --- build ApplyPlan ---
+    try:
+        items = [PlanItem(**entry) for entry in data["items"]]
+    except (TypeError, KeyError) as exc:
+        _die(f"apply: invalid plan item: {exc}", code=EXIT_GENERIC)
+        return
+
+    plan = ApplyPlan(items=items)
+
+    # --- validate ---
+    loom = _loom(root)
+    try:
+        validate_plan(
+            plan,
+            get_item_type=lambda qid: loom.get_or_none(qid).type if loom.get_or_none(qid) else None,
+        )
+    except LoomError as e:
+        _die_from(e)
+        return
+
+    if dry_run:
+        typer.echo(f"dry-run: plan valid, {len(plan.items)} item(s) would be created", err=True)
+        raise typer.Exit(code=0)
+
+    # --- execute ---
+    try:
+        result = loom.apply(plan, skip_validation=True)
+    except PartialApplyError as exc:
+        # Print partial mapping then exit nonzero.
+        typer.echo(_json.dumps({"created": exc.created}))
+        _die(f"apply: failed after {len(exc.created)} item(s): {exc.cause}", code=EXIT_GENERIC)
+        return
+    except LoomError as e:
+        _die_from(e)
+        return
+
+    # --- state touch (last created item) ---
+    if result.created:
+        _record_touch(result.created[-1]["qid"])
+
+    typer.echo(_json.dumps({"created": result.created}))
+    typer.echo(f"created {len(result.created)} item(s)", err=True)

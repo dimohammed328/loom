@@ -20,6 +20,10 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .bulk import ApplyPlan, ApplyResult
 
 from .errors import Duplicate, LoomError, NotFound
 from .ids import (
@@ -492,10 +496,10 @@ class Loom:
 
     def apply(
         self,
-        plan: "ApplyPlan",
+        plan: ApplyPlan,
         *,
         skip_validation: bool = False,
-    ) -> "ApplyResult":
+    ) -> ApplyResult:
         """Bulk-create items described by *plan* in file order.
 
         Validates first (unless *skip_validation* is True), then creates each
@@ -509,7 +513,7 @@ class Loom:
         :param skip_validation: Bypass pre-write validation (for testing
             partial-failure paths).  Do not pass True in production code.
         """
-        from .bulk import ApplyResult, execute_plan, validate_plan
+        from .bulk import execute_plan, validate_plan
 
         if not skip_validation:
             validate_plan(
