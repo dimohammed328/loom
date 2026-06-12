@@ -1,0 +1,19 @@
+plugin/skills/epic/SKILL.md
+  s_4237cde4ac239b::t_6df45ad7af8ea1 60-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "76a571e0a7c4945cc69194d47091ca7ec67c841f",
+  "prompts": {},
+  "sessions": {
+    "s_4237cde4ac239b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0da95bb3-3e64-4371-a5fa-87bc6edd6d83",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
