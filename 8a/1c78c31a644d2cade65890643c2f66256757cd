@@ -1,0 +1,19 @@
+tests/test_e2e.py
+  s_12f384153cebba::t_e58e1394bd1aa4 660-750
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "8a1c78c31a644d2cade65890643c2f66256757cd",
+  "prompts": {},
+  "sessions": {
+    "s_12f384153cebba": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8218f31b-505b-4a6b-b7d2-96f1892ad0ab",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Danish Mohammed <dimohammed328@gmail.com>"
+    }
+  }
+}
