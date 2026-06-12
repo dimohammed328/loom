@@ -176,6 +176,96 @@ def would_create_cycle(
     return None
 
 
+def batch_would_create_cycle(
+    idx: Index,
+    new_edges: list[tuple[str, str]],
+) -> list[str] | None:
+    """Check if any of *new_edges* together would create a cycle.
+
+    Builds an augmented adjacency map: existing deps from the index plus
+    all new edges. Then runs a DFS from every node to detect a back edge.
+    Returns the cycle path if any cycle exists, else ``None``.
+
+    This is order-independent: cycles only visible when several new edges
+    are considered together are detected regardless of their order.
+    """
+    # Short-circuit: self-loops are always cycles.
+    for src, tgt in new_edges:
+        if src == tgt:
+            return [src, src]
+
+    if not new_edges:
+        return None
+
+    # Collect every node transitively reachable from touched nodes via
+    # existing index edges (both directions) so we capture the full context.
+    touched: set[str] = {n for edge in new_edges for n in edge}
+    all_nodes: set[str] = set(touched)
+    frontier = list(touched)
+    visited_exp: set[str] = set()
+    while frontier:
+        node = frontier.pop()
+        if node in visited_exp:
+            continue
+        visited_exp.add(node)
+        for dep in idx.dependencies_of(node):
+            if dep not in all_nodes:
+                all_nodes.add(dep)
+                frontier.append(dep)
+        for dep in idx.dependents_of(node):
+            if dep not in all_nodes:
+                all_nodes.add(dep)
+                frontier.append(dep)
+
+    # Build augmented adjacency map: existing + new edges.
+    adj: dict[str, set[str]] = {n: set(idx.dependencies_of(n)) for n in all_nodes}
+    for src, tgt in new_edges:
+        adj.setdefault(src, set()).add(tgt)
+        adj.setdefault(tgt, set())
+
+    # Iterative DFS cycle detection (WHITE/GRAY/BLACK colouring).
+    WHITE, GRAY, BLACK = 0, 1, 2
+    color: dict[str, int] = {n: WHITE for n in adj}
+    parent: dict[str, str | None] = {n: None for n in adj}
+
+    def _dfs(start: str) -> list[str] | None:
+        stack: list[tuple[str, bool]] = [(start, False)]
+        while stack:
+            node, leaving = stack.pop()
+            if leaving:
+                color[node] = BLACK
+                continue
+            if color[node] != WHITE:
+                continue
+            color[node] = GRAY
+            stack.append((node, True))
+            for neighbor in sorted(adj.get(node, set())):
+                if color.get(neighbor, WHITE) == GRAY:
+                    # Back edge — reconstruct cycle.
+                    cycle = [neighbor]
+                    cur = node
+                    while cur != neighbor:
+                        cycle.append(cur)
+                        par = parent.get(cur)
+                        if par is None:
+                            break
+                        cur = par
+                    cycle.append(neighbor)
+                    cycle.reverse()
+                    return cycle
+                if color.get(neighbor, WHITE) == WHITE:
+                    parent[neighbor] = node
+                    stack.append((neighbor, False))
+        return None
+
+    for node in sorted(adj):
+        if color.get(node, WHITE) == WHITE:
+            result = _dfs(node)
+            if result is not None:
+                return result
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Mutations
 # ---------------------------------------------------------------------------
