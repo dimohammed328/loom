@@ -514,8 +514,8 @@ def test_batch_self_loop_detected(loom_dir: Path) -> None:
 
 def test_batch_empty_edges_no_cycle(loom_dir: Path) -> None:
     """Empty edge list never produces a cycle."""
-    loom_dir  # just ensure the fixture runs
+    # loom_dir is a freshly initialized LOOM_DIR (from conftest fixture).
     from loom.index import Index as _Index
-    # We need some initialized index; loom_dir is a fresh init.
+
     idx = _Index(loom_dir)
     assert batch_would_create_cycle(idx, []) is None
