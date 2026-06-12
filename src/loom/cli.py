@@ -1635,6 +1635,148 @@ def dep_list(
         typer.echo(f"{r.qualified_id}\t{r.type}{status_str}\t{r.title}")
 
 
+@dep_app.command("apply")
+def dep_apply_cmd(
+    source: Annotated[
+        str,
+        typer.Argument(
+            help="Path to a JSON deps file, or '-' to read from stdin.",
+        ),
+    ],
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Validate the plan and print it; apply nothing."),
+    ] = False,
+    root: RootOption = None,
+) -> None:
+    """Bulk-add dependency edges from a JSON file (or stdin with '-').
+
+    Input format: ``{"deps": [{"source": "<qid>", "on": "<qid>"}, ...]}``.
+    Source depends on target (same direction as ``loom dep add``).
+
+    Output (stdout): bare JSON ``{"added": N}``.
+    Per-edge notes go to stderr. Exit codes follow the standard contract.
+    All-or-nothing: on any validation failure nothing is applied.
+    """
+    import json as _json
+
+    # --- read source ---
+    if source == "-":
+        raw = sys.stdin.read()
+    else:
+        try:
+            raw = Path(source).read_text(encoding="utf-8")
+        except FileNotFoundError:
+            _die(f"dep apply: file not found: {source}", code=EXIT_NOT_FOUND)
+            return
+
+    # --- parse JSON ---
+    try:
+        data = _json.loads(raw)
+    except _json.JSONDecodeError as exc:
+        _die(f"dep apply: malformed JSON: {exc}", code=EXIT_GENERIC)
+        return
+
+    if not isinstance(data, dict) or "deps" not in data:
+        _die("dep apply: JSON must be an object with a 'deps' key", code=EXIT_GENERIC)
+        return
+
+    raw_deps = data["deps"]
+    if not isinstance(raw_deps, list):
+        _die("dep apply: 'deps' must be a list", code=EXIT_GENERIC)
+        return
+
+    # --- parse edges ---
+    edges: list[tuple[str, str]] = []
+    for i, entry in enumerate(raw_deps):
+        if not isinstance(entry, dict) or "source" not in entry or "on" not in entry:
+            _die(
+                f"dep apply: entry {i} must have 'source' and 'on' keys",
+                code=EXIT_GENERIC,
+            )
+            return
+        edges.append((str(entry["source"]), str(entry["on"])))
+
+    loom = _loom(root)
+
+    # --- validate + apply ---
+    if dry_run:
+        # Validate only: run add_dependencies validation path by attempting
+        # with a fresh loom but catching before writes.
+        from .errors import CycleError
+        from .errors import LoomError as _LE
+        from .errors import NotFound as _NF
+
+        try:
+            # We run the validation portion of add_dependencies by calling
+            # it; on dry-run we don't want writes but validation is the same.
+            # Use a "validate only" approach: run all pre-flight checks.
+            _validate_dep_edges(loom, edges)
+        except _NF as e:
+            _die_from(e)
+            return
+        except CycleError as e:
+            _die_from(e)
+            return
+        except _LE as e:
+            _die_from(e)
+            return
+        typer.echo(f"dry-run: plan valid, {len(edges)} edge(s) would be applied", err=True)
+        raise typer.Exit(code=0)
+
+    try:
+        added = loom.add_dependencies(edges)
+    except LoomError as e:
+        _die_from(e)
+        return
+
+    # Emit JSON result first (stdout), then per-edge notes (stderr).
+    typer.echo(_json.dumps({"added": added}))
+    for src, tgt in edges:
+        typer.echo(f"{src} -> {tgt}", err=True)
+
+    # Update workspace state for the last source qid.
+    if edges:
+        _record_touch(edges[-1][0])
+
+
+def _validate_dep_edges(loom: Loom, edges: list[tuple[str, str]]) -> None:
+    """Run all pre-flight validation for dep apply without writing anything.
+
+    Raises the same errors as :meth:`~loom.api.Loom.add_dependencies`.
+    """
+    from .deps import _declared_deps, batch_would_create_cycle
+    from .errors import CycleError
+    from .ids import ItemType
+
+    idx = loom.index
+    for src_qid, tgt_qid in edges:
+        from .errors import NotFound
+
+        src = idx.get(src_qid)
+        if src is None:
+            raise NotFound(src_qid)
+        tgt = idx.get(tgt_qid)
+        if tgt is None:
+            raise NotFound(tgt_qid)
+        if src.type == ItemType.PROJECT.value:
+            raise LoomError(f"projects cannot have dependencies (source: {src_qid})")
+        if tgt.type == ItemType.PROJECT.value:
+            raise LoomError(f"depending on a project is forbidden (target: {tgt_qid})")
+        if src_qid == tgt_qid:
+            raise LoomError(f"an item cannot depend on itself: {src_qid}")
+
+    new_edges = [
+        (s, t)
+        for s, t in edges
+        if t not in _declared_deps(idx.get(s))  # type: ignore[arg-type]
+    ]
+    if new_edges:
+        cycle = batch_would_create_cycle(idx, new_edges)
+        if cycle is not None:
+            raise CycleError(cycle[0], cycle[-1], cycle)
+
+
 @app.command("ready")
 def ready_cmd(
     qid: Annotated[

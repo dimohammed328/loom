@@ -748,3 +748,76 @@ def test_e2e_apply_cli_full_chain_with_metadata(tmp_path: Path, loom_dir: Path) 
     rebuild_result = loom2.rebuild()
     assert rebuild_result.rewrites == ()
     assert rebuild_result.issues == ()
+
+
+# ---------------------------------------------------------------------------
+# e2e: dep apply — library and CLI surfaces
+# ---------------------------------------------------------------------------
+
+
+def test_e2e_dep_apply_library(loom_dir: Path) -> None:
+    """Library e2e: add_dependencies wires edges and survives rebuild."""
+    from loom.api import Loom
+
+    loom = Loom(root=loom_dir)
+    p = loom.create_project("acme", title="Acme")
+    e = p.create_epic(title="E")
+    s = e.create_story(title="S")
+    a = s.create_task(title="A")
+    b = s.create_task(title="B")
+    c = s.create_task(title="C")
+
+    # a depends on b and c.
+    added = loom.add_dependencies(
+        [
+            (a.qualified_id, b.qualified_id),
+            (a.qualified_id, c.qualified_id),
+        ]
+    )
+    assert added == 2
+
+    deps = loom.get(a.qualified_id).dependencies()  # type: ignore[union-attr]
+    dep_qids = {r.qualified_id for r in deps}
+    assert dep_qids == {b.qualified_id, c.qualified_id}
+
+    # rebuild is a no-op.
+    result = loom.rebuild()
+    assert result.rewrites == ()
+    assert result.issues == ()
+
+    # Deps still present after rebuild.
+    deps_after = loom.get(a.qualified_id).dependencies()  # type: ignore[union-attr]
+    assert {r.qualified_id for r in deps_after} == {b.qualified_id, c.qualified_id}
+
+
+def test_e2e_dep_apply_cli(tmp_path: Path, loom_dir: Path) -> None:
+    """CLI e2e: loom dep apply wires edges and survives rebuild."""
+    import json as _json
+
+    from loom.api import Loom
+
+    loom = Loom(root=loom_dir)
+    p = loom.create_project("acme", title="Acme")
+    e = p.create_epic(title="E")
+    s = e.create_story(title="S")
+    a = s.create_task(title="A").qualified_id
+    b = s.create_task(title="B").qualified_id
+
+    plan_file = tmp_path / "deps.json"
+    plan_file.write_text(_json.dumps({"deps": [{"source": a, "on": b}]}))
+
+    result = runner.invoke(app, ["dep", "apply", "--root", str(loom_dir), str(plan_file)])
+    assert result.exit_code == 0, result.output
+
+    out = _json.loads(result.output.splitlines()[0])
+    assert out == {"added": 1}
+
+    # Verify edge is persisted.
+    loom2 = Loom(root=loom_dir)
+    deps = loom2.get(a).dependencies()  # type: ignore[union-attr]
+    assert any(r.qualified_id == b for r in deps)
+
+    # Rebuild is a no-op.
+    rb = loom2.rebuild()
+    assert rb.rewrites == ()
+    assert rb.issues == ()
