@@ -34,37 +34,43 @@ the Bun server has no bulk-create path today; notes are in `web/README.md`.
 ### At a glance
 
 ```bash
-loom apply plan.json          # from file
-loom apply -                  # from stdin
+loom apply plan.json            # from file
+loom apply -                    # from stdin
 loom apply --dry-run plan.json  # validate only; create nothing
 ```
 
-### Input schema
+### Input schema (nested)
+
+Items form a tree: root items carry a `parent` qid pointing at an existing
+store item; children are nested via a `children` list.  There is no
+flat/forward-ref form — nesting *is* the parent relationship.
 
 ```json
 {
   "items": [
     {
-      "ref":      "epic",
+      "ref":      "e1",
       "type":     "epic",
       "parent":   "loom-app",
       "title":    "Auth overhaul",
       "body":     "## Summary\n…",
       "assignee": "8218f31b-…",
       "tags":     ["auth", "security"],
-      "status":   "ready"
-    },
-    {
-      "ref":    "s1",
-      "type":   "story",
-      "parent": "epic",
-      "title":  "Login endpoint"
-    },
-    {
-      "type":   "task",
-      "parent": "s1",
-      "title":  "Failing test for login",
-      "status": "blocked"
+      "status":   "ready",
+      "children": [
+        {
+          "ref":   "s1",
+          "type":  "story",
+          "title": "Login endpoint",
+          "children": [
+            {
+              "type":   "task",
+              "title":  "Failing test for login",
+              "status": "blocked"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
@@ -74,31 +80,117 @@ loom apply --dry-run plan.json  # validate only; create nothing
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `type` | string | yes | `epic`, `story`, or `task`. `project` is not allowed here — use `loom project create`. |
-| `parent` | string | yes | A `ref` defined **earlier** in the same list (no forward refs), or an existing qualified id. A bare project qid as a story's parent targets its `backlog` epic. |
+| `type` | string | yes | `epic`, `story`, or `task`. `project` is not allowed — use `loom project create`. Cross-checked against the enclosing item type. |
+| `parent` | string | **root items only**; forbidden on children | An existing qid in the store. A bare project qid as a story's parent targets its `backlog` epic. Refs are **not** valid parents — only existing qids. |
 | `title` | string | yes | Non-empty human-readable title. |
-| `ref` | string | no | Local handle, unique within the file. Required when other items use this item as `parent` or when you need the mapping in output. |
+| `ref` | string | no | Local handle, unique across the **whole plan tree**. Used only for the `created` ref→qid mapping in output. |
 | `body` | string | no | Markdown body. Defaults to `""`. |
 | `assignee` | string | no | Assignee string (free-form; typically a UUID or login). |
 | `tags` | list[string] | no | Tag list. |
 | `status` | string | no | Initial status. Defaults to `ready`. Any string is valid; only `done` has semantic effect on dependencies. |
+| `children` | list | no | Nested child items. Allowed on `epic` and `story`; **forbidden on tasks** (tasks are leaves). |
 
-### Validation rules (all checked before any write)
+### Validation (collect-all, before any write)
 
+**All errors are collected in one pass.** On failure, nothing is written and
+the complete error report is emitted on stdout so you can fix every error in
+one editing pass, then re-apply.
+
+Semantic rules:
 - `type` must be `epic`, `story`, or `task`.
-- `title` must be non-empty.
-- `ref` values must be unique within the file.
-- `parent` must resolve to an already-seen `ref` or an existing qid.
-  Forward references (a later item's `ref`) are **not** allowed.
-- Type/parent compatibility:
-  - `epic` → parent must be a project.
-  - `story` → parent must be an epic or a project (auto-targets `backlog`).
-  - `task` → parent must be a story.
-- Unknown parent qid → exit 2 (`EXIT_NOT_FOUND`).
-- Duplicate `ref` → exit 3 (`EXIT_DUPLICATE`).
-- Bad type, incompatible parent, empty title → exit 1 (`EXIT_GENERIC`).
-- Malformed JSON → exit 1.
-- Missing `items` key → exit 1.
+- `title` must be non-empty (whitespace-only is rejected).
+- `ref` values must be unique across the **whole plan tree** (including nested children).
+- `parent` on a root item must be an existing qid in the store. Refs, symbolic
+  names, or symbolic references are not valid — always use existing qids.
+- `parent` is **forbidden** on nested children (nesting is the relationship).
+- Root items without a `parent` field are rejected.
+- Type must be compatible with its enclosure:
+  - `epic` → root only; parent must be a project.
+  - `story` → inside an `epic`, or at root with project parent (targets `backlog`).
+  - `task` → inside a `story`.
+- `children` is forbidden on tasks.
+
+### Validation error report
+
+On any validation failure, stdout is a bare JSON error report; nothing is created:
+
+```json
+{
+  "errors": [
+    {
+      "path":    "items[0].children[1]",
+      "code":    "bad_nesting",
+      "message": "type 'epic' cannot be nested under 'story'; allowed children: ['task']"
+    },
+    {
+      "path":    "items[1]",
+      "code":    "unknown_parent",
+      "message": "unknown parent qid 'no-such-proj'; must be an existing item qid in the store"
+    }
+  ]
+}
+```
+
+Human-readable lines mirror the errors on **stderr**.
+
+**Exit code** is determined by the **first error's** code (single-error case
+preserves the previous exit-code specificity):
+
+| First error code | Exit code |
+|---|---|
+| `unknown_parent` | 2 (`EXIT_NOT_FOUND`) |
+| `duplicate_ref` | 3 (`EXIT_DUPLICATE`) |
+| Everything else | 1 (`EXIT_GENERIC`) |
+| Malformed JSON | 1 |
+
+#### Stable error code constants
+
+| Code | Meaning |
+|---|---|
+| `bad_type` | `type` value is not `epic`, `story`, or `task` |
+| `empty_title` | `title` is missing, empty, or whitespace-only |
+| `duplicate_ref` | A `ref` value appears more than once across the whole tree |
+| `unknown_parent` | Root item's `parent` qid does not exist in the store |
+| `missing_parent` | A root item has no `parent` field |
+| `parent_on_child` | A nested child has a `parent` field (forbidden) |
+| `children_on_task` | A task has a non-empty `children` list |
+| `bad_nesting` | `type` is incompatible with the enclosing item type |
+| `non_object` | An item in `items` or `children` is not a JSON object |
+| `unknown_field` | An item contains an unrecognised field |
+
+These constants are exported from `loom.bulk` (`CODE_*`) and are part of this
+stable contract — code values will not change without a version bump.
+
+#### Worked multi-error example
+
+A plan with three independent errors produces a single report an agent can act
+on without retrying:
+
+**Input** (three errors at different depths):
+
+```json
+{
+  "items": [
+    {"type": "bogus",  "parent": "p",    "title": "X"},
+    {"type": "epic",   "parent": "p",    "title": ""},
+    {"type": "epic",   "parent": "nope", "title": "Y"}
+  ]
+}
+```
+
+**stdout** (one pass, all errors):
+
+```json
+{
+  "errors": [
+    {"path": "items[0]", "code": "bad_type",      "message": "invalid type 'bogus'; must be one of ['epic', 'story', 'task']"},
+    {"path": "items[1]", "code": "empty_title",   "message": "title must be a non-empty string"},
+    {"path": "items[2]", "code": "unknown_parent", "message": "unknown parent qid 'nope'; must be an existing item qid in the store"}
+  ]
+}
+```
+
+Fix all three in one editing pass, then re-apply.
 
 ### Stdout contract
 
@@ -106,14 +198,14 @@ On success, a single JSON object on stdout:
 
 ```json
 {"created": [
-  {"ref": "epic", "qid": "loom-app:k3m9xwp",   "type": "epic"},
-  {"ref": "s1",   "qid": "loom-app:k3m9xwp:1", "type": "story"},
+  {"ref": "e1",   "qid": "loom-app:k3m9xwp",     "type": "epic"},
+  {"ref": "s1",   "qid": "loom-app:k3m9xwp:1",   "type": "story"},
   {"ref": null,   "qid": "loom-app:k3m9xwp:1:1", "type": "task"}
 ]}
 ```
 
-The `created` array is in the same order as the input `items` list.
-`ref` is `null` for items with no `ref` in the input.
+The `created` array is in **depth-first creation order** (parent before its
+children; siblings in list order). `ref` is `null` for items with no `ref`.
 
 ### Stderr contract
 
@@ -121,36 +213,40 @@ Human-readable progress notes: `"created N item(s)"`. Do not parse stderr.
 
 ### `--dry-run`
 
-Validates the plan and prints the would-be plan as a single JSON object on
-stdout (bodies omitted); creates nothing. A human note goes to stderr.
-Exit 0 on valid plan, nonzero on validation failure.
+Validates the plan and, on success, prints the would-be creation order as a
+single JSON object on stdout (bodies omitted); creates nothing:
 
 ```json
 {"plan": [
-  {"ref": "epic", "type": "epic", "parent": "loom-app", "title": "Auth overhaul"}
+  {"ref": "e1", "type": "epic",  "parent": "loom-app", "title": "Auth overhaul"},
+  {"ref": "s1", "type": "story", "title": "Login endpoint"},
+  {"ref": null, "type": "task",  "title": "Failing test for login"}
 ]}
 ```
 
-The `plan` array is in input order; `parent` is echoed as given (a local
-`ref` stays a `ref`, a qid stays a qid).
+The `plan` array is in the same depth-first order as the would-be created list.
+
+On an **invalid plan**, `--dry-run` prints the same `{"errors": [...]}` report
+on stdout and exits nonzero — identical behavior to a normal failed run.
+
+Exit 0 on valid plan, nonzero on validation failure.
 
 ### Partial failure / no rollback
 
-Items are created in file order. If creation fails mid-plan (a rare
-condition given pre-validation), the partial `created` mapping is printed
-on stdout and the process exits 1. **No rollback is performed** — "archive,
-not delete" is a non-negotiable in loom's design. Callers should treat a
-nonzero exit + partial stdout as a soft failure and inspect the store before
-re-running.
+Items are created depth-first. If creation fails mid-plan (a rare condition
+given pre-validation), the partial `created` mapping is printed on stdout and
+the process exits 1. **No rollback is performed** — "archive, not delete" is a
+non-negotiable in loom's design. Callers should treat a nonzero exit + partial
+stdout as a soft failure and inspect the store before re-running.
 
 ### Exit codes
 
 | Code | Constant | Meaning |
 |---|---|---|
 | 0 | — | All items created |
-| 1 | `EXIT_GENERIC` | Malformed JSON, bad schema, type/title error, mid-create failure |
-| 2 | `EXIT_NOT_FOUND` | Unknown parent qid |
-| 3 | `EXIT_DUPLICATE` | Duplicate `ref` value |
+| 1 | `EXIT_GENERIC` | Malformed JSON, bad schema, type/title/nesting error, mid-create failure |
+| 2 | `EXIT_NOT_FOUND` | Unknown parent qid (`unknown_parent` is the first error) |
+| 3 | `EXIT_DUPLICATE` | Duplicate `ref` value (`duplicate_ref` is the first error) |
 | 5 | `EXIT_INVALID_ID` | Invalid qualified id format |
 
 ---
@@ -160,8 +256,8 @@ re-running.
 ### At a glance
 
 ```bash
-loom dep apply deps.json      # from file
-loom dep apply -              # from stdin
+loom dep apply deps.json          # from file
+loom dep apply -                  # from stdin
 loom dep apply --dry-run deps.json  # validate only; apply nothing
 ```
 
@@ -178,7 +274,7 @@ Direction matches `loom dep add <source> --on <target>`: the **source**
 item waits for the **target** item (`source` depends on `on`).
 
 All qids must be real, existing qualified ids — `loom dep apply` does not
-resolve forward references or symbolic names. Use `loom apply` first to
+resolve symbolic names or plan-local refs. Use `loom apply` first to
 materialize items and capture their real qids from the output mapping, then
 feed those qids to `loom dep apply`.
 
@@ -241,13 +337,13 @@ store is left with whatever edges were written before the failure.
 ## Typical orchestrator workflow
 
 ```bash
-# Step 1: create items
+# Step 1: create items (nested plan)
 result=$(loom apply plan.json)
 
 # Step 2: extract qids from the mapping
-epic_qid=$(echo "$result" | jq -r '.created[] | select(.ref=="epic") | .qid')
-s1_qid=$(echo "$result" | jq -r '.created[] | select(.ref=="s1") | .qid')
-s2_qid=$(echo "$result" | jq -r '.created[] | select(.ref=="s2") | .qid')
+epic_qid=$(echo "$result" | jq -r '.created[] | select(.ref=="e1") | .qid')
+s1_qid=$(echo "$result"   | jq -r '.created[] | select(.ref=="s1") | .qid')
+s2_qid=$(echo "$result"   | jq -r '.created[] | select(.ref=="s2") | .qid')
 
 # Step 3: wire dependencies using real qids
 loom dep apply - <<EOF
@@ -262,6 +358,9 @@ loom tree "$epic_qid"
 ```
 
 stdin is accepted to avoid temp files in scripted pipelines.
+
+If `loom apply` exits nonzero, stdout is `{"errors": [...]}` — fix all errors
+in one editing pass before re-applying.
 
 ---
 
