@@ -8,9 +8,7 @@ from __future__ import annotations
 import pytest
 
 from loom.api import Loom
-from loom.bulk import ApplyPlan, ApplyResult, PartialApplyError, PlanItem
-from loom.errors import LoomError, NotFound
-
+from loom.bulk import ApplyPlan, PartialApplyError, PlanItem
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -294,7 +292,14 @@ def test_apply_rebuild_is_noop(loom_dir) -> None:
 
     plan = _plan(
         {"ref": "e1", "type": "epic", "parent": "p", "title": "E"},
-        {"ref": "s1", "type": "story", "parent": "e1", "title": "S", "assignee": "alice", "tags": ["x"]},
+        {
+            "ref": "s1",
+            "type": "story",
+            "parent": "e1",
+            "title": "S",
+            "assignee": "alice",
+            "tags": ["x"],
+        },
         {"type": "task", "parent": "s1", "title": "T", "status": "blocked"},
     )
     loom.apply(plan)

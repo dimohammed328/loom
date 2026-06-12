@@ -18,7 +18,6 @@ from loom.errors import (
     NotFound,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -76,14 +75,20 @@ def test_validate_plan_empty_list_ok() -> None:
 def test_validate_plan_single_epic_against_existing_project(loom_dir) -> None:
     """Epic whose parent is an existing project qid passes."""
     from loom.api import Loom
+
     loom = Loom(root=loom_dir)
     loom.create_project("myproj", title="My Project")
 
     plan = _plan(
         {"ref": "e1", "type": "epic", "parent": "myproj", "title": "An Epic"},
     )
+
     # Should not raise
-    validate_plan(plan, get_item_type=lambda qid: loom.get(qid).type if loom.get_or_none(qid) else None)
+    def _get_type(qid: str) -> str | None:
+        item = loom.get_or_none(qid)
+        return item.type if item else None
+
+    validate_plan(plan, get_item_type=_get_type)
 
 
 # ---------------------------------------------------------------------------
@@ -145,7 +150,7 @@ def test_validate_plan_rejects_epic_with_epic_parent() -> None:
         {"ref": "e1", "type": "epic", "parent": "myproj", "title": "E1"},
         {"type": "epic", "parent": "e1", "title": "Nested epic"},
     )
-    with pytest.raises(LoomError, match="[Pp]arent|[Tt]ype"):
+    with pytest.raises(LoomError, match=r"[Pp]arent|[Tt]ype"):
         validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
 
 
@@ -157,7 +162,7 @@ def test_validate_plan_rejects_story_with_task_parent() -> None:
         {"ref": "t1", "type": "task", "parent": "s1", "title": "T"},
         {"type": "story", "parent": "t1", "title": "Bad story"},
     )
-    with pytest.raises(LoomError, match="[Pp]arent|[Tt]ype"):
+    with pytest.raises(LoomError, match=r"[Pp]arent|[Tt]ype"):
         validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
 
 
@@ -167,14 +172,14 @@ def test_validate_plan_rejects_task_with_epic_parent() -> None:
         {"ref": "e1", "type": "epic", "parent": "myproj", "title": "E"},
         {"type": "task", "parent": "e1", "title": "Bad task"},
     )
-    with pytest.raises(LoomError, match="[Pp]arent|[Tt]ype"):
+    with pytest.raises(LoomError, match=r"[Pp]arent|[Tt]ype"):
         validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
 
 
 def test_validate_plan_rejects_task_with_project_parent() -> None:
     """Tasks cannot be directly parented on projects."""
     plan = _plan({"type": "task", "parent": "myproj", "title": "Bad task"})
-    with pytest.raises(LoomError, match="[Pp]arent|[Tt]ype"):
+    with pytest.raises(LoomError, match=r"[Pp]arent|[Tt]ype"):
         validate_plan(plan, get_item_type=lambda qid: "project" if qid == "myproj" else None)
 
 
@@ -246,6 +251,7 @@ def test_validate_plan_chained_refs_ok() -> None:
 def test_validate_plan_story_with_existing_epic_qid_parent(loom_dir) -> None:
     """Story parented on an existing epic qid is valid."""
     from loom.api import Loom
+
     loom = Loom(root=loom_dir)
     proj = loom.create_project("p", title="P")
     epic = proj.create_epic(title="E")
@@ -253,4 +259,9 @@ def test_validate_plan_story_with_existing_epic_qid_parent(loom_dir) -> None:
     plan = _plan(
         {"type": "story", "parent": epic.qualified_id, "title": "S"},
     )
-    validate_plan(plan, get_item_type=lambda qid: loom.get(qid).type if loom.get_or_none(qid) else None)
+
+    def _get_type(qid: str) -> str | None:
+        item = loom.get_or_none(qid)
+        return item.type if item else None
+
+    validate_plan(plan, get_item_type=_get_type)

@@ -657,3 +657,94 @@ def test_loom_workflow_chain_via_cli(loom_dir: Path, tmp_path: Path) -> None:
     assert loom.get(s1_qid).status == "ready"
     assert loom.get(t1_qid).status == "ready"
     assert loom.get(t2_qid).status == "ready"
+
+
+# ---------------------------------------------------------------------------
+# loom apply — library + CLI surfaces
+# ---------------------------------------------------------------------------
+
+
+def test_e2e_apply_library_creates_and_rebuild_is_noop(loom_dir: Path) -> None:
+    """Library e2e: full chain created via apply, rebuild is no-op."""
+    from loom.api import Loom
+    from loom.bulk import ApplyPlan, PlanItem
+
+    loom = Loom(root=loom_dir)
+    loom.create_project("myproj", title="My Project")
+
+    plan = ApplyPlan(
+        items=[
+            PlanItem(
+                ref="e1",
+                type="epic",
+                parent="myproj",
+                title="Auth Epic",
+                assignee="alice",
+                tags=["auth"],
+            ),
+            PlanItem(ref="s1", type="story", parent="e1", title="OAuth Story"),
+            PlanItem(type="task", parent="s1", title="Wire callback", status="blocked"),
+        ]
+    )
+    result = loom.apply(plan)
+
+    assert len(result.created) == 3
+    assert result.created[0]["ref"] == "e1"
+
+    epic = loom.get(result.created[0]["qid"])
+    assert epic.assignee == "alice"
+    assert "auth" in epic.tags
+
+    task = loom.get(result.created[2]["qid"])
+    assert task.status == "blocked"
+
+    rebuild_result = loom.rebuild()
+    assert rebuild_result.rewrites == ()
+    assert rebuild_result.issues == ()
+
+
+def test_e2e_apply_cli_full_chain_with_metadata(tmp_path: Path, loom_dir: Path) -> None:
+    """CLI e2e: plan with assignee/tags/status round-trips through rebuild."""
+    import json as _json
+
+    from loom.api import Loom
+
+    loom = Loom(root=loom_dir)
+    loom.create_project("p", title="Test Project")
+
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(
+        _json.dumps(
+            {
+                "items": [
+                    {
+                        "ref": "e1",
+                        "type": "epic",
+                        "parent": "p",
+                        "title": "E",
+                        "assignee": "bob",
+                        "tags": ["x", "y"],
+                    },
+                    {"ref": "s1", "type": "story", "parent": "e1", "title": "S"},
+                    {"type": "task", "parent": "s1", "title": "T", "status": "blocked"},
+                ]
+            }
+        )
+    )
+
+    result = runner.invoke(app, ["apply", "--root", str(loom_dir), str(plan_file)])
+    assert result.exit_code == 0, result.output
+
+    out = _json.loads(result.output.splitlines()[0])
+    loom2 = Loom(root=loom_dir)
+
+    epic = loom2.get(out["created"][0]["qid"])
+    assert epic.assignee == "bob"
+    assert set(epic.tags) == {"x", "y"}
+
+    task = loom2.get(out["created"][2]["qid"])
+    assert task.status == "blocked"
+
+    rebuild_result = loom2.rebuild()
+    assert rebuild_result.rewrites == ()
+    assert rebuild_result.issues == ()
