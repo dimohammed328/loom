@@ -1890,19 +1890,25 @@ def apply_cmd(
     ] = False,
     root: RootOption = None,
 ) -> None:
-    """Bulk-create items from a JSON plan file (or stdin with '-').
+    """Bulk-create items from a JSON plan file (or stdin with '\'-\').
 
-    Output (stdout): bare JSON created-mapping
-    ``{"created": [{"ref": ..., "qid": ..., "type": ...}, ...]}``.
+    Input: nested JSON plan ``{"items": [...]}``.
+    Output (stdout): bare JSON ``{"created": [...]}``.
+    On validation error: ``{"errors": [{path, code, message}, ...]}`` on stdout,
+    human-readable lines on stderr, nothing created.
     Human notes go to stderr. Exit codes follow the standard contract.
     On mid-create failure the partial mapping is printed to stdout and the
     process exits nonzero (no rollback).
     """
     import json as _json
-    from dataclasses import MISSING as _DC_MISSING
-    from dataclasses import fields as _dc_fields
 
-    from .bulk import ApplyPlan, PartialApplyError, PlanItem, validate_plan
+    from .bulk import (
+        CODE_DUPLICATE_REF,
+        CODE_UNKNOWN_PARENT,
+        PartialApplyError,
+        PlanValidationError,
+        parse_plan,
+    )
 
     # --- read source ---
     if source == "-":
@@ -1921,60 +1927,37 @@ def apply_cmd(
         _die(f"apply: malformed JSON: {exc}", code=EXIT_GENERIC)
         return
 
-    if not isinstance(data, dict) or "items" not in data:
-        _die("apply: JSON must be an object with an 'items' key", code=EXIT_GENERIC)
-        return
-
-    # --- build ApplyPlan ---
-    allowed_fields = {f.name for f in _dc_fields(PlanItem)}
-    required_fields = {
-        f.name
-        for f in _dc_fields(PlanItem)
-        if f.default is _DC_MISSING and f.default_factory is _DC_MISSING
-    }
-    items: list[PlanItem] = []
-    for i, entry in enumerate(data["items"]):
-        if not isinstance(entry, dict):
-            _die(f"apply: item {i}: must be a JSON object", code=EXIT_GENERIC)
-            return
-        unknown = sorted(set(entry) - allowed_fields)
-        if unknown:
-            _die(f"apply: item {i}: unknown field(s): {', '.join(unknown)}", code=EXIT_GENERIC)
-            return
-        missing = sorted(required_fields - set(entry))
-        if missing:
-            _die(
-                f"apply: item {i}: missing required field(s): {', '.join(missing)}",
-                code=EXIT_GENERIC,
-            )
-            return
-        items.append(PlanItem(**entry))
-
-    plan = ApplyPlan(items=items)
-
-    # --- validate ---
+    # --- parse_plan: field validation + build ApplyPlan ---
     loom = _loom(root)
     try:
+        plan = parse_plan(data)
+    except PlanValidationError as exc:
+        _emit_error_report(exc, _json)
+        return
+
+    # --- semantic validation ---
+    try:
+        from .bulk import validate_plan
         validate_plan(
             plan,
             get_item_type=lambda qid: loom.get_or_none(qid).type if loom.get_or_none(qid) else None,
         )
-    except LoomError as e:
-        _die_from(e)
+    except PlanValidationError as exc:
+        _emit_error_report(exc, _json)
         return
 
     if dry_run:
-        plan_view = [
-            {"ref": it.ref, "type": it.type, "parent": it.parent, "title": it.title}
-            for it in plan.items
-        ]
-        typer.echo(_json.dumps({"plan": plan_view}))
-        typer.echo(f"dry-run: plan valid, {len(plan.items)} item(s) would be created", err=True)
+        # Flatten depth-first for the dry-run view
+        flat: list[dict] = []
+        _flatten_items_for_dry_run(plan.items, parent_ref=None, out=flat)
+        typer.echo(_json.dumps({"plan": flat}))
+        typer.echo(f"dry-run: plan valid, {len(flat)} item(s) would be created", err=True)
         raise typer.Exit(code=0)
 
     # --- execute ---
     try:
-        result = loom.apply(plan, skip_validation=True)
+        from .bulk import execute_plan
+        result = execute_plan(plan, loom._root, get_item=loom.get)
     except PartialApplyError as exc:
         # Print partial mapping then exit nonzero.
         typer.echo(_json.dumps({"created": exc.created}))
@@ -1990,3 +1973,40 @@ def apply_cmd(
 
     typer.echo(_json.dumps({"created": result.created}))
     typer.echo(f"created {len(result.created)} item(s)", err=True)
+
+
+def _emit_error_report(exc: "PlanValidationError", _json) -> None:  # type: ignore[type-arg]
+    """Print error report JSON on stdout, readable lines on stderr, then exit."""
+    from .bulk import CODE_DUPLICATE_REF, CODE_UNKNOWN_PARENT
+
+    errors_data = [
+        {"path": e.path, "code": e.code, "message": e.message}
+        for e in exc.errors
+    ]
+    typer.echo(_json.dumps({"errors": errors_data}))
+
+    for e in exc.errors:
+        typer.echo(f"apply: [{e.code}] {e.path}: {e.message}", err=True)
+
+    # Exit code: determined by first error's code
+    first_code = exc.errors[0].code if exc.errors else None
+    if first_code == CODE_UNKNOWN_PARENT:
+        raise typer.Exit(code=EXIT_NOT_FOUND)
+    if first_code == CODE_DUPLICATE_REF:
+        raise typer.Exit(code=EXIT_DUPLICATE)
+    raise typer.Exit(code=EXIT_GENERIC)
+
+
+def _flatten_items_for_dry_run(
+    items: list,
+    parent_ref,
+    out: list,
+) -> None:
+    """Flatten a nested item list depth-first for dry-run display."""
+    for item in items:
+        entry = {"ref": item.ref, "type": item.type, "title": item.title}
+        if item.parent is not None:
+            entry["parent"] = item.parent
+        out.append(entry)
+        if item.children:
+            _flatten_items_for_dry_run(item.children, parent_ref=item.ref, out=out)

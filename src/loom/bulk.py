@@ -299,7 +299,7 @@ def _parse_one_item(
     item_type = raw.get("type", "")
     item_title = raw.get("title", "")
     item_ref = raw.get("ref")
-    item_parent = raw.get("parent") if is_root else None
+    item_parent = raw.get("parent")  # preserved for all items; validate_plan checks children
     item_body = raw.get("body", "")
     item_assignee = raw.get("assignee")
     item_tags = raw.get("tags", []) if isinstance(raw.get("tags", []), list) else []
